@@ -1,0 +1,35 @@
+module NinjaLineages
+{
+    character_trait_definition NinjaLineages:byakugan
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = NinjaLineages:byakugan,
+        Cost = 14,
+        UIName = UI_trait_NL_Byakugan,
+        UIDescription = UI_trait_NL_ByakuganDesc,
+        MutuallyExclusiveTraits = NinjaLineages:sharingan;NinjaLineages:senju,
+    }
+
+    character_trait_definition NinjaLineages:sharingan
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = NinjaLineages:sharingan,
+        Cost = 14,
+        UIName = UI_trait_NL_Sharingan,
+        UIDescription = UI_trait_NL_SharinganDesc,
+        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:senju,
+    }
+
+    character_trait_definition NinjaLineages:senju
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = NinjaLineages:senju,
+        Cost = 14,
+        UIName = UI_trait_NL_Senju,
+        UIDescription = UI_trait_NL_SenjuDesc,
+        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan,
+    }
+}

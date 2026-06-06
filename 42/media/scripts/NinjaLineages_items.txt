@@ -1,0 +1,14 @@
+module Base
+{
+    item NL_ByakuganSight
+    {
+        DisplayCategory = Accessory,
+        ItemType = base:clothing,
+        Weight = 0.0,
+        Icon = Eyepatch,
+        BodyLocation = base:lefteye,
+        Cosmetic = true,
+        VisionModifier = 4.0,
+        HearingModifier = 4.0,
+    }
+}
