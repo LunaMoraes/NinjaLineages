@@ -2,7 +2,9 @@
     "UI_trait_NL_Byakugan": "Hyuga Lineage",
     "UI_trait_NL_ByakuganDesc": "Possesses the Byakugan. Greatly expands perception and field of vision. +5 Foraging search radius, immunity to weather and darkness foraging penalties, and grants Eagle Eyed and Keen Hearing.",
     "UI_trait_NL_Sharingan": "Uchiha Lineage",
-    "UI_trait_NL_SharinganDesc": "Possesses the Sharingan. 95% chance to evade physical zombie attacks, preventing bites, scratches, cuts, and infection.",
+    "UI_trait_NL_SharinganDesc": "Possesses the Sharingan. Evolves through combat: no dodge bonus at 0 kills, then 30%, 60%, and 90% zombie attack evasion at 1, 100, and 500 kills.",
     "UI_trait_NL_Senju": "Senju Lineage",
-    "UI_trait_NL_SenjuDesc": "Possesses the powerful chakra reserves of the Senju. Grants massive endurance reserves and recovery, and suppresses exhaustion warnings."
+    "UI_trait_NL_SenjuDesc": "Possesses the powerful chakra reserves of the Senju. Grants massive endurance reserves and recovery, and suppresses exhaustion warnings.",
+    "UI_trait_NL_Rinnegan": "Rinnegan",
+    "UI_trait_NL_RinneganDesc": "Possesses the Rinnegan. Grants light superior perception for foraging and unlocks Deva Path: Shinra Tensei."
 }

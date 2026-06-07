@@ -6,3 +6,4 @@ icon=icon.png
 author=Luna
 modversion=1.0.0
 versionMin=42.17.0
+require=MoodleFramework

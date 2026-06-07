@@ -1,0 +1,17 @@
+Moodles_EN {
+    Moodles_NLSharinganTomoe_Good_lvl1 = "Sharingan",
+    Moodles_NLSharinganTomoe_Good_desc_lvl1 = "First Tomoe awakened. Dodge chance: 30%.",
+    Moodles_NLSharinganTomoe_Good_lvl2 = "Sharingan",
+    Moodles_NLSharinganTomoe_Good_desc_lvl2 = "Second Tomoe released. Dodge chance: 60%.",
+    Moodles_NLSharinganTomoe_Good_lvl3 = "Sharingan",
+    Moodles_NLSharinganTomoe_Good_desc_lvl3 = "Third Tomoe released. Dodge chance: 90%.",
+    Moodles_NLSharinganTomoe_Good_lvl4 = "Mangekyo Sharingan",
+    Moodles_NLSharinganTomoe_Good_desc_lvl4 = "Mangekyo Sharingan awakened. Kamui is available.",
+
+    Moodles_NLKamuiVision_Bad_lvl1 = "Vision Impaired",
+    Moodles_NLKamuiVision_Bad_desc_lvl1 = "Kamui has strained your vision. Recovery: 1 in-game hour.",
+    Moodles_NLKamuiVision_Bad_lvl2 = "Vision Impaired",
+    Moodles_NLKamuiVision_Bad_desc_lvl2 = "Repeated Kamui use has damaged your vision. Recovery: 6 in-game hours.",
+    Moodles_NLKamuiVision_Bad_lvl3 = "Vision Impaired",
+    Moodles_NLKamuiVision_Bad_desc_lvl3 = "Kamui overuse has severely damaged your vision. Recovery: 1 full in-game day.",
+}

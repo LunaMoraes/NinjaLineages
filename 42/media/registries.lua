@@ -7,3 +7,5 @@ NinjaLineages.CharacterTrait.SHARINGAN =
     CharacterTrait.register("NinjaLineages:sharingan")
 NinjaLineages.CharacterTrait.SENJU =
     CharacterTrait.register("NinjaLineages:senju")
+NinjaLineages.CharacterTrait.RINNEGAN =
+    CharacterTrait.register("NinjaLineages:rinnegan")

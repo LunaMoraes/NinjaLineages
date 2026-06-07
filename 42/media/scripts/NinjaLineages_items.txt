@@ -11,4 +11,37 @@ module Base
         VisionModifier = 4.0,
         HearingModifier = 4.0,
     }
+
+    item NL_KamuiVision_L1
+    {
+        DisplayCategory = Accessory,
+        ItemType = base:clothing,
+        Weight = 0.0,
+        Icon = Eyepatch,
+        BodyLocation = base:lefteye,
+        Cosmetic = true,
+        VisionModifier = 0.75,
+    }
+
+    item NL_KamuiVision_L2
+    {
+        DisplayCategory = Accessory,
+        ItemType = base:clothing,
+        Weight = 0.0,
+        Icon = Eyepatch,
+        BodyLocation = base:lefteye,
+        Cosmetic = true,
+        VisionModifier = 0.5,
+    }
+
+    item NL_KamuiVision_L3
+    {
+        DisplayCategory = Accessory,
+        ItemType = base:clothing,
+        Weight = 0.0,
+        Icon = Eyepatch,
+        BodyLocation = base:lefteye,
+        Cosmetic = true,
+        VisionModifier = 0.25,
+    }
 }

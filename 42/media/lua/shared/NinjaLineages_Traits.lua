@@ -3,6 +3,7 @@ NinjaLineages = NinjaLineages or {}
 NinjaLineages.TRAIT_BYAKUGAN = "NinjaLineages:byakugan"
 NinjaLineages.TRAIT_SHARINGAN = "NinjaLineages:sharingan"
 NinjaLineages.TRAIT_SENJU = "NinjaLineages:senju"
+NinjaLineages.TRAIT_RINNEGAN = "NinjaLineages:rinnegan"
 
 -- Traits are registered via NinjaLineages_traits.txt in Build 42
 
@@ -16,6 +17,12 @@ local function addForageSkillDefs(forageSystemInstance)
             visionBonus = 5.0,      -- Substantial search radius expansion
             weatherEffect = 100,    -- Immune to weather foraging penalty
             darknessEffect = 100,   -- Immune to darkness foraging penalty
+            specialisations = {}
+        }
+        forageSystemInstance.forageSkillDefinitions[NinjaLineages.TRAIT_RINNEGAN] = {
+            name = NinjaLineages.TRAIT_RINNEGAN,
+            type = "trait",
+            visionBonus = 2.0,
             specialisations = {}
         }
     end
