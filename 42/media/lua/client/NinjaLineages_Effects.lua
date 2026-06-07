@@ -1,8 +1,9 @@
 require "NinjaLineages_Traits"
 
 local SHARINGAN_DODGE_CHANCE = 95
-local SENJU_ENDURANCE_RECOVERY = 0.05
+local SENJU_ENDURANCE_RECOVERY_PER_SECOND = 0.01
 local sharinganAttackRolls = {}
+local senjuLastRecoveryAt = {}
 
 local function getByakuganTrait()
     return NinjaLineages.CharacterTrait
@@ -107,13 +108,21 @@ local function applySenjuEndurance(player)
     
     local senjuTrait = getSenjuTrait()
     if not senjuTrait then return end
-    if not player:hasTrait(senjuTrait) then return end
+    if not player:hasTrait(senjuTrait) then
+        senjuLastRecoveryAt[player] = nil
+        return
+    end
+
+    local currentTime = getTimestampMs()
+    local lastRecovery = senjuLastRecoveryAt[player]
+    if lastRecovery and currentTime < lastRecovery + 1000 then return end
+    senjuLastRecoveryAt[player] = currentTime
 
     local stats = player:getStats()
     if not stats then return end
 
     local current = stats:get(CharacterStat.ENDURANCE)
-    local boosted = math.min(1.0, current + SENJU_ENDURANCE_RECOVERY)
+    local boosted = math.min(1.0, current + SENJU_ENDURANCE_RECOVERY_PER_SECOND)
     stats:set(CharacterStat.ENDURANCE, boosted)
 end
 
