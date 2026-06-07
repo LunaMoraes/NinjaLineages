@@ -18,12 +18,16 @@ local KAMUI_ENDURANCE_MIN = 0.20
 local KAMUI_ENDURANCE_DRAIN_PER_SECOND = 0.08
 local KAMUI_COOLDOWN_SECONDS = 15
 local SHINRA_COOLDOWN_SECONDS = 15
-local SHINRA_RADIUS = 4.0
+local SHINRA_RADIUS = 7.0
+local SHINRA_GUARANTEED_KNOCKDOWN_RADIUS = 3.5
 local SHINRA_BASE_ENDURANCE_COST = 0.35
 local SHINRA_ENDURANCE_COST_PER_ZOMBIE = 0.03
 local SHINRA_ENDURANCE_COST_CAP = 0.75
-local SHINRA_MIN_DAMAGE = 0.12
-local SHINRA_MAX_DAMAGE = 0.42
+local SHINRA_MIN_DAMAGE = 0.75
+local SHINRA_MAX_DAMAGE = 1.10
+local SHINRA_MIN_DAMAGE_FALLOFF = 0.85
+local BYAKUGAN_PUSH_MIN_DAMAGE = 0.18
+local BYAKUGAN_PUSH_MAX_DAMAGE = 0.75
 local VISION_RECOVERY_HOURS = { 1, 6, 24 }
 local VISION_ITEMS = {
     "Base.NL_KamuiVision_L1",
@@ -106,6 +110,10 @@ end
 
 local function hasSharingan(player)
     return hasTrait(player, getSharinganTrait())
+end
+
+local function hasByakugan(player)
+    return hasTrait(player, getByakuganTrait())
 end
 
 local function hasRinnegan(player)
@@ -497,13 +505,8 @@ local function collectShinraTargets(player)
     return targets
 end
 
-local function applyShinraDamage(player, target)
-    local zombie = target.zombie
+local function applyZombieDamage(player, zombie, damage)
     if not zombie or zombie:isDead() then return end
-
-    local falloff = math.max(0.15, 1.0 - (target.distance / SHINRA_RADIUS))
-    local damageRoll = ZombRand(0, 1001) / 1000
-    local damage = (SHINRA_MIN_DAMAGE + (damageRoll * (SHINRA_MAX_DAMAGE - SHINRA_MIN_DAMAGE))) * falloff
 
     pcall(function() zombie:setAttackedBy(player) end)
     local ok, health = pcall(function() return zombie:getHealth() end)
@@ -516,18 +519,42 @@ local function applyShinraDamage(player, target)
     end
 end
 
+local function getRandomDamage(minDamage, maxDamage)
+    local damageRoll = ZombRand(0, 1001) / 1000
+    return minDamage + (damageRoll * (maxDamage - minDamage))
+end
+
+local function applyShinraDamage(player, target)
+    local zombie = target.zombie
+    if not zombie or zombie:isDead() then return end
+
+    local falloff = math.max(SHINRA_MIN_DAMAGE_FALLOFF, 1.0 - ((target.distance / SHINRA_RADIUS) * 0.15))
+    local damage = getRandomDamage(SHINRA_MIN_DAMAGE, SHINRA_MAX_DAMAGE) * falloff
+    applyZombieDamage(player, zombie, damage)
+end
+
+local function getKnockdownChance(distance)
+    if distance <= SHINRA_GUARANTEED_KNOCKDOWN_RADIUS then return 100 end
+
+    local outerRange = SHINRA_RADIUS - SHINRA_GUARANTEED_KNOCKDOWN_RADIUS
+    if outerRange <= 0 then return 0 end
+
+    local remaining = math.max(0, SHINRA_RADIUS - distance)
+    return math.floor((remaining / outerRange) * 100)
+end
+
 local function applyShinraToZombie(player, target)
     local zombie = target.zombie
     if not zombie or zombie:isDead() then return end
 
     zombie:setVariable("AttackOutcome", "fail")
     zombie:setStaggerBack(true)
-    if target.distance <= 2.0 or ZombRand(1, 101) <= 60 then
+    if ZombRand(1, 101) <= getKnockdownChance(target.distance) then
         zombie:setKnockedDown(true)
     end
     pcall(function() zombie:setHitReaction("") end)
     pcall(function() zombie:setPlayerAttackPosition("FRONT") end)
-    pcall(function() zombie:setHitForce(math.max(1.0, SHINRA_RADIUS - target.distance)) end)
+    pcall(function() zombie:setHitForce(math.max(2.0, 8.0 - target.distance)) end)
     pcall(function() zombie:reportEvent("wasHit") end)
     applyShinraDamage(player, target)
 end
@@ -643,6 +670,43 @@ local function sharinganEvade(zombie)
     end
 end
 
+local function isBareHands(weapon)
+    if not weapon then return false end
+    local ok, weaponType = pcall(function() return weapon:getType() end)
+    return ok and weaponType == "BareHands"
+end
+
+local function getAttackPosition(attacker, zombie)
+    local ok, position = pcall(function() return zombie:testDotSide(attacker) end)
+    if ok and position then return position end
+    return "FRONT"
+end
+
+local function isZombieCharacter(zombie)
+    local ok, result = pcall(function() return zombie:isZombie() end)
+    if ok then return result == true end
+    return instanceof(zombie, "IsoZombie")
+end
+
+local function byakuganPushHit(zombie, attacker, bodyPartType, handWeapon)
+    if not zombie or not attacker or not handWeapon then return end
+    if not instanceof(attacker, "IsoPlayer") then return end
+    if not attacker:isLocalPlayer() then return end
+    if not hasByakugan(attacker) then return end
+    if not isBareHands(handWeapon) then return end
+    if not isZombieCharacter(zombie) or zombie:isDead() then return end
+
+    pcall(function() zombie:setHitFromBehind(attacker:isBehind(zombie)) end)
+    pcall(function() zombie:setKnockedDown(true) end)
+    pcall(function() zombie:setStaggerBack(true) end)
+    pcall(function() zombie:setHitReaction("") end)
+    pcall(function() zombie:setPlayerAttackPosition(getAttackPosition(attacker, zombie)) end)
+    pcall(function() zombie:setHitForce(2.0) end)
+    pcall(function() zombie:reportEvent("wasHit") end)
+
+    applyZombieDamage(attacker, zombie, getRandomDamage(BYAKUGAN_PUSH_MIN_DAMAGE, BYAKUGAN_PUSH_MAX_DAMAGE))
+end
+
 local function getAvailableAbilities(player)
     local abilities = {}
     if canUseKamui(player) then
@@ -756,6 +820,7 @@ end)
 Events.OnGameBoot.Add(initKeybinds)
 Events.OnPlayerUpdate.Add(onPlayerUpdate)
 Events.OnZombieUpdate.Add(sharinganEvade)
+Events.OnHitZombie.Add(byakuganPushHit)
 Events.OnCharacterDeath.Add(unlockMangekyoIfEligible)
 Events.OnFillWorldObjectContextMenu.Add(addAbilityContextMenu)
 Events.OnKeyStartPressed.Add(onKeyStartPressed)
