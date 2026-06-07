@@ -1,6 +1,7 @@
 require "NinjaLineages_Traits"
 
 local SHARINGAN_DODGE_CHANCE = 95
+local SENJU_ENDURANCE_RECOVERY = 0.05
 local sharinganAttackRolls = {}
 
 local function getByakuganTrait()
@@ -112,7 +113,7 @@ local function applySenjuEndurance(player)
     if not stats then return end
 
     local current = stats:get(CharacterStat.ENDURANCE)
-    local boosted = math.min(1.0, current + 0.02)
+    local boosted = math.min(1.0, current + SENJU_ENDURANCE_RECOVERY)
     stats:set(CharacterStat.ENDURANCE, boosted)
 end
 
