@@ -1,5 +1,9 @@
 require "NinjaLineages_Traits"
 
+local SHARINGAN_STAGE_1_KILLS = 1
+local SHARINGAN_STAGE_2_KILLS = 100
+local SHARINGAN_STAGE_3_KILLS = 500
+
 local function getNLData(player)
     local modData = player:getModData()
     modData.NinjaLineages = modData.NinjaLineages or {}
@@ -26,9 +30,9 @@ end
 local function getSharinganStage(player)
     if not hasSharingan(player) then return 0 end
     local kills = player:getZombieKills() or 0
-    if kills >= 500 then return 3 end
-    if kills >= 100 then return 2 end
-    if kills >= 1 then return 1 end
+    if kills >= SHARINGAN_STAGE_3_KILLS then return 3 end
+    if kills >= SHARINGAN_STAGE_2_KILLS then return 2 end
+    if kills >= SHARINGAN_STAGE_1_KILLS then return 1 end
     return 0
 end
 

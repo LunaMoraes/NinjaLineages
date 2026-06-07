@@ -10,20 +10,45 @@ if MF and MF.createMoodle then
 end
 
 local SENJU_ENDURANCE_RECOVERY_PER_SECOND = 0.01
+local SHARINGAN_STAGE_1_KILLS = 1
+local SHARINGAN_STAGE_2_KILLS = 100
+local SHARINGAN_STAGE_3_KILLS = 500
 local KAMUI_DURATION_MS = 10000
 local KAMUI_ENDURANCE_MIN = 0.20
 local KAMUI_ENDURANCE_DRAIN_PER_SECOND = 0.08
-local KAMUI_COOLDOWN_SECONDS = 240
+local KAMUI_COOLDOWN_SECONDS = 15
 local SHINRA_COOLDOWN_SECONDS = 15
 local SHINRA_RADIUS = 4.0
 local SHINRA_BASE_ENDURANCE_COST = 0.35
 local SHINRA_ENDURANCE_COST_PER_ZOMBIE = 0.03
 local SHINRA_ENDURANCE_COST_CAP = 0.75
+local SHINRA_MIN_DAMAGE = 0.12
+local SHINRA_MAX_DAMAGE = 0.42
 local VISION_RECOVERY_HOURS = { 1, 6, 24 }
 local VISION_ITEMS = {
     "Base.NL_KamuiVision_L1",
     "Base.NL_KamuiVision_L2",
     "Base.NL_KamuiVision_L3",
+}
+local MOODLE_GOOD = 1
+local MOODLE_BAD = 2
+local MOODLE_TEXT = {
+    NLSharinganTomoe = {
+        [MOODLE_GOOD] = {
+            [1] = { "Sharingan", "First Tomoe awakened. Dodge chance: 30%." },
+            [2] = { "Sharingan", "Second Tomoe released. Dodge chance: 60%." },
+            [3] = { "Sharingan", "Third Tomoe released. Dodge chance: 90%." },
+            [4] = { "Mangekyo Sharingan", "Mangekyo Sharingan awakened. Kamui is available." },
+        },
+    },
+    NLKamuiVision = {
+        [MOODLE_BAD] = {
+            [1] = { "Vision Impaired", "Kamui has strained your vision. Recovery: 1 in-game hour." },
+            [2] = { "Vision Impaired", "Repeated Kamui use has damaged your vision. Recovery: 6 in-game hours." },
+            [3] = { "Vision Impaired", "Kamui overuse has severely damaged your vision. Recovery: 1 full in-game day." },
+            [4] = { "Vision Impaired", "Kamui overuse has severely damaged your vision. Recovery: 1 full in-game day." },
+        },
+    },
 }
 
 local sharinganAttackRolls = {}
@@ -90,9 +115,9 @@ end
 local function getSharinganStage(player)
     if not hasSharingan(player) then return 0 end
     local kills = player:getZombieKills() or 0
-    if kills >= 500 then return 3 end
-    if kills >= 100 then return 2 end
-    if kills >= 1 then return 1 end
+    if kills >= SHARINGAN_STAGE_3_KILLS then return 3 end
+    if kills >= SHARINGAN_STAGE_2_KILLS then return 2 end
+    if kills >= SHARINGAN_STAGE_1_KILLS then return 1 end
     return 0
 end
 
@@ -109,6 +134,16 @@ local function setMoodleValue(name, player, value)
     local playerNum = player:getPlayerNum()
     local ok, moodle = pcall(function() return MF.getMoodle(name, playerNum) end)
     if ok and moodle then
+        local text = MOODLE_TEXT[name]
+        if text and not moodle.NinjaLineagesTextConfigured then
+            for moodleType, levels in pairs(text) do
+                for level, moodleText in pairs(levels) do
+                    pcall(function() moodle:setTitle(moodleType, level, moodleText[1]) end)
+                    pcall(function() moodle:setDescription(moodleType, level, moodleText[2]) end)
+                end
+            end
+            moodle.NinjaLineagesTextConfigured = true
+        end
         moodle:setValue(value)
     end
 end
@@ -462,7 +497,26 @@ local function collectShinraTargets(player)
     return targets
 end
 
-local function applyShinraToZombie(target)
+local function applyShinraDamage(player, target)
+    local zombie = target.zombie
+    if not zombie or zombie:isDead() then return end
+
+    local falloff = math.max(0.15, 1.0 - (target.distance / SHINRA_RADIUS))
+    local damageRoll = ZombRand(0, 1001) / 1000
+    local damage = (SHINRA_MIN_DAMAGE + (damageRoll * (SHINRA_MAX_DAMAGE - SHINRA_MIN_DAMAGE))) * falloff
+
+    pcall(function() zombie:setAttackedBy(player) end)
+    local ok, health = pcall(function() return zombie:getHealth() end)
+    if ok and health then
+        local newHealth = math.max(0, health - damage)
+        pcall(function() zombie:setHealth(newHealth) end)
+        if newHealth <= 0 then
+            pcall(function() zombie:Kill(player) end)
+        end
+    end
+end
+
+local function applyShinraToZombie(player, target)
     local zombie = target.zombie
     if not zombie or zombie:isDead() then return end
 
@@ -475,6 +529,7 @@ local function applyShinraToZombie(target)
     pcall(function() zombie:setPlayerAttackPosition("FRONT") end)
     pcall(function() zombie:setHitForce(math.max(1.0, SHINRA_RADIUS - target.distance)) end)
     pcall(function() zombie:reportEvent("wasHit") end)
+    applyShinraDamage(player, target)
 end
 
 local function useShinraTensei(player)
@@ -506,12 +561,38 @@ local function useShinraTensei(player)
 
     stats:set(CharacterStat.ENDURANCE, math.max(0, endurance - cost))
     for _, target in ipairs(targets) do
-        applyShinraToZombie(target)
+        applyShinraToZombie(player, target)
     end
 
     data.shinraCooldownUntil = now + SHINRA_COOLDOWN_SECONDS
     transmitPlayerData(player)
     player:Say("Shinra Tensei")
+end
+
+local function isSinglePlayerGame()
+    if isClient and isClient() then return false end
+    if isServer and isServer() then return false end
+    return true
+end
+
+local function canUseKamuiTestUnlock(player)
+    if not isSinglePlayerGame() then return false end
+    if not hasSharingan(player) then return false end
+    if getSharinganStage(player) < 3 then return false end
+    return getNLData(player).mangekyoUnlocked ~= true
+end
+
+local function unlockKamuiForSinglePlayerTest(player)
+    if not canUseKamuiTestUnlock(player) then
+        player:Say("Third Tomoe is required")
+        return
+    end
+
+    local data = getNLData(player)
+    data.mangekyoUnlocked = true
+    transmitPlayerData(player)
+    updateSharinganMoodle(player)
+    player:Say("Mangekyo Sharingan awakened")
 end
 
 local function unlockMangekyoIfEligible(victim)
@@ -590,12 +671,16 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
     local player = getSpecificPlayer(playerNum)
     if not player or player:isDead() then return end
     local abilities = getAvailableAbilities(player)
-    if #abilities == 0 then return end
+    local canTestUnlock = canUseKamuiTestUnlock(player)
+    if #abilities == 0 and not canTestUnlock then return end
     if test then return true end
 
     local option = context:addOption("Ninja Lineages")
     local subMenu = ISContextMenu:getNew(context)
     context:addSubMenu(option, subMenu)
+    if canTestUnlock then
+        subMenu:addOption("Kamui Test: Unlock Mangekyo", player, unlockKamuiForSinglePlayerTest)
+    end
     for _, ability in ipairs(abilities) do
         subMenu:addOption(ability.name, player, ability.action)
     end
