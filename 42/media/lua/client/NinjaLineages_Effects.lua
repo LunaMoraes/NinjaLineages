@@ -97,6 +97,7 @@ local function sharinganEvade(zombie)
     if ZombRand(1, 101) <= SHARINGAN_DODGE_CHANCE then
         zombie:setVariable("AttackOutcome", "fail")
         player:setHitReaction("EvasiveBlocked")
+        player:Say("Sharingan!")
     end
 end
 
@@ -110,14 +111,9 @@ local function applySenjuEndurance(player)
     local stats = player:getStats()
     if not stats then return end
 
-    -- Bounded endurance recovery
-    local current = stats:getEndurance()
+    local current = stats:get(CharacterStat.ENDURANCE)
     local boosted = math.min(1.0, current + 0.02)
-    stats:setEndurance(boosted)
-
-    -- Keep warnings suppressed
-    stats:setEndurancewarn(0.0)
-    stats:setEndurancedanger(0.0)
+    stats:set(CharacterStat.ENDURANCE, boosted)
 end
 
 -- Combined update handler for player ticks
