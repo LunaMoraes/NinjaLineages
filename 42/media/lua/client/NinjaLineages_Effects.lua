@@ -1,7 +1,7 @@
 require "NinjaLineages_Traits"
 
-local PlayerHitReactionState = PlayerHitReactionState or (zombie and zombie.ai and zombie.ai.states and zombie.ai.states.PlayerHitReactionState)
-local PlayerHitReactionPVPState = PlayerHitReactionPVPState or (zombie and zombie.ai and zombie.ai.states and zombie.ai.states.PlayerHitReactionPVPState)
+local SHARINGAN_DODGE_CHANCE = 95
+local sharinganAttackRolls = {}
 
 local function getByakuganTrait()
     return NinjaLineages.CharacterTrait
@@ -16,15 +16,6 @@ end
 local function getSenjuTrait()
     return NinjaLineages.CharacterTrait
         and NinjaLineages.CharacterTrait.SENJU
-end
-
-local function tableContains(t, e)
-    for _, value in pairs(t) do
-        if value == e then
-            return true
-        end
-    end
-    return false
 end
 
 -- Helper to find equipped Byakugan sight
@@ -80,74 +71,32 @@ local function applyByakugan(player)
     end
 end
 
-local function sharinganEvade(player, damageType, damage)
-    if not player then return end
-    if not instanceof(player, "IsoPlayer") then return end
-    
+local function sharinganEvade(zombie)
+    if not zombie or zombie:isDead() then return end
+
+    local attackOutcome = zombie:getVariableString("AttackOutcome")
+    if attackOutcome ~= "success" then
+        sharinganAttackRolls[zombie] = nil
+        return
+    end
+
+    -- AttackCollisionCheck happens after the attack enters "success".
+    -- Handle each success once and turn dodged attacks into misses first.
+    if sharinganAttackRolls[zombie] then return end
+
+    local player = zombie:getTarget()
+    if not player or not instanceof(player, "IsoPlayer") then return end
+    if player:isDead() or player:isZombie() then return end
+    if not player:isLocalPlayer() then return end
+
     local sharinganTrait = getSharinganTrait()
     if not sharinganTrait then return end
     if not player:hasTrait(sharinganTrait) then return end
 
-    local modData = player:getModData()
-    if not modData.NL_SharinganInjuredBodyList then
-        modData.NL_SharinganInjuredBodyList = {}
-    end
-
-    local list = modData.NL_SharinganInjuredBodyList
-    local bodyDamage = player:getBodyDamage()
-    if not bodyDamage then return end
-
-    local wasInfected = modData.NL_SharinganPlayerInfected or false
-    local infected = bodyDamage:isInfected()
-
-    -- Check if player is in a hit reaction state (meaning they just took a physical hit)
-    local isHitReaction = false
-    if PlayerHitReactionState and player:getCurrentState() == PlayerHitReactionState.instance() then
-        isHitReaction = true
-    elseif PlayerHitReactionPVPState and player:getCurrentState() == PlayerHitReactionPVPState.instance() then
-        isHitReaction = true
-    end
-
-    if isHitReaction then
-        for i = 0, bodyDamage:getBodyParts():size() - 1 do
-            local bodypart = bodyDamage:getBodyParts():get(i)
-            if bodypart:HasInjury() == true and tableContains(list, i) == false then
-                -- 95% evasion chance
-                if ZombRand(1, 101) <= 95 then
-                    -- Play sound / display text
-                    player:Say("Sharingan!")
-                    player:setHitReaction("EvasiveBlocked")
-
-                    -- Clean up wound
-                    if bodypart:IsInfected() and wasInfected == false and infected == true then
-                        bodypart:SetInfected(false)
-                        bodyDamage:setInfected(false)
-                        bodyDamage:setInfectionMortalityDuration(-1)
-                        bodyDamage:setInfectionTime(-1)
-                        bodyDamage:setInfectionLevel(0)
-                        bodyDamage:setInfectionGrowthRate(0)
-                    end
-                    bodypart:setBleedingTime(0)
-                    bodypart:setBleeding(false)
-                    if bodypart:scratched() then
-                        bodypart:setScratchTime(0)
-                        bodypart:setScratched(false, false)
-                    end
-                    if bodypart:isCut() then
-                        bodypart:setCutTime(0)
-                        bodypart:setCut(false, false)
-                    end
-                    if bodypart:bitten() then
-                        bodypart:RestoreToFullHealth()
-                    end
-                else
-                    table.insert(list, i)
-                    if bodypart:IsInfected() and wasInfected == false and infected == true then
-                        modData.NL_SharinganPlayerInfected = true
-                    end
-                end
-            end
-        end
+    sharinganAttackRolls[zombie] = true
+    if ZombRand(1, 101) <= SHARINGAN_DODGE_CHANCE then
+        zombie:setVariable("AttackOutcome", "fail")
+        player:setHitReaction("EvasiveBlocked")
     end
 end
 
@@ -171,24 +120,6 @@ local function applySenjuEndurance(player)
     stats:setEndurancedanger(0.0)
 end
 
--- Clear Sharingan injury tracking list for fully healed body parts
-local function cleanSharinganList(player)
-    if not player then return end
-    local modData = player:getModData()
-    if not modData.NL_SharinganInjuredBodyList then return end
-
-    local bodyDamage = player:getBodyDamage()
-    if not bodyDamage then return end
-
-    for idx = #modData.NL_SharinganInjuredBodyList, 1, -1 do
-        local partIdx = modData.NL_SharinganInjuredBodyList[idx]
-        local bodypart = bodyDamage:getBodyParts():get(partIdx)
-        if bodypart and bodypart:HasInjury() == false then
-            table.remove(modData.NL_SharinganInjuredBodyList, idx)
-        end
-    end
-end
-
 -- Combined update handler for player ticks
 local function onPlayerUpdate(player)
     if not player then return end
@@ -196,7 +127,6 @@ local function onPlayerUpdate(player)
 
     applyByakugan(player)
     applySenjuEndurance(player)
-    cleanSharinganList(player)
 end
 
 -- Trigger on player creation or loading
@@ -207,4 +137,4 @@ Events.OnCreatePlayer.Add(function(playerIndex, player)
 end)
 
 Events.OnPlayerUpdate.Add(onPlayerUpdate)
-Events.OnPlayerGetDamage.Add(sharinganEvade)
+Events.OnZombieUpdate.Add(sharinganEvade)
