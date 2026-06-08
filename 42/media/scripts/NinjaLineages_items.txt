@@ -44,4 +44,30 @@ module Base
         Cosmetic = true,
         VisionModifier = 0.25,
     }
+
+    item NL_AlarmSeal
+    {
+        DisplayCategory = Tools,
+        ItemType = base:normal,
+        DisplayName = Alarm Seal,
+        Weight = 0.02,
+        Icon = SheetPaper,
+        Tags = base:isfirefuel;base:isfiretinder,
+    }
+
+    item NL_SealedScroll
+    {
+        DisplayCategory = Bag,
+        ItemType = base:container,
+        DisplayName = Sealed Scroll,
+        Weight = 0.1,
+        Icon = SheetPaper,
+        Capacity = 80,
+        WeightReduction = 99,
+        CloseSound = CloseBag,
+        OpenSound = OpenBag,
+        PutInSound = PutItemInBag,
+        AcceptItemFunction = AcceptItemFunction.NinjaLineagesSealedScroll,
+        Tags = base:isfirefuel;base:isfiretinder,
+    }
 }

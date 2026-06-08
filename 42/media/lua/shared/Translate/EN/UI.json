@@ -4,7 +4,11 @@
     "UI_trait_NL_Sharingan": "Uchiha Lineage",
     "UI_trait_NL_SharinganDesc": "Possesses the Sharingan. Evolves through combat: no dodge bonus at 0 kills, then 30%, 60%, and 90% zombie attack evasion at 1, 100, and 500 kills.",
     "UI_trait_NL_Senju": "Senju Lineage",
-    "UI_trait_NL_SenjuDesc": "Possesses the powerful chakra reserves of the Senju. Grants massive endurance reserves and recovery, and suppresses exhaustion warnings.",
+    "UI_trait_NL_SenjuDesc": "Possesses the powerful chakra reserves of the Senju. Recovers endurance over time, heals wounds 25% faster, and unlocks Wood Release: Binding Roots and Creation Rebirth.",
     "UI_trait_NL_Rinnegan": "Rinnegan",
-    "UI_trait_NL_RinneganDesc": "Possesses the Rinnegan. Grants light superior perception for foraging and unlocks Deva Path: Shinra Tensei, a wide force blast that staggers, knocks down, and damages zombies."
+    "UI_trait_NL_RinneganDesc": "Possesses the Rinnegan. Grants light superior perception for foraging and unlocks Deva Path: Shinra Tensei, a wide force blast that staggers, knocks down, and damages zombies.",
+    "UI_trait_NL_Uzumaki": "Uzumaki Lineage",
+    "UI_trait_NL_UzumakiDesc": "Possesses Uzumaki Tenacity. Takes reduced health damage, bleeds very slowly, and can use Alarm Seals and Sealed Scrolls.",
+    "UI_item_NL_AlarmSeal": "Alarm Seal",
+    "UI_item_NL_SealedScroll": "Sealed Scroll"
 }

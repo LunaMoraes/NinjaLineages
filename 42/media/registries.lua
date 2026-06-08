@@ -9,3 +9,5 @@ NinjaLineages.CharacterTrait.SENJU =
     CharacterTrait.register("NinjaLineages:senju")
 NinjaLineages.CharacterTrait.RINNEGAN =
     CharacterTrait.register("NinjaLineages:rinnegan")
+NinjaLineages.CharacterTrait.UZUMAKI =
+    CharacterTrait.register("NinjaLineages:uzumaki")

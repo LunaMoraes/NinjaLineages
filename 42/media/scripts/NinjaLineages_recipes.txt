@@ -1,0 +1,74 @@
+module Base
+{
+    craftRecipe MakeNLAlarmSeal
+    {
+        timedAction = Making,
+        time = 30,
+        OnTest = RecipeCodeOnTest.NinjaLineagesUzumakiOnly,
+        Tags = InHandCraft,
+        category = Miscellaneous,
+        inputs
+        {
+            item 1 tags[base:newspaper;base:magazine],
+            item 1 [Base.Pen;Base.Pencil;Base.PenFancy;Base.PenMultiColor;Base.PenSpiffo;Base.PencilSpiffo] mode:keep,
+        }
+        outputs
+        {
+            item 1 Base.NL_AlarmSeal,
+        }
+    }
+
+    craftRecipe MakeNLAlarmSealFromPaper
+    {
+        timedAction = Making,
+        time = 30,
+        OnTest = RecipeCodeOnTest.NinjaLineagesUzumakiOnly,
+        Tags = InHandCraft,
+        category = Miscellaneous,
+        inputs
+        {
+            item 1 [Base.SheetPaper2;Base.Notebook;Base.Journal],
+            item 1 [Base.Pen;Base.Pencil;Base.PenFancy;Base.PenMultiColor;Base.PenSpiffo;Base.PencilSpiffo] mode:keep,
+        }
+        outputs
+        {
+            item 1 Base.NL_AlarmSeal,
+        }
+    }
+
+    craftRecipe MakeNLSealedScroll
+    {
+        timedAction = Making,
+        time = 45,
+        OnTest = RecipeCodeOnTest.NinjaLineagesUzumakiOnly,
+        Tags = InHandCraft,
+        category = Miscellaneous,
+        inputs
+        {
+            item 1 tags[base:newspaper;base:magazine],
+            item 1 [Base.Pen;Base.Pencil;Base.PenFancy;Base.PenMultiColor;Base.PenSpiffo;Base.PencilSpiffo] mode:keep,
+        }
+        outputs
+        {
+            item 1 Base.NL_SealedScroll,
+        }
+    }
+
+    craftRecipe MakeNLSealedScrollFromPaper
+    {
+        timedAction = Making,
+        time = 45,
+        OnTest = RecipeCodeOnTest.NinjaLineagesUzumakiOnly,
+        Tags = InHandCraft,
+        category = Miscellaneous,
+        inputs
+        {
+            item 1 [Base.SheetPaper2;Base.Notebook;Base.Journal],
+            item 1 [Base.Pen;Base.Pencil;Base.PenFancy;Base.PenMultiColor;Base.PenSpiffo;Base.PencilSpiffo] mode:keep,
+        }
+        outputs
+        {
+            item 1 Base.NL_SealedScroll,
+        }
+    }
+}

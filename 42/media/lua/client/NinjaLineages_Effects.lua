@@ -1,8 +1,11 @@
 require "NinjaLineages_Traits"
+require "NinjaLineages_Items"
 
 pcall(require, "MF_ISMoodle")
 pcall(require, "ISUI/ISContextMenu")
 pcall(require, "ISUI/ISRadialMenu")
+pcall(require, "TimedActions/ISBaseTimedAction")
+pcall(require, "TimedActions/ISTimedActionQueue")
 
 if MF and MF.createMoodle then
     MF.createMoodle("NLSharinganTomoe")
@@ -26,6 +29,20 @@ local SHINRA_ENDURANCE_COST_CAP = 0.75
 local SHINRA_MIN_DAMAGE = 0.75
 local SHINRA_MAX_DAMAGE = 1.10
 local SHINRA_MIN_DAMAGE_FALLOFF = 0.85
+local WOOD_ROOTS_RADIUS = 10.0
+local WOOD_ROOTS_INNER_RADIUS = 6.0
+local WOOD_ROOTS_COOLDOWN_SECONDS = 45
+local WOOD_ROOTS_ENDURANCE_COST = 0.35
+local WOOD_ROOTS_BIND_MS = 3500
+local CREATION_REBIRTH_DURATION_MS = 8000
+local CREATION_REBIRTH_TICK_MS = 250
+local CREATION_REBIRTH_ENDURANCE_PER_PART = 0.015
+local UZUMAKI_DAMAGE_REFUND = 0.33
+local UZUMAKI_BLEED_REFUND = 0.75
+local UZUMAKI_PASSIVE_TICK_MS = 1000
+local ALARM_SEAL_RADIUS = 2.0
+local ALARM_SEAL_SCAN_MS = 500
+local ALARM_SEAL_DISCOVERY_MS = 5000
 local BYAKUGAN_PUSH_MIN_DAMAGE = 0.18
 local BYAKUGAN_PUSH_MAX_DAMAGE = 0.75
 local VISION_RECOVERY_HOURS = { 1, 6, 24 }
@@ -58,6 +75,12 @@ local MOODLE_TEXT = {
 local sharinganAttackRolls = {}
 local senjuLastRecoveryAt = {}
 local kamuiState = {}
+local boundZombies = {}
+local creationRebirthState = {}
+local uzumakiHealthState = {}
+local alarmSeals = {}
+local nextAlarmScanAt = 0
+local nextAlarmDiscoveryAt = 0
 
 local function getByakuganTrait()
     return NinjaLineages.CharacterTrait
@@ -77,6 +100,19 @@ end
 local function getRinneganTrait()
     return NinjaLineages.CharacterTrait
         and NinjaLineages.CharacterTrait.RINNEGAN
+end
+
+local function getUzumakiTrait()
+    return NinjaLineages.CharacterTrait
+        and NinjaLineages.CharacterTrait.UZUMAKI
+end
+
+local function getFastHealerTrait()
+    local ok, trait = pcall(function()
+        return CharacterTrait.get(ResourceLocation.of("base:fasthealer"))
+    end)
+    if ok then return trait end
+    return nil
 end
 
 local function getNLData(player)
@@ -118,6 +154,14 @@ end
 
 local function hasRinnegan(player)
     return hasTrait(player, getRinneganTrait())
+end
+
+local function hasSenju(player)
+    return hasTrait(player, getSenjuTrait())
+end
+
+local function hasUzumaki(player)
+    return hasTrait(player, getUzumakiTrait())
 end
 
 local function getSharinganStage(player)
@@ -344,9 +388,28 @@ local function applySenjuEndurance(player)
 
     local senjuTrait = getSenjuTrait()
     if not senjuTrait then return end
+    local data = getNLData(player)
+    local fastHealer = getFastHealerTrait()
     if not player:hasTrait(senjuTrait) then
         senjuLastRecoveryAt[player] = nil
+        if data.senjuAddedFastHealer and fastHealer then
+            pcall(function() player:getCharacterTraits():remove(fastHealer:getType()) end)
+            pcall(function() player:getCharacterTraits():remove(fastHealer) end)
+            data.senjuAddedFastHealer = nil
+            transmitPlayerData(player)
+        end
         return
+    end
+
+    if fastHealer and not player:hasTrait(fastHealer) then
+        pcall(function() player:getCharacterTraits():add(fastHealer:getType()) end)
+        pcall(function()
+            if not player:hasTrait(fastHealer) then
+                player:getCharacterTraits():add(fastHealer)
+            end
+        end)
+        data.senjuAddedFastHealer = true
+        transmitPlayerData(player)
     end
 
     local currentTime = getTimestampMs()
@@ -596,6 +659,496 @@ local function useShinraTensei(player)
     player:Say("Shinra Tensei")
 end
 
+local function collectZombieTargets(player, radius)
+    local targets = {}
+    local zombies = getCell() and getCell():getZombieList()
+    if not zombies then return targets end
+    for i = 0, zombies:size() - 1 do
+        local zombie = zombies:get(i)
+        if zombie and not zombie:isDead() then
+            local distance = zombie:DistTo(player)
+            if distance <= radius then
+                table.insert(targets, { zombie = zombie, distance = distance })
+            end
+        end
+    end
+    return targets
+end
+
+local function applyBindingRootsToZombie(player, target)
+    local zombie = target.zombie
+    if not zombie or zombie:isDead() then return end
+
+    zombie:setVariable("AttackOutcome", "fail")
+    zombie:setStaggerBack(true)
+    local knockdownChance = target.distance <= WOOD_ROOTS_INNER_RADIUS and 65 or 35
+    if ZombRand(1, 101) <= knockdownChance then
+        zombie:setKnockedDown(true)
+    end
+    pcall(function() zombie:setHitReaction("") end)
+    pcall(function() zombie:setPlayerAttackPosition("FRONT") end)
+    pcall(function() zombie:setHitForce(2.0) end)
+    pcall(function() zombie:reportEvent("wasHit") end)
+    boundZombies[zombie] = getTimestampMs() + WOOD_ROOTS_BIND_MS
+end
+
+local function useBindingRoots(player)
+    if not hasSenju(player) then
+        player:Say("Senju lineage is required")
+        return
+    end
+
+    local data = getNLData(player)
+    local now = getTimestampSeconds()
+    if data.bindingRootsCooldownUntil and now < data.bindingRootsCooldownUntil then
+        player:Say("Binding Roots cooldown: " .. tostring(math.ceil(data.bindingRootsCooldownUntil - now)) .. "s")
+        return
+    end
+
+    local stats = player:getStats()
+    if not stats then return end
+    local endurance = stats:get(CharacterStat.ENDURANCE)
+    if endurance < WOOD_ROOTS_ENDURANCE_COST then
+        player:Say("Too exhausted for Binding Roots")
+        return
+    end
+
+    stats:set(CharacterStat.ENDURANCE, math.max(0, endurance - WOOD_ROOTS_ENDURANCE_COST))
+    for _, target in ipairs(collectZombieTargets(player, WOOD_ROOTS_RADIUS)) do
+        applyBindingRootsToZombie(player, target)
+    end
+
+    data.bindingRootsCooldownUntil = now + WOOD_ROOTS_COOLDOWN_SECONDS
+    transmitPlayerData(player)
+    player:Say("Mokuton")
+end
+
+local function reducePartTimer(bodypart, getter, setter, amount)
+    local ok, value = pcall(function()
+        if getter == "getBleedingTime" then return bodypart:getBleedingTime() end
+        if getter == "getScratchTime" then return bodypart:getScratchTime() end
+        if getter == "getCutTime" then return bodypart:getCutTime() end
+        if getter == "getDeepWoundTime" then return bodypart:getDeepWoundTime() end
+        if getter == "getBurnTime" then return bodypart:getBurnTime() end
+        if getter == "getFractureTime" then return bodypart:getFractureTime() end
+        return 0
+    end)
+    if not ok or not value or value <= 0 then return false end
+    local nextValue = math.max(0, value - amount)
+    pcall(function()
+        if setter == "setBleedingTime" then bodypart:setBleedingTime(nextValue) end
+        if setter == "setScratchTime" then bodypart:setScratchTime(nextValue) end
+        if setter == "setCutTime" then bodypart:setCutTime(nextValue) end
+        if setter == "setDeepWoundTime" then bodypart:setDeepWoundTime(nextValue) end
+        if setter == "setBurnTime" then bodypart:setBurnTime(nextValue) end
+        if setter == "setFractureTime" then bodypart:setFractureTime(nextValue) end
+    end)
+    return nextValue < value
+end
+
+local function restoreBodyPartHealth(bodyDamage, bodypart, amount)
+    local changed = false
+    local ok, health = pcall(function() return bodypart:getHealth() end)
+    if ok and health and health < 100 then
+        pcall(function() bodypart:setHealth(math.min(100, health + amount)) end)
+        changed = true
+    end
+    if changed then
+        pcall(function() bodyDamage:AddGeneralHealth(amount * 0.25) end)
+    end
+    return changed
+end
+
+local function healBodyPartForCreationRebirth(bodyDamage, bodypart)
+    if not bodypart then return false end
+    local changed = false
+
+    changed = reducePartTimer(bodypart, "getBleedingTime", "setBleedingTime", 4.0) or changed
+    changed = reducePartTimer(bodypart, "getScratchTime", "setScratchTime", 4.0) or changed
+    changed = reducePartTimer(bodypart, "getCutTime", "setCutTime", 4.0) or changed
+    changed = reducePartTimer(bodypart, "getDeepWoundTime", "setDeepWoundTime", 3.0) or changed
+    changed = reducePartTimer(bodypart, "getBurnTime", "setBurnTime", 2.0) or changed
+    changed = reducePartTimer(bodypart, "getFractureTime", "setFractureTime", 1.0) or changed
+    if changed then
+        pcall(function()
+            if bodypart:getBleedingTime() <= 0 then
+                bodypart:setBleeding(false)
+            end
+        end)
+    end
+
+    changed = restoreBodyPartHealth(bodyDamage, bodypart, 3.0) or changed
+    return changed
+end
+
+local function stopCreationRebirth(player)
+    creationRebirthState[player] = nil
+end
+
+local function updateCreationRebirth(player)
+    local state = creationRebirthState[player]
+    if not state then return end
+
+    local nowMs = getTimestampMs()
+    if nowMs >= state.endsAt then
+        stopCreationRebirth(player)
+        return
+    end
+    if nowMs < state.nextTickAt then return end
+    state.nextTickAt = nowMs + CREATION_REBIRTH_TICK_MS
+
+    local stats = player:getStats()
+    local bodyDamage = player:getBodyDamage()
+    if not stats or not bodyDamage then
+        stopCreationRebirth(player)
+        return
+    end
+
+    local parts = bodyDamage:getBodyParts()
+    if not parts then return end
+    local endurance = stats:get(CharacterStat.ENDURANCE)
+    for i = 0, parts:size() - 1 do
+        if endurance <= 0 then
+            stats:set(CharacterStat.ENDURANCE, 0)
+            stopCreationRebirth(player)
+            return
+        end
+
+        local bodypart = parts:get(i)
+        if bodypart and healBodyPartForCreationRebirth(bodyDamage, bodypart) then
+            endurance = math.max(0, endurance - CREATION_REBIRTH_ENDURANCE_PER_PART)
+            stats:set(CharacterStat.ENDURANCE, endurance)
+        end
+    end
+end
+
+local function useCreationRebirth(player)
+    if not hasSenju(player) then
+        player:Say("Senju lineage is required")
+        return
+    end
+    local stats = player:getStats()
+    if not stats or stats:get(CharacterStat.ENDURANCE) <= 0 then
+        player:Say("Too exhausted for Creation Rebirth")
+        return
+    end
+    local nowMs = getTimestampMs()
+    creationRebirthState[player] = {
+        endsAt = nowMs + CREATION_REBIRTH_DURATION_MS,
+        nextTickAt = nowMs,
+    }
+    player:Say("Creation Rebirth")
+end
+
+local function getBodyPartSnapshot(player)
+    local snapshot = {}
+    local bodyDamage = player and player:getBodyDamage()
+    local parts = bodyDamage and bodyDamage:getBodyParts()
+    if not parts then return snapshot end
+    for i = 0, parts:size() - 1 do
+        local part = parts:get(i)
+        local health = 100
+        local bleed = 0
+        pcall(function() health = part:getHealth() end)
+        pcall(function() bleed = part:getBleedingTime() end)
+        snapshot[i] = { health = health, bleed = bleed }
+    end
+    return snapshot
+end
+
+local function captureUzumakiHealthState(player)
+    local bodyDamage = player and player:getBodyDamage()
+    if not bodyDamage then return end
+    local data = uzumakiHealthState[player] or {}
+    pcall(function() data.generalHealth = bodyDamage:getHealth() end)
+    data.parts = getBodyPartSnapshot(player)
+    data.lastPassiveAt = getTimestampMs()
+    uzumakiHealthState[player] = data
+end
+
+local function refundUzumakiDamage(player)
+    if not hasUzumaki(player) then return end
+    local data = uzumakiHealthState[player]
+    if not data then
+        captureUzumakiHealthState(player)
+        return
+    end
+
+    local bodyDamage = player:getBodyDamage()
+    local parts = bodyDamage and bodyDamage:getBodyParts()
+    if not bodyDamage or not parts then return end
+
+    local ok, currentGeneral = pcall(function() return bodyDamage:getHealth() end)
+    if ok and data.generalHealth and currentGeneral and currentGeneral < data.generalHealth then
+        pcall(function() bodyDamage:AddGeneralHealth((data.generalHealth - currentGeneral) * UZUMAKI_DAMAGE_REFUND) end)
+    end
+
+    for i = 0, parts:size() - 1 do
+        local previous = data.parts and data.parts[i]
+        local part = parts:get(i)
+        if previous and part then
+            local okHealth, currentHealth = pcall(function() return part:getHealth() end)
+            if okHealth and currentHealth and currentHealth < previous.health then
+                local refund = (previous.health - currentHealth) * UZUMAKI_DAMAGE_REFUND
+                pcall(function() part:setHealth(math.min(100, currentHealth + refund)) end)
+            end
+        end
+    end
+    captureUzumakiHealthState(player)
+end
+
+local function applyUzumakiBleedSlow(player)
+    if not hasUzumaki(player) then
+        uzumakiHealthState[player] = nil
+        return
+    end
+
+    local nowMs = getTimestampMs()
+    local data = uzumakiHealthState[player]
+    if not data then
+        captureUzumakiHealthState(player)
+        return
+    end
+    if data.lastPassiveAt and nowMs < data.lastPassiveAt + UZUMAKI_PASSIVE_TICK_MS then return end
+
+    local bodyDamage = player:getBodyDamage()
+    local parts = bodyDamage and bodyDamage:getBodyParts()
+    if not parts then return end
+
+    for i = 0, parts:size() - 1 do
+        local previous = data.parts and data.parts[i]
+        local part = parts:get(i)
+        if previous and part then
+            local okBleed, currentBleed = pcall(function() return part:getBleedingTime() end)
+            if okBleed and currentBleed and currentBleed > 0 and previous.bleed and currentBleed < previous.bleed then
+                local restored = currentBleed + ((previous.bleed - currentBleed) * UZUMAKI_BLEED_REFUND)
+                pcall(function() part:setBleedingTime(restored) end)
+            end
+        end
+    end
+    captureUzumakiHealthState(player)
+end
+
+local function getActualInventoryItem(item)
+    if not item then return nil end
+    if item.items and item.items[1] then return item.items[1] end
+    return item
+end
+
+local function getFirstInventoryItem(player, fullType)
+    local inv = player and player:getInventory()
+    if not inv then return nil end
+    return inv:getItemFromType(fullType)
+end
+
+local function consumeInventoryItem(player, item)
+    local inv = player and player:getInventory()
+    if not inv or not item then return false end
+    inv:Remove(item)
+    pcall(function() sendRemoveItemFromContainer(inv, item) end)
+    return true
+end
+
+local function getSquareKey(square)
+    if not square then return nil end
+    return tostring(square:getX()) .. "," .. tostring(square:getY()) .. "," .. tostring(square:getZ())
+end
+
+local function registerAlarmSeal(square, player)
+    if not square then return end
+    local owner = ""
+    pcall(function() owner = player and player:getUsername() or "" end)
+    local modData = square:getModData()
+    modData.NinjaLineages = modData.NinjaLineages or {}
+    modData.NinjaLineages.alarmSeal = {
+        owner = owner,
+        x = square:getX(),
+        y = square:getY(),
+        z = square:getZ(),
+    }
+    pcall(function() square:transmitModData() end)
+    alarmSeals[getSquareKey(square)] = square
+end
+
+local function removeAlarmSeal(square)
+    if not square then return end
+    local modData = square:getModData()
+    if modData.NinjaLineages then
+        modData.NinjaLineages.alarmSeal = nil
+    end
+    pcall(function() square:transmitModData() end)
+    alarmSeals[getSquareKey(square)] = nil
+end
+
+local function placeAlarmSeal(player, square)
+    if not hasUzumaki(player) then
+        player:Say("Uzumaki lineage is required")
+        return
+    end
+    local seal = getFirstInventoryItem(player, "Base.NL_AlarmSeal")
+    if not seal then
+        player:Say("No Alarm Seal")
+        return
+    end
+    if not square then square = player:getSquare() end
+    registerAlarmSeal(square, player)
+    consumeInventoryItem(player, seal)
+    player:Say("Alarm Seal placed")
+end
+
+local function discoverAlarmSealsNearPlayer(player)
+    if not player or not player:getSquare() then return end
+    local cell = getCell()
+    if not cell then return end
+    local px = player:getX()
+    local py = player:getY()
+    local z = player:getZ()
+    for x = math.floor(px - 25), math.floor(px + 25) do
+        for y = math.floor(py - 25), math.floor(py + 25) do
+            local square = cell:getGridSquare(x, y, z)
+            local modData = square and square:getModData()
+            if modData and modData.NinjaLineages and modData.NinjaLineages.alarmSeal then
+                alarmSeals[getSquareKey(square)] = square
+            end
+        end
+    end
+end
+
+local function triggerAlarmSeal(player, square)
+    removeAlarmSeal(square)
+    if player and not player:isDead() then
+        player:Say("Alarm Seal triggered!")
+    end
+end
+
+local function updateAlarmSeals(player)
+    local nowMs = getTimestampMs()
+    if nowMs >= nextAlarmDiscoveryAt then
+        nextAlarmDiscoveryAt = nowMs + ALARM_SEAL_DISCOVERY_MS
+        discoverAlarmSealsNearPlayer(player)
+    end
+    if nowMs < nextAlarmScanAt then return end
+    nextAlarmScanAt = nowMs + ALARM_SEAL_SCAN_MS
+
+    local zombies = getCell() and getCell():getZombieList()
+    if not zombies then return end
+    for key, square in pairs(alarmSeals) do
+        if not square then
+            alarmSeals[key] = nil
+        else
+            for i = 0, zombies:size() - 1 do
+                local zombie = zombies:get(i)
+                local dx = zombie and (zombie:getX() - (square:getX() + 0.5)) or 999
+                local dy = zombie and (zombie:getY() - (square:getY() + 0.5)) or 999
+                if zombie and not zombie:isDead() and ((dx * dx) + (dy * dy)) <= (ALARM_SEAL_RADIUS * ALARM_SEAL_RADIUS) then
+                    triggerAlarmSeal(player, square)
+                    break
+                end
+            end
+        end
+    end
+end
+
+local function isSealedScrollItem(item)
+    local ok, fullType = pcall(function() return item and item:getFullType() end)
+    return ok and fullType == "Base.NL_SealedScroll"
+end
+
+local function isBackpackContainer(item)
+    if not item or isSealedScrollItem(item) then return false end
+    local okContainer, isContainer = pcall(function() return item:IsInventoryContainer() end)
+    if not okContainer or not isContainer then return false end
+
+    local okEquip, equipLocation = pcall(function() return item:canBeEquipped() end)
+    if okEquip and equipLocation and tostring(equipLocation) ~= "" then return true end
+
+    local okCategory, category = pcall(function() return item:getDisplayCategory() end)
+    if okCategory and tostring(category) == "Bag" then return true end
+
+    return false
+end
+
+local function getScrollInventory(scroll)
+    local ok, inv = pcall(function() return scroll and scroll:getInventory() end)
+    if ok then return inv end
+    return nil
+end
+
+local function getContainedBackpack(scroll)
+    local inv = getScrollInventory(scroll)
+    if not inv or inv:getItems():size() == 0 then return nil end
+    return inv:getItems():get(0)
+end
+
+local function moveItemBetweenContainers(item, srcContainer, destContainer)
+    if not item or not destContainer then return false end
+    if srcContainer then
+        srcContainer:Remove(item)
+        pcall(function() sendRemoveItemFromContainer(srcContainer, item) end)
+    end
+    destContainer:AddItem(item)
+    pcall(function() sendAddItemToContainer(destContainer, item) end)
+    pcall(function() destContainer:setDrawDirty(true) end)
+    return true
+end
+
+local function sealBackpackInScroll(player, backpack, scroll)
+    if not hasUzumaki(player) then
+        player:Say("Uzumaki lineage is required")
+        return
+    end
+    if not isBackpackContainer(backpack) then return end
+    local scrollInv = getScrollInventory(scroll)
+    if not scrollInv or scrollInv:getItems():size() > 0 then
+        player:Say("Scroll already contains a seal")
+        return
+    end
+    moveItemBetweenContainers(backpack, backpack:getContainer(), scrollInv)
+    player:Say("Storage Seal")
+end
+
+NLUnsealScrollAction = ISBaseTimedAction and ISBaseTimedAction:derive("NLUnsealScrollAction") or {}
+
+function NLUnsealScrollAction:isValid()
+    return self.scroll and getContainedBackpack(self.scroll) ~= nil
+end
+
+function NLUnsealScrollAction:perform()
+    local backpack = getContainedBackpack(self.scroll)
+    if backpack then
+        moveItemBetweenContainers(backpack, getScrollInventory(self.scroll), self.character:getInventory())
+        self.character:Say("Unsealed")
+    end
+    if ISBaseTimedAction then
+        ISBaseTimedAction.perform(self)
+    end
+end
+
+function NLUnsealScrollAction:new(character, scroll)
+    local o = ISBaseTimedAction and ISBaseTimedAction.new(self, character) or {}
+    setmetatable(o, self)
+    self.__index = self
+    o.character = character
+    o.scroll = scroll
+    o.maxTime = character:isTimedActionInstant() and 1 or 80
+    return o
+end
+
+local function unsealScroll(player, scroll)
+    if not hasUzumaki(player) then
+        player:Say("Uzumaki lineage is required")
+        return
+    end
+    if ISTimedActionQueue and ISBaseTimedAction then
+        ISTimedActionQueue.add(NLUnsealScrollAction:new(player, scroll))
+    else
+        local backpack = getContainedBackpack(scroll)
+        if backpack then
+            moveItemBetweenContainers(backpack, getScrollInventory(scroll), player:getInventory())
+        end
+    end
+end
+
 local function isSinglePlayerGame()
     if isClient and isClient() then return false end
     if isServer and isServer() then return false end
@@ -670,6 +1223,22 @@ local function sharinganEvade(zombie)
     end
 end
 
+local function enforceBindingRoots(zombie)
+    local bindUntil = boundZombies[zombie]
+    if not bindUntil then return end
+    if not zombie or zombie:isDead() or getTimestampMs() > bindUntil then
+        boundZombies[zombie] = nil
+        return
+    end
+    zombie:setVariable("AttackOutcome", "fail")
+    pcall(function() zombie:setStaggerBack(true) end)
+end
+
+local function onZombieUpdate(zombie)
+    enforceBindingRoots(zombie)
+    sharinganEvade(zombie)
+end
+
 local function isBareHands(weapon)
     if not weapon then return false end
     local ok, weaponType = pcall(function() return weapon:getType() end)
@@ -710,25 +1279,51 @@ end
 local function getAvailableAbilities(player)
     local abilities = {}
     if canUseKamui(player) then
-        table.insert(abilities, { name = "Kamui", action = startKamui, texture = "media/ui/Traits/trait_sharingan.png" })
+        table.insert(abilities, { id = "kamui", name = "Kamui", action = startKamui, texture = "media/ui/Traits/trait_sharingan.png" })
     end
     if hasRinnegan(player) then
-        table.insert(abilities, { name = "Shinra Tensei", action = useShinraTensei, texture = "media/ui/Traits/trait_rinnegan.png" })
+        table.insert(abilities, { id = "shinra_tensei", name = "Shinra Tensei", action = useShinraTensei, texture = "media/ui/Traits/trait_rinnegan.png" })
+    end
+    if hasSenju(player) then
+        table.insert(abilities, { id = "binding_roots", name = "Wood Release - Binding Roots", action = useBindingRoots, texture = "media/ui/Traits/trait_senju.png" })
+        table.insert(abilities, { id = "creation_rebirth", name = "Creation Rebirth", action = useCreationRebirth, texture = "media/ui/Traits/trait_senju.png" })
     end
     return abilities
 end
 
-local function useDefaultAbility(player)
+local function getSelectedAbility(player, abilities)
+    local data = getNLData(player)
+    for _, ability in ipairs(abilities) do
+        if data.selectedAbilityId == ability.id then
+            return ability
+        end
+    end
+    local fallback = abilities[1]
+    if fallback and data.selectedAbilityId ~= fallback.id then
+        data.selectedAbilityId = fallback.id
+        transmitPlayerData(player)
+    end
+    return fallback
+end
+
+local function selectAbility(player, ability)
+    if not ability then return end
+    local data = getNLData(player)
+    data.selectedAbilityId = ability.id
+    transmitPlayerData(player)
+    player:Say(ability.name .. " selected")
+end
+
+local function useSelectedAbility(player)
     local abilities = getAvailableAbilities(player)
     if #abilities == 0 then
         player:Say("No ninja ability available")
         return
     end
-    if #abilities == 1 then
-        abilities[1].action(player)
-        return
+    local ability = getSelectedAbility(player, abilities)
+    if ability and ability.action then
+        ability.action(player)
     end
-    player:Say("Use the Ninja Lineages radial menu")
 end
 
 local function addAbilityContextMenu(playerNum, context, worldObjects, test)
@@ -736,7 +1331,8 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
     if not player or player:isDead() then return end
     local abilities = getAvailableAbilities(player)
     local canTestUnlock = canUseKamuiTestUnlock(player)
-    if #abilities == 0 and not canTestUnlock then return end
+    local alarmSeal = getFirstInventoryItem(player, "Base.NL_AlarmSeal")
+    if #abilities == 0 and not canTestUnlock and not alarmSeal then return end
     if test then return true end
 
     local option = context:addOption("Ninja Lineages")
@@ -748,11 +1344,68 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
     for _, ability in ipairs(abilities) do
         subMenu:addOption(ability.name, player, ability.action)
     end
+    if alarmSeal then
+        local square = player:getSquare()
+        for _, worldObject in ipairs(worldObjects or {}) do
+            if worldObject and worldObject.getSquare and worldObject:getSquare() then
+                square = worldObject:getSquare()
+                break
+            end
+        end
+        subMenu:addOption("Place Alarm Seal", player, placeAlarmSeal, square)
+    end
+end
+
+local function collectEmptyScrolls(player)
+    local scrolls = {}
+    local inv = player and player:getInventory()
+    if not inv then return scrolls end
+    local items = inv:getItems()
+    for i = 0, items:size() - 1 do
+        local item = items:get(i)
+        if isSealedScrollItem(item) then
+            local scrollInv = getScrollInventory(item)
+            if scrollInv and scrollInv:getItems():size() == 0 then
+                table.insert(scrolls, item)
+            end
+        end
+    end
+    return scrolls
+end
+
+local function addStorageSealContextMenu(playerNum, context, items)
+    local player = getSpecificPlayer(playerNum)
+    if not player or player:isDead() then return end
+    if not hasUzumaki(player) then return end
+
+    local selected = nil
+    if items then
+        selected = getActualInventoryItem(items[1])
+    end
+    if not selected then return end
+
+    if isSealedScrollItem(selected) then
+        if getContainedBackpack(selected) then
+            context:addOption("Unseal Backpack", player, unsealScroll, selected)
+        end
+        return
+    end
+
+    if not isBackpackContainer(selected) then return end
+    local scrolls = collectEmptyScrolls(player)
+    if #scrolls == 0 then return end
+
+    local option = context:addOption("Seal Backpack")
+    local subMenu = ISContextMenu:getNew(context)
+    context:addSubMenu(option, subMenu)
+    for _, scroll in ipairs(scrolls) do
+        subMenu:addOption(scroll:getName(), player, sealBackpackInScroll, selected, scroll)
+    end
 end
 
 local function showAbilityRadial(player)
     local abilities = getAvailableAbilities(player)
-    if #abilities == 0 then return false end
+    if #abilities < 2 then return false end
 
     local menu = getPlayerRadialMenu(player:getPlayerNum())
     menu:clear()
@@ -767,7 +1420,7 @@ local function showAbilityRadial(player)
     menu:setX(getPlayerScreenLeft(player:getPlayerNum()) + getPlayerScreenWidth(player:getPlayerNum()) / 2 - menu:getWidth() / 2)
     menu:setY(getPlayerScreenTop(player:getPlayerNum()) + getPlayerScreenHeight(player:getPlayerNum()) / 2 - menu:getHeight() / 2)
     for _, ability in ipairs(abilities) do
-        menu:addSlice(ability.name, getTexture(ability.texture), ability.action, player)
+        menu:addSlice(ability.name, getTexture(ability.texture), selectAbility, player, ability)
     end
     menu:addToUIManager()
     getSoundManager():playUISound("UIVehicleMenuOpen")
@@ -780,22 +1433,19 @@ local function onKeyStartPressed(key)
     if not player or player:isDead() then return end
 
     if getCore():isKey("Ninja Ability", key) then
-        useDefaultAbility(player)
+        useSelectedAbility(player)
         return
     end
 
-    if getCore():isKey("VehicleRadialMenu", key) and not player:getVehicle() then
-        local hasVehicle = ISVehicleMenu and ISVehicleMenu.getVehicleToInteractWith and ISVehicleMenu.getVehicleToInteractWith(player)
-        local hasAnimal = AnimalContextMenu and AnimalContextMenu.getAnimalToInteractWith and AnimalContextMenu.getAnimalToInteractWith(player)
-        if not hasVehicle and not hasAnimal then
-            showAbilityRadial(player)
-        end
+    if getCore():isKey("Ninja Ability Radial", key) then
+        showAbilityRadial(player)
     end
 end
 
 local function initKeybinds()
     table.insert(keyBinding, { value = "[Ninja Lineages]" })
     table.insert(keyBinding, { value = "Ninja Ability", key = Keyboard.KEY_NONE })
+    table.insert(keyBinding, { value = "Ninja Ability Radial", key = Keyboard.KEY_NONE })
 end
 
 local function onPlayerUpdate(player)
@@ -804,14 +1454,25 @@ local function onPlayerUpdate(player)
 
     applyByakugan(player)
     applySenjuEndurance(player)
+    applyUzumakiBleedSlow(player)
     updateSharinganMoodle(player)
     recoverKamuiVision(player)
     updateKamui(player)
+    updateCreationRebirth(player)
+    updateAlarmSeals(player)
+end
+
+local function onPlayerGetDamage(player, damageType, damage)
+    if not player or not instanceof(player, "IsoPlayer") then return end
+    if not player:isLocalPlayer() then return end
+    refundUzumakiDamage(player)
 end
 
 Events.OnCreatePlayer.Add(function(playerIndex, player)
     if player then
         applyByakugan(player)
+        applySenjuEndurance(player)
+        captureUzumakiHealthState(player)
         recoverKamuiVision(player)
         updateSharinganMoodle(player)
     end
@@ -819,8 +1480,10 @@ end)
 
 Events.OnGameBoot.Add(initKeybinds)
 Events.OnPlayerUpdate.Add(onPlayerUpdate)
-Events.OnZombieUpdate.Add(sharinganEvade)
+Events.OnZombieUpdate.Add(onZombieUpdate)
 Events.OnHitZombie.Add(byakuganPushHit)
 Events.OnCharacterDeath.Add(unlockMangekyoIfEligible)
 Events.OnFillWorldObjectContextMenu.Add(addAbilityContextMenu)
+Events.OnFillInventoryObjectContextMenu.Add(addStorageSealContextMenu)
 Events.OnKeyStartPressed.Add(onKeyStartPressed)
+Events.OnPlayerGetDamage.Add(onPlayerGetDamage)

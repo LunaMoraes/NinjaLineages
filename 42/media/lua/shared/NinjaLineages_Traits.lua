@@ -4,6 +4,7 @@ NinjaLineages.TRAIT_BYAKUGAN = "NinjaLineages:byakugan"
 NinjaLineages.TRAIT_SHARINGAN = "NinjaLineages:sharingan"
 NinjaLineages.TRAIT_SENJU = "NinjaLineages:senju"
 NinjaLineages.TRAIT_RINNEGAN = "NinjaLineages:rinnegan"
+NinjaLineages.TRAIT_UZUMAKI = "NinjaLineages:uzumaki"
 
 -- Traits are registered via NinjaLineages_traits.txt in Build 42
 

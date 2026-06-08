@@ -8,7 +8,7 @@ module NinjaLineages
         Cost = 14,
         UIName = UI_trait_NL_Byakugan,
         UIDescription = UI_trait_NL_ByakuganDesc,
-        MutuallyExclusiveTraits = NinjaLineages:sharingan;NinjaLineages:senju;NinjaLineages:rinnegan,
+        MutuallyExclusiveTraits = NinjaLineages:sharingan;NinjaLineages:senju;NinjaLineages:rinnegan;NinjaLineages:uzumaki,
     }
 
     character_trait_definition NinjaLineages:sharingan
@@ -19,7 +19,7 @@ module NinjaLineages
         Cost = 14,
         UIName = UI_trait_NL_Sharingan,
         UIDescription = UI_trait_NL_SharinganDesc,
-        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:senju;NinjaLineages:rinnegan,
+        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:senju;NinjaLineages:rinnegan;NinjaLineages:uzumaki,
     }
 
     character_trait_definition NinjaLineages:senju
@@ -30,7 +30,7 @@ module NinjaLineages
         Cost = 14,
         UIName = UI_trait_NL_Senju,
         UIDescription = UI_trait_NL_SenjuDesc,
-        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:rinnegan,
+        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:rinnegan;NinjaLineages:uzumaki,
     }
 
     character_trait_definition NinjaLineages:rinnegan
@@ -41,6 +41,17 @@ module NinjaLineages
         Cost = 18,
         UIName = UI_trait_NL_Rinnegan,
         UIDescription = UI_trait_NL_RinneganDesc,
-        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:senju,
+        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:senju;NinjaLineages:uzumaki,
+    }
+
+    character_trait_definition NinjaLineages:uzumaki
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = NinjaLineages:uzumaki,
+        Cost = 14,
+        UIName = UI_trait_NL_Uzumaki,
+        UIDescription = UI_trait_NL_UzumakiDesc,
+        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:senju;NinjaLineages:rinnegan,
     }
 }
