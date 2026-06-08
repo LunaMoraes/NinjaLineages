@@ -747,16 +747,12 @@ local function reducePartTimer(bodypart, getter, setter, amount)
 end
 
 local function restoreBodyPartHealth(bodyDamage, bodypart, amount)
-    local changed = false
     local ok, health = pcall(function() return bodypart:getHealth() end)
     if ok and health and health < 100 then
-        pcall(function() bodypart:setHealth(math.min(100, health + amount)) end)
-        changed = true
+        pcall(function() bodyDamage:AddGeneralHealth(amount) end)
+        return true
     end
-    if changed then
-        pcall(function() bodyDamage:AddGeneralHealth(amount * 0.25) end)
-    end
-    return changed
+    return false
 end
 
 local function healBodyPartForCreationRebirth(bodyDamage, bodypart)
@@ -875,25 +871,13 @@ local function refundUzumakiDamage(player)
     end
 
     local bodyDamage = player:getBodyDamage()
-    local parts = bodyDamage and bodyDamage:getBodyParts()
-    if not bodyDamage or not parts then return end
+    if not bodyDamage then return end
 
     local ok, currentGeneral = pcall(function() return bodyDamage:getHealth() end)
     if ok and data.generalHealth and currentGeneral and currentGeneral < data.generalHealth then
         pcall(function() bodyDamage:AddGeneralHealth((data.generalHealth - currentGeneral) * UZUMAKI_DAMAGE_REFUND) end)
     end
 
-    for i = 0, parts:size() - 1 do
-        local previous = data.parts and data.parts[i]
-        local part = parts:get(i)
-        if previous and part then
-            local okHealth, currentHealth = pcall(function() return part:getHealth() end)
-            if okHealth and currentHealth and currentHealth < previous.health then
-                local refund = (previous.health - currentHealth) * UZUMAKI_DAMAGE_REFUND
-                pcall(function() part:setHealth(math.min(100, currentHealth + refund)) end)
-            end
-        end
-    end
     captureUzumakiHealthState(player)
 end
 
@@ -954,6 +938,15 @@ local function getSquareKey(square)
     return tostring(square:getX()) .. "," .. tostring(square:getY()) .. "," .. tostring(square:getZ())
 end
 
+local function transmitSquareModData(square)
+    if not square then return end
+    if square.transmitModData then
+        pcall(function() square:transmitModData() end)
+    elseif square.transmitModdata then
+        pcall(function() square:transmitModdata() end)
+    end
+end
+
 local function registerAlarmSeal(square, player)
     if not square then return end
     local owner = ""
@@ -966,7 +959,7 @@ local function registerAlarmSeal(square, player)
         y = square:getY(),
         z = square:getZ(),
     }
-    pcall(function() square:transmitModData() end)
+    transmitSquareModData(square)
     alarmSeals[getSquareKey(square)] = square
 end
 
@@ -976,7 +969,7 @@ local function removeAlarmSeal(square)
     if modData.NinjaLineages then
         modData.NinjaLineages.alarmSeal = nil
     end
-    pcall(function() square:transmitModData() end)
+    transmitSquareModData(square)
     alarmSeals[getSquareKey(square)] = nil
 end
 
