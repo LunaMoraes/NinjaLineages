@@ -51,7 +51,7 @@ module Base
         ItemType = base:normal,
         DisplayName = Alarm Seal,
         Weight = 0.02,
-        Icon = SheetPaper,
+        Icon = NLSealIcon,
         Tags = base:isfirefuel;base:isfiretinder,
     }
 
@@ -61,7 +61,7 @@ module Base
         ItemType = base:container,
         DisplayName = Sealed Scroll,
         Weight = 0.1,
-        Icon = SheetPaper,
+        Icon = NLSealIcon,
         Capacity = 80,
         WeightReduction = 99,
         CloseSound = CloseBag,
