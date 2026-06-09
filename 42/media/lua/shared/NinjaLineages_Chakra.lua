@@ -1,4 +1,5 @@
 require "NinjaLineages_Traits"
+require "NinjaLineages_Skills"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Chakra = {}
@@ -79,7 +80,18 @@ end
 function NinjaLineages.Chakra.setChakra(player, val)
     local data = getNLData(player)
     local maxVal = NinjaLineages.Chakra.getMaxChakra(player)
-    data.chakra = math.max(0.0, math.min(maxVal, val))
+    local oldVal = data.chakra or maxVal
+    local newVal = math.max(0.0, math.min(maxVal, val))
+
+    -- Award Jutsu Prowess XP on depletion (1:10 ratio)
+    if newVal < oldVal then
+        local depleted = oldVal - newVal
+        if depleted > 0 then
+            NinjaLineages.Skills.addJutsuProwessXP(player, depleted / 10.0)
+        end
+    end
+
+    data.chakra = newVal
     transmitPlayerData(player)
 end
 

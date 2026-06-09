@@ -83,8 +83,6 @@ function NinjaLineages.CommonJutsu.castHealing(player)
     else
         player:Say(getText("UI_NL_NoWounds"))
     end
-
-    NinjaLineages.Skills.addJutsuProwessXP(player, 5.0)
 end
 
 -- 2. Physical Reinforcement
@@ -112,7 +110,6 @@ function NinjaLineages.CommonJutsu.castReinforcement(player)
     transmitPlayerData(player)
 
     player:Say(getText("UI_NL_ReinforcementCast"))
-    NinjaLineages.Skills.addJutsuProwessXP(player, 5.0)
 end
 
 -- 3. Quiet Step
@@ -140,7 +137,6 @@ function NinjaLineages.CommonJutsu.castQuietStep(player)
     transmitPlayerData(player)
 
     player:Say(getText("UI_NL_QuietStepCast"))
-    NinjaLineages.Skills.addJutsuProwessXP(player, 5.0)
 end
 
 -- 4. Chakra Focus
@@ -170,7 +166,6 @@ function NinjaLineages.CommonJutsu.castChakraFocus(player)
     stats:set(CharacterStat.STRESS, math.max(0.0, stats:get(CharacterStat.STRESS) - stressReduction))
 
     player:Say(getText("UI_NL_ChakraFocusCast"))
-    NinjaLineages.Skills.addJutsuProwessXP(player, 5.0)
 end
 
 -- 5. Chakra Grip
@@ -198,7 +193,6 @@ function NinjaLineages.CommonJutsu.castChakraGrip(player)
     transmitPlayerData(player)
 
     player:Say(getText("UI_NL_ChakraGripCast"))
-    NinjaLineages.Skills.addJutsuProwessXP(player, 5.0)
 end
 
 -- 6. Body Flicker Step
@@ -224,7 +218,6 @@ function NinjaLineages.CommonJutsu.castBodyFlicker(player)
     transmitPlayerData(player)
 
     player:Say(getText("UI_NL_BodyFlickerCast"))
-    NinjaLineages.Skills.addJutsuProwessXP(player, 5.0)
 end
 
 -- Update ticks for active buffs (called in Events.OnPlayerUpdate)

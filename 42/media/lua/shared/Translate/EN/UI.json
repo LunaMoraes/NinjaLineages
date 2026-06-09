@@ -36,5 +36,11 @@
     "UI_NL_BodyFlickerJutsu": "Body Flicker Step",
     "UI_NL_CoveringEye": "Covering eye to conserve chakra.",
     "UI_NL_UncoveringEye": "Uncovering eye.",
-    "UI_NL_EyePowerDeactivated": "Chakra depleted! Eye power deactivated."
+    "UI_NL_EyePowerDeactivated": "Chakra depleted! Eye power deactivated.",
+    "IGUI_perks_NinjaArts": "Ninja Arts",
+    "IGUI_perks_ChakraControl": "Chakra Control",
+    "IGUI_perks_JutsuProwess": "Jutsu Prowess",
+    "IGUI_perks_IGUI_perks_NinjaArts_Description": "The study and mastery of ancient ninja arts and techniques.",
+    "IGUI_perks_IGUI_perks_ChakraControl_Description": "Improves maximum chakra capacity and speeds up chakra regeneration rate.",
+    "IGUI_perks_IGUI_perks_JutsuProwess_Description": "Enhances the potency, damage, and duration of active ninjutsu."
 }
