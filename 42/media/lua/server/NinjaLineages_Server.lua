@@ -21,10 +21,10 @@ local function hasSharingan(player)
         and NinjaLineages.CharacterTrait.SHARINGAN
     if trait and player:hasTrait(trait) then return true end
 
-    local ok, result = pcall(function()
-        return player:hasTrait(NinjaLineages.TRAIT_SHARINGAN)
+    local ok, resolved = pcall(function()
+        return CharacterTrait.get(ResourceLocation.of(NinjaLineages.TRAIT_SHARINGAN))
     end)
-    return ok and result == true
+    return ok and resolved and player:hasTrait(resolved) == true
 end
 
 local function getSharinganStage(player)

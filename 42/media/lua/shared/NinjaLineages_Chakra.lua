@@ -43,12 +43,24 @@ local function transmitPlayerData(player)
     end
 end
 
+local function playerHasTrait(player, key, traitId)
+    if not player then return false end
+    local traitObj = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait[key]
+    if traitObj and player:hasTrait(traitObj) then
+        return true
+    end
+    local ok, resolved = pcall(function()
+        return CharacterTrait.get(ResourceLocation.of(traitId))
+    end)
+    return ok and resolved and player:hasTrait(resolved) == true
+end
+
 -- Get max chakra based on traits
 function NinjaLineages.Chakra.getMaxChakra(player)
     local maxVal = NinjaLineages.Chakra.MAX_BASE_CHAKRA
-    if player:hasTrait(NinjaLineages.TRAIT_SENJU) then
+    if playerHasTrait(player, "SENJU", NinjaLineages.TRAIT_SENJU) then
         maxVal = maxVal * 2.0 -- +100% max cap multiplier (200)
-    elseif player:hasTrait(NinjaLineages.TRAIT_UZUMAKI) then
+    elseif playerHasTrait(player, "UZUMAKI", NinjaLineages.TRAIT_UZUMAKI) then
         maxVal = maxVal * 1.7 -- +70% max cap multiplier (170)
     end
     return maxVal

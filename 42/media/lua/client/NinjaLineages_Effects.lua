@@ -74,6 +74,12 @@ local MOODLE_TEXT = {
             [4] = { "Vision Impaired", "Kamui overuse has severely damaged your vision. Recovery: 1 full in-game day." },
         },
     },
+    NLChakra = {
+        [MOODLE_BAD] = {
+            [1] = { "Low Chakra", "Your chakra is low (<30%). Consider meditating." },
+            [2] = { "Very Low Chakra", "Your chakra is critical (<10%). Sustained powers will fail soon." },
+        },
+    },
 }
 
 local sharinganAttackRolls = {}
@@ -87,28 +93,48 @@ local nextAlarmScanAt = 0
 local nextAlarmDiscoveryAt = 0
 
 local function getByakuganTrait()
-    return NinjaLineages.CharacterTrait
-        and NinjaLineages.CharacterTrait.BYAKUGAN
+    local trait = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait.BYAKUGAN
+    if trait then return trait end
+    local ok, resolved = pcall(function()
+        return CharacterTrait.get(ResourceLocation.of(NinjaLineages.TRAIT_BYAKUGAN))
+    end)
+    return ok and resolved or nil
 end
 
 local function getSharinganTrait()
-    return NinjaLineages.CharacterTrait
-        and NinjaLineages.CharacterTrait.SHARINGAN
+    local trait = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait.SHARINGAN
+    if trait then return trait end
+    local ok, resolved = pcall(function()
+        return CharacterTrait.get(ResourceLocation.of(NinjaLineages.TRAIT_SHARINGAN))
+    end)
+    return ok and resolved or nil
 end
 
 local function getSenjuTrait()
-    return NinjaLineages.CharacterTrait
-        and NinjaLineages.CharacterTrait.SENJU
+    local trait = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait.SENJU
+    if trait then return trait end
+    local ok, resolved = pcall(function()
+        return CharacterTrait.get(ResourceLocation.of(NinjaLineages.TRAIT_SENJU))
+    end)
+    return ok and resolved or nil
 end
 
 local function getRinneganTrait()
-    return NinjaLineages.CharacterTrait
-        and NinjaLineages.CharacterTrait.RINNEGAN
+    local trait = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait.RINNEGAN
+    if trait then return trait end
+    local ok, resolved = pcall(function()
+        return CharacterTrait.get(ResourceLocation.of(NinjaLineages.TRAIT_RINNEGAN))
+    end)
+    return ok and resolved or nil
 end
 
 local function getUzumakiTrait()
-    return NinjaLineages.CharacterTrait
-        and NinjaLineages.CharacterTrait.UZUMAKI
+    local trait = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait.UZUMAKI
+    if trait then return trait end
+    local ok, resolved = pcall(function()
+        return CharacterTrait.get(ResourceLocation.of(NinjaLineages.TRAIT_UZUMAKI))
+    end)
+    return ok and resolved or nil
 end
 
 local function getFastHealerTrait()
@@ -1277,6 +1303,8 @@ local function byakuganPushHit(zombie, attacker, bodyPartType, handWeapon)
     if not instanceof(attacker, "IsoPlayer") then return end
     if not attacker:isLocalPlayer() then return end
     if not hasByakugan(attacker) then return end
+    local data = getNLData(attacker)
+    if not data.eyePowerActive then return end
     if not isBareHands(handWeapon) then return end
     if not isZombieCharacter(zombie) or zombie:isDead() then return end
 
@@ -1345,6 +1373,13 @@ local function getAvailableAbilities(player)
         table.insert(abilities, { id = "binding_roots", name = "Wood Release - Binding Roots", action = useBindingRoots, texture = "media/ui/Traits/trait_senju.png" })
         table.insert(abilities, { id = "creation_rebirth", name = "Creation Rebirth", action = useCreationRebirth, texture = "media/ui/Traits/trait_senju.png" })
     end
+    -- Common Jutsus
+    table.insert(abilities, { id = "healing", name = getText("UI_NL_HealingJutsu"), action = NinjaLineages.CommonJutsu.castHealing, texture = "media/ui/NLJutsu.png" })
+    table.insert(abilities, { id = "reinforcement", name = getText("UI_NL_ReinforcementJutsu"), action = NinjaLineages.CommonJutsu.castReinforcement, texture = "media/ui/NLJutsu.png" })
+    table.insert(abilities, { id = "quietstep", name = getText("UI_NL_QuietStepJutsu"), action = NinjaLineages.CommonJutsu.castQuietStep, texture = "media/ui/NLJutsu.png" })
+    table.insert(abilities, { id = "focus", name = getText("UI_NL_FocusJutsu"), action = NinjaLineages.CommonJutsu.castChakraFocus, texture = "media/ui/NLJutsu.png" })
+    table.insert(abilities, { id = "grip", name = getText("UI_NL_GripJutsu"), action = NinjaLineages.CommonJutsu.castChakraGrip, texture = "media/ui/NLJutsu.png" })
+    table.insert(abilities, { id = "bodyflicker", name = getText("UI_NL_BodyFlickerJutsu"), action = NinjaLineages.CommonJutsu.castBodyFlicker, texture = "media/ui/NLJutsu.png" })
     return abilities
 end
 
@@ -1397,40 +1432,10 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         subMenu:addOption("Kamui Test: Unlock Mangekyo", player, unlockKamuiForSinglePlayerTest)
     end
 
-    -- 2. Lineage active abilities
-    local abilities = getAvailableAbilities(player)
-    for _, ability in ipairs(abilities) do
-        subMenu:addOption(ability.name, player, ability.action)
-    end
-
     -- 3. Meditate
     subMenu:addOption(getText("UI_NL_MeditateOption"), player, function(p)
         ISTimedActionQueue.add(NLMeditationAction:new(p))
     end)
-
-    -- 4. Common Jutsu Submenu
-    local commonOption = subMenu:addOption(getText("UI_NL_CommonJutsuMenu"))
-    local commonSub = ISContextMenu:getNew(subMenu)
-    subMenu:addSubMenu(commonOption, commonSub)
-
-    local function addJutsuOption(menu, nameKey, func, jutsuKey)
-        local onCd, remaining = NinjaLineages.CommonJutsu.isOnCooldown(player, jutsuKey)
-        local label = getText("UI_NL_" .. nameKey)
-        if onCd then
-            label = label .. " (" .. tostring(remaining) .. "s)"
-        end
-        local opt = menu:addOption(label, player, func)
-        if onCd then
-            opt.notAvailable = true
-        end
-    end
-
-    addJutsuOption(commonSub, "HealingJutsu", NinjaLineages.CommonJutsu.castHealing, "healing")
-    addJutsuOption(commonSub, "ReinforcementJutsu", NinjaLineages.CommonJutsu.castReinforcement, "reinforcement")
-    addJutsuOption(commonSub, "QuietStepJutsu", NinjaLineages.CommonJutsu.castQuietStep, "quietstep")
-    addJutsuOption(commonSub, "FocusJutsu", NinjaLineages.CommonJutsu.castChakraFocus, "focus")
-    addJutsuOption(commonSub, "GripJutsu", NinjaLineages.CommonJutsu.castChakraGrip, "grip")
-    addJutsuOption(commonSub, "BodyFlickerJutsu", NinjaLineages.CommonJutsu.castBodyFlicker, "bodyflicker")
 
     -- 7. Place Alarm Seal
     local alarmSeal = getFirstInventoryItem(player, "Base.NL_AlarmSeal")
