@@ -20,16 +20,16 @@ NinjaLineages.Chakra.SHINRA_COST_CAP = 75
 NinjaLineages.Chakra.WOOD_ROOTS_COST = 35
 NinjaLineages.Chakra.CREATION_REBIRTH_COST_PER_PART = 1.5
 NinjaLineages.Chakra.KAMUI_MIN_GATE = 20
-NinjaLineages.Chakra.KAMUI_DRAIN_PER_SECOND = 8.0  -- sustained drains are handled in update ticks (per second)
+NinjaLineages.Chakra.KAMUI_DRAIN_PER_SECOND = 3.0  -- sustained drains are handled in update ticks (per second)
 
 -- Eye sustained drains (per minute in in-game time)
-NinjaLineages.Chakra.BYAKUGAN_DRAIN_PER_MINUTE = 24.0 -- 0.4 per real second equivalent if 1 min = 60s
+NinjaLineages.Chakra.BYAKUGAN_DRAIN_PER_MINUTE = 12.0
 NinjaLineages.Chakra.SHARINGAN_DRAIN_PER_MINUTE = {
-    [1] = 48.0, -- 0.8 per second equivalent
-    [2] = 60.0, -- 1.0 per second equivalent
-    [3] = 72.0, -- 1.2 per second equivalent
+    [1] = 8.5,
+    [2] = 12.0,
+    [3] = 16.3,
 }
-NinjaLineages.Chakra.MANGEKYO_DRAIN_PER_MINUTE = 120.0 -- 2.0 per second equivalent
+NinjaLineages.Chakra.MANGEKYO_DRAIN_PER_MINUTE = 16.3
 
 -- Retrieve or initialize player modData
 local function getNLData(player)
@@ -64,6 +64,11 @@ function NinjaLineages.Chakra.getMaxChakra(player)
     elseif playerHasTrait(player, "UZUMAKI", NinjaLineages.TRAIT_UZUMAKI) then
         maxVal = maxVal * 1.7 -- +70% max cap multiplier (170)
     end
+
+    local ccLevel = NinjaLineages.Skills.getChakraControlLevel(player)
+    local ccMult = 1.0 + (ccLevel * 0.5)
+    maxVal = maxVal * ccMult
+
     return maxVal
 end
 

@@ -1562,8 +1562,9 @@ local function everyOneMinute()
     local maxChakra = NinjaLineages.Chakra.getMaxChakra(player)
     local currentChakra = NinjaLineages.Chakra.getChakra(player)
 
-    -- 1. Chakra regeneration (1.0 base per minute)
-    local regenRate = 1.0
+    -- 1. Chakra regeneration (2.0% of max chakra base per minute)
+    local baseRegenPct = 0.02
+    local regenRate = maxChakra * baseRegenPct
     if data.isMeditating then
         regenRate = regenRate * 3.0
     end
