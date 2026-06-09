@@ -442,7 +442,6 @@ local function applySenjuEndurance(player)
     if not player:hasTrait(senjuTrait) then
         senjuLastRecoveryAt[player] = nil
         if data.senjuAddedFastHealer and fastHealer then
-            pcall(function() player:getCharacterTraits():remove(fastHealer:getType()) end)
             pcall(function() player:getCharacterTraits():remove(fastHealer) end)
             data.senjuAddedFastHealer = nil
             transmitPlayerData(player)
@@ -451,12 +450,7 @@ local function applySenjuEndurance(player)
     end
 
     if fastHealer and not player:hasTrait(fastHealer) then
-        pcall(function() player:getCharacterTraits():add(fastHealer:getType()) end)
-        pcall(function()
-            if not player:hasTrait(fastHealer) then
-                player:getCharacterTraits():add(fastHealer)
-            end
-        end)
+        pcall(function() player:getCharacterTraits():add(fastHealer) end)
         data.senjuAddedFastHealer = true
         transmitPlayerData(player)
     end
@@ -1345,6 +1339,10 @@ local function toggleSharingan(player)
         updateSharinganMoodle(player)
         player:Say("Sharingan Deactivated")
     else
+        if getSharinganStage(player) == 0 then
+            player:Say(getText("UI_NL_SharinganLocked"))
+            return
+        end
         if NinjaLineages.Chakra.getChakra(player) > 0 then
             data.eyePowerActive = true
             updateSharinganMoodle(player)
