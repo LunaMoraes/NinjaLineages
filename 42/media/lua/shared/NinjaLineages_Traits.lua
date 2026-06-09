@@ -131,9 +131,9 @@ function NinjaLineages.getSharinganStage(player)
     if not NinjaLineages.hasSharingan(player) then return 0 end
     local kills = player:getZombieKills() or 0
     local consts = NinjaLineages.Constants
-    if kills >= consts.SHARINGAN_STAGE_3_KILLS then return 3 end
-    if kills >= consts.SHARINGAN_STAGE_2_KILLS then return 2 end
-    if kills >= consts.SHARINGAN_STAGE_1_KILLS then return 1 end
+    if kills >= consts.Uchiha.SharinganStageKills[3] then return 3 end
+    if kills >= consts.Uchiha.SharinganStageKills[2] then return 2 end
+    if kills >= consts.Uchiha.SharinganStageKills[1] then return 1 end
     return 0
 end
 

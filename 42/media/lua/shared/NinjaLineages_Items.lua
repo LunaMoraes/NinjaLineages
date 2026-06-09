@@ -1,4 +1,5 @@
 require "NinjaLineages_Traits"
+require "NinjaLineages_Utils"
 
 NinjaLineages = NinjaLineages or {}
 AcceptItemFunction = AcceptItemFunction or {}

@@ -1,4 +1,6 @@
 require "NinjaLineages_Traits"
+require "NinjaLineages_Utils"
+require "NinjaLineages_UI"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uzumaki = {}
@@ -32,7 +34,7 @@ local function captureUzumakiHealthState(player)
     local data = uzumakiHealthState[player] or {}
     pcall(function() data.generalHealth = bodyDamage:getHealth() end)
     data.parts = getBodyPartSnapshot(player)
-    data.lastPassiveAt = getTimestampMs()
+    data.lastPassiveAt = NinjaLineages.Utils.Time.nowMs()
     uzumakiHealthState[player] = data
 end
 
@@ -49,7 +51,7 @@ local function refundUzumakiDamage(player)
 
     local ok, currentGeneral = pcall(function() return bodyDamage:getHealth() end)
     if ok and data.generalHealth and currentGeneral and currentGeneral < data.generalHealth then
-        pcall(function() bodyDamage:AddGeneralHealth((data.generalHealth - currentGeneral) * consts.UZUMAKI_DAMAGE_REFUND) end)
+        pcall(function() bodyDamage:AddGeneralHealth((data.generalHealth - currentGeneral) * consts.Uzumaki.Passive.DAMAGE_REFUND) end)
     end
 
     captureUzumakiHealthState(player)
@@ -61,13 +63,13 @@ local function applyUzumakiBleedSlow(player)
         return
     end
 
-    local nowMs = getTimestampMs()
+    local nowMs = NinjaLineages.Utils.Time.nowMs()
     local data = uzumakiHealthState[player]
     if not data then
         captureUzumakiHealthState(player)
         return
     end
-    if data.lastPassiveAt and nowMs < data.lastPassiveAt + consts.UZUMAKI_PASSIVE_TICK_MS then return end
+    if data.lastPassiveAt and nowMs < data.lastPassiveAt + consts.Uzumaki.Passive.TICK_MS then return end
 
     local bodyDamage = player:getBodyDamage()
     local parts = bodyDamage and bodyDamage:getBodyParts()
@@ -79,7 +81,7 @@ local function applyUzumakiBleedSlow(player)
         if previous and part then
             local okBleed, currentBleed = pcall(function() return part:getBleedingTime() end)
             if okBleed and currentBleed and currentBleed > 0 and previous.bleed and currentBleed < previous.bleed then
-                local restored = currentBleed + ((previous.bleed - currentBleed) * consts.UZUMAKI_BLEED_REFUND)
+                local restored = currentBleed + ((previous.bleed - currentBleed) * consts.Uzumaki.Passive.BLEED_REFUND)
                 pcall(function() part:setBleedingTime(restored) end)
             end
         end
@@ -92,20 +94,6 @@ local function getActualInventoryItem(item)
     if not item then return nil end
     if item.items and item.items[1] then return item.items[1] end
     return item
-end
-
-local function getFirstInventoryItem(player, fullType)
-    local inv = player and player:getInventory()
-    if not inv then return nil end
-    return inv:getItemFromType(fullType)
-end
-
-local function consumeInventoryItem(player, item)
-    local inv = player and player:getInventory()
-    if not inv or not item then return false end
-    inv:Remove(item)
-    pcall(function() sendRemoveItemFromContainer(inv, item) end)
-    return true
 end
 
 local function getSquareKey(square)
@@ -153,19 +141,19 @@ local function placeAlarmSeal(player, square)
         player:Say("Uzumaki lineage is required")
         return
     end
-    if not NinjaLineages.Chakra.canAffordChakra(player, 5.0) then
+    if not NinjaLineages.Chakra.canAffordChakra(player, consts.Uzumaki.AlarmSeal.CHAKRA_COST) then
         player:Say("Not enough chakra to place Alarm Seal")
         return
     end
-    local seal = getFirstInventoryItem(player, "Base.NL_AlarmSeal")
+    local seal = NinjaLineages.Utils.Inventory.getFirstInventoryItem(player, "Base.NL_AlarmSeal")
     if not seal then
         player:Say("No Alarm Seal")
         return
     end
     if not square then square = player:getSquare() end
-    NinjaLineages.Chakra.spendChakra(player, 5.0)
+    NinjaLineages.Chakra.spendChakra(player, consts.Uzumaki.AlarmSeal.CHAKRA_COST)
     registerAlarmSeal(square, player)
-    consumeInventoryItem(player, seal)
+    NinjaLineages.Utils.Inventory.consumeInventoryItem(player, seal)
     player:Say("Alarm Seal placed")
 end
 
@@ -176,8 +164,9 @@ local function discoverAlarmSealsNearPlayer(player)
     local px = player:getX()
     local py = player:getY()
     local z = player:getZ()
-    for x = math.floor(px - 25), math.floor(px + 25) do
-        for y = math.floor(py - 25), math.floor(py + 25) do
+    local radius = consts.Uzumaki.AlarmSeal.DISCOVERY_RADIUS
+    for x = math.floor(px - radius), math.floor(px + radius) do
+        for y = math.floor(py - radius), math.floor(py + radius) do
             local square = cell:getGridSquare(x, y, z)
             local modData = square and square:getModData()
             if modData and modData.NinjaLineages and modData.NinjaLineages.alarmSeal then
@@ -195,13 +184,13 @@ local function triggerAlarmSeal(player, square)
 end
 
 local function updateAlarmSeals(player)
-    local nowMs = getTimestampMs()
+    local nowMs = NinjaLineages.Utils.Time.nowMs()
     if nowMs >= nextAlarmDiscoveryAt then
-        nextAlarmDiscoveryAt = nowMs + consts.ALARM_SEAL_DISCOVERY_MS
+        nextAlarmDiscoveryAt = nowMs + consts.Uzumaki.AlarmSeal.DISCOVERY_MS
         discoverAlarmSealsNearPlayer(player)
     end
     if nowMs < nextAlarmScanAt then return end
-    nextAlarmScanAt = nowMs + consts.ALARM_SEAL_SCAN_MS
+    nextAlarmScanAt = nowMs + consts.Uzumaki.AlarmSeal.SCAN_MS
 
     local zombies = getCell() and getCell():getZombieList()
     if not zombies then return end
@@ -213,7 +202,7 @@ local function updateAlarmSeals(player)
                 local zombie = zombies:get(i)
                 local dx = zombie and (zombie:getX() - (square:getX() + 0.5)) or 999
                 local dy = zombie and (zombie:getY() - (square:getY() + 0.5)) or 999
-                if zombie and not zombie:isDead() and ((dx * dx) + (dy * dy)) <= (consts.ALARM_SEAL_RADIUS * consts.ALARM_SEAL_RADIUS) then
+                if zombie and not zombie:isDead() and ((dx * dx) + (dy * dy)) <= (consts.Uzumaki.AlarmSeal.RADIUS * consts.Uzumaki.AlarmSeal.RADIUS) then
                     triggerAlarmSeal(player, square)
                     break
                 end
@@ -254,24 +243,12 @@ local function getContainedBackpack(scroll)
     return inv:getItems():get(0)
 end
 
-local function moveItemBetweenContainers(item, srcContainer, destContainer)
-    if not item or not destContainer then return false end
-    if srcContainer then
-        srcContainer:Remove(item)
-        pcall(function() sendRemoveItemFromContainer(srcContainer, item) end)
-    end
-    destContainer:AddItem(item)
-    pcall(function() sendAddItemToContainer(destContainer, item) end)
-    pcall(function() destContainer:setDrawDirty(true) end)
-    return true
-end
-
 local function sealBackpackInScroll(player, backpack, scroll)
     if not NinjaLineages.hasUzumaki(player) then
         player:Say("Uzumaki lineage is required")
         return
     end
-    if not NinjaLineages.Chakra.canAffordChakra(player, 10.0) then
+    if not NinjaLineages.Chakra.canAffordChakra(player, consts.Uzumaki.StorageSeal.CHAKRA_COST) then
         player:Say("Not enough chakra for Storage Seal")
         return
     end
@@ -281,8 +258,8 @@ local function sealBackpackInScroll(player, backpack, scroll)
         player:Say("Scroll already contains a seal")
         return
     end
-    NinjaLineages.Chakra.spendChakra(player, 10.0)
-    moveItemBetweenContainers(backpack, backpack:getContainer(), scrollInv)
+    NinjaLineages.Chakra.spendChakra(player, consts.Uzumaki.StorageSeal.CHAKRA_COST)
+    NinjaLineages.Utils.Inventory.moveItemBetweenContainers(backpack, backpack:getContainer(), scrollInv)
     player:Say("Storage Seal")
 end
 
@@ -295,7 +272,7 @@ end
 function NLUnsealScrollAction:perform()
     local backpack = getContainedBackpack(self.scroll)
     if backpack then
-        moveItemBetweenContainers(backpack, getScrollInventory(self.scroll), self.character:getInventory())
+        NinjaLineages.Utils.Inventory.moveItemBetweenContainers(backpack, getScrollInventory(self.scroll), self.character:getInventory())
         self.character:Say("Unsealed")
     end
     if ISBaseTimedAction then
@@ -309,7 +286,7 @@ function NLUnsealScrollAction:new(character, scroll)
     self.__index = self
     o.character = character
     o.scroll = scroll
-    o.maxTime = character:isTimedActionInstant() and 1 or 80
+    o.maxTime = character:isTimedActionInstant() and 1 or consts.Uzumaki.StorageSeal.UNSEAL_TIME
     return o
 end
 
@@ -323,7 +300,7 @@ local function unsealScroll(player, scroll)
     else
         local backpack = getContainedBackpack(scroll)
         if backpack then
-            moveItemBetweenContainers(backpack, getScrollInventory(scroll), player:getInventory())
+            NinjaLineages.Utils.Inventory.moveItemBetweenContainers(backpack, getScrollInventory(scroll), player:getInventory())
         end
     end
 end
@@ -396,26 +373,9 @@ if Events.OnFillWorldObjectContextMenu then
         if not player or player:isDead() then return end
         if test then return true end
 
-        local alarmSeal = getFirstInventoryItem(player, "Base.NL_AlarmSeal")
+        local alarmSeal = NinjaLineages.Utils.Inventory.getFirstInventoryItem(player, "Base.NL_AlarmSeal")
         if alarmSeal then
-            -- Find existing submenu
-            local nLOption = nil
-            for i = 1, #context.options do
-                if context.options[i].name == getText("UI_NL_NinjaLineagesMenu") then
-                    nLOption = context.options[i]
-                    break
-                end
-            end
-
-            local subMenu = nil
-            if nLOption then
-                subMenu = context:getSubMenu(nLOption)
-            else
-                nLOption = context:addOption(getText("UI_NL_NinjaLineagesMenu"))
-                subMenu = ISContextMenu:getNew(context)
-                context:addSubMenu(nLOption, subMenu)
-            end
-
+            local subMenu = NinjaLineages.UI.getOrCreateWorldSubMenu(context)
             if subMenu then
                 local square = player:getSquare()
                 for _, worldObject in ipairs(worldObjects or {}) do

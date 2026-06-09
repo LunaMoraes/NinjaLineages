@@ -8,7 +8,7 @@ module NinjaLineages
         Cost = 14,
         UIName = UI_trait_NL_Byakugan,
         UIDescription = UI_trait_NL_ByakuganDesc,
-        MutuallyExclusiveTraits = NinjaLineages:sharingan;NinjaLineages:senju;NinjaLineages:rinnegan;NinjaLineages:uzumaki,
+        MutuallyExclusiveTraits = NinjaLineages:sharingan;NinjaLineages:senju;NinjaLineages:rinnegan;NinjaLineages:uzumaki;base:eagleeyed;base:shortsighted;base:keenhearing;base:hardofhearing;base:deaf,
         XPBoosts = JutsuProwess=1;ChakraControl=3,
     }
 
@@ -32,7 +32,7 @@ module NinjaLineages
         Cost = 14,
         UIName = UI_trait_NL_Senju,
         UIDescription = UI_trait_NL_SenjuDesc,
-        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:rinnegan;NinjaLineages:uzumaki,
+        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:rinnegan;NinjaLineages:uzumaki;base:fasthealer;base:slowhealer,
         XPBoosts = JutsuProwess=1;ChakraControl=2,
     }
 

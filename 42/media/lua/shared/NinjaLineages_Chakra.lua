@@ -6,7 +6,7 @@ NinjaLineages.Chakra = NinjaLineages.Chakra or {}
 
 -- Get max chakra based on traits
 function NinjaLineages.Chakra.getMaxChakra(player)
-    local maxVal = NinjaLineages.Constants.MAX_BASE_CHAKRA
+    local maxVal = NinjaLineages.Constants.Chakra.MAX_BASE
     if NinjaLineages.hasSenju(player) then
         maxVal = maxVal * 2.0 -- +100% max cap multiplier (200)
     elseif NinjaLineages.hasUzumaki(player) then

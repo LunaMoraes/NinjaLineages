@@ -1,18 +1,10 @@
 require "NinjaLineages_Traits"
+require "NinjaLineages_Utils"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Senju = {}
 
 local consts = NinjaLineages.Constants
-
-local senjuLastRecoveryAt = {}
-local boundZombies = {}
-local creationRebirthState = {}
-
-local function getTimestampSeconds()
-    if getTimestamp then return getTimestamp() end
-    return math.floor(getTimestampMs() / 1000)
-end
 
 local function applySenjuEndurance(player)
     if not player then return end
@@ -38,38 +30,18 @@ local function applySenjuEndurance(player)
     end
 end
 
--- Mokuton Binding Roots
-local function collectZombieTargets(player, radius)
-    local targets = {}
-    local zombies = getCell() and getCell():getZombieList()
-    if not zombies then return targets end
-    for i = 0, zombies:size() - 1 do
-        local zombie = zombies:get(i)
-        if zombie and not zombie:isDead() then
-            local distance = zombie:DistTo(player)
-            if distance <= radius then
-                table.insert(targets, { zombie = zombie, distance = distance })
-            end
-        end
-    end
-    return targets
-end
+local senjuLastRecoveryAt = {}
+local boundZombies = {}
+local creationRebirthState = {}
 
 local function applyBindingRootsToZombie(player, target)
     local zombie = target.zombie
     if not zombie or zombie:isDead() then return end
 
-    zombie:setVariable("AttackOutcome", "fail")
-    zombie:setStaggerBack(true)
-    local knockdownChance = target.distance <= consts.WOOD_ROOTS_INNER_RADIUS and 65 or 35
-    if ZombRand(1, 101) <= knockdownChance then
-        zombie:setKnockedDown(true)
-    end
-    pcall(function() zombie:setHitReaction("") end)
-    pcall(function() zombie:setPlayerAttackPosition("FRONT") end)
-    pcall(function() zombie:setHitForce(2.0) end)
-    pcall(function() zombie:reportEvent("wasHit") end)
-    boundZombies[zombie] = getTimestampMs() + consts.WOOD_ROOTS_BIND_MS
+    local knockdownChance = target.distance <= consts.Senju.BindingRoots.INNER_RADIUS and consts.Senju.BindingRoots.INNER_KNOCKDOWN_CHANCE or consts.Senju.BindingRoots.OUTER_KNOCKDOWN_CHANCE
+    local shouldKnockdown = ZombRand(1, 101) <= knockdownChance
+    NinjaLineages.Utils.Combat.staggerZombie(zombie, { knockdown = shouldKnockdown, position = "FRONT", force = 2.0 })
+    boundZombies[zombie] = NinjaLineages.Utils.Time.nowMs() + consts.Senju.BindingRoots.BIND_MS
 end
 
 local function useBindingRoots(player)
@@ -79,24 +51,23 @@ local function useBindingRoots(player)
     end
 
     local data = NinjaLineages.getNLData(player)
-    local now = getTimestampSeconds()
-    if data.bindingRootsCooldownUntil and now < data.bindingRootsCooldownUntil then
-        player:Say("Binding Roots cooldown: " .. tostring(math.ceil(data.bindingRootsCooldownUntil - now)) .. "s")
+    local onCd, remaining = NinjaLineages.Cooldowns.isOnCooldown(player, "senju.binding_roots")
+    if onCd then
+        player:Say("Binding Roots cooldown: " .. tostring(remaining) .. "s")
         return
     end
 
-    if not NinjaLineages.Chakra.canAffordChakra(player, NinjaLineages.Chakra.WOOD_ROOTS_COST) then
+    if not NinjaLineages.Chakra.canAffordChakra(player, consts.Senju.BindingRoots.COST) then
         player:Say("Not enough chakra for Binding Roots")
         return
     end
 
-    NinjaLineages.Chakra.spendChakra(player, NinjaLineages.Chakra.WOOD_ROOTS_COST)
-    for _, target in ipairs(collectZombieTargets(player, consts.WOOD_ROOTS_RADIUS)) do
+    NinjaLineages.Chakra.spendChakra(player, consts.Senju.BindingRoots.COST)
+    for _, target in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, consts.Senju.BindingRoots.RADIUS)) do
         applyBindingRootsToZombie(player, target)
     end
 
-    data.bindingRootsCooldownUntil = now + consts.WOOD_ROOTS_COOLDOWN_SECONDS
-    NinjaLineages.transmitPlayerData(player)
+    NinjaLineages.Cooldowns.set(player, "senju.binding_roots", consts.Senju.BindingRoots.COOLDOWN_SECONDS)
     player:Say("Mokuton")
 end
 
@@ -164,13 +135,13 @@ local function updateCreationRebirth(player)
     local state = creationRebirthState[player]
     if not state then return end
 
-    local nowMs = getTimestampMs()
+    local nowMs = NinjaLineages.Utils.Time.nowMs()
     if nowMs >= state.endsAt then
         stopCreationRebirth(player)
         return
     end
     if nowMs < state.nextTickAt then return end
-    state.nextTickAt = nowMs + consts.CREATION_REBIRTH_TICK_MS
+    state.nextTickAt = nowMs + consts.Senju.CreationRebirth.TICK_MS
 
     local stats = player:getStats()
     local bodyDamage = player:getBodyDamage()
@@ -191,7 +162,7 @@ local function updateCreationRebirth(player)
 
         local bodypart = parts:get(i)
         if bodypart and healBodyPartForCreationRebirth(bodyDamage, bodypart) then
-            chakra = math.max(0.0, chakra - NinjaLineages.Chakra.CREATION_REBIRTH_COST_PER_PART)
+            chakra = math.max(0.0, chakra - consts.Senju.CreationRebirth.COST_PER_PART)
             NinjaLineages.Chakra.setChakra(player, chakra)
         end
     end
@@ -206,9 +177,9 @@ local function useCreationRebirth(player)
         player:Say("Too exhausted (low chakra) for Creation Rebirth")
         return
     end
-    local nowMs = getTimestampMs()
+    local nowMs = NinjaLineages.Utils.Time.nowMs()
     creationRebirthState[player] = {
-        endsAt = nowMs + consts.CREATION_REBIRTH_DURATION_MS,
+        endsAt = nowMs + consts.Senju.CreationRebirth.DURATION_MS,
         nextTickAt = nowMs,
     }
     player:Say("Creation Rebirth")
@@ -218,7 +189,7 @@ end
 local function enforceBindingRoots(zombie)
     local bindUntil = boundZombies[zombie]
     if not bindUntil then return end
-    if not zombie or zombie:isDead() or getTimestampMs() > bindUntil then
+    if not zombie or zombie:isDead() or NinjaLineages.Utils.Time.nowMs() > bindUntil then
         boundZombies[zombie] = nil
         return
     end
@@ -257,7 +228,7 @@ NinjaLineages.registerEveryMinute(function(player)
         local stats = player:getStats()
         if stats then
             local currentEndurance = stats:get(CharacterStat.ENDURANCE)
-            local boosted = math.min(1.0, currentEndurance + 0.15)
+            local boosted = math.min(1.0, currentEndurance + consts.Senju.Passive.ENDURANCE_PER_MINUTE)
             stats:set(CharacterStat.ENDURANCE, boosted)
         end
     end

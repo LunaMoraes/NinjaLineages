@@ -1,4 +1,7 @@
 require "NinjaLineages_Traits"
+require "NinjaLineages_Utils"
+require "NinjaLineages_Moodles"
+require "NinjaLineages_UI"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uchiha = {}
@@ -8,75 +11,35 @@ local consts = NinjaLineages.Constants
 local sharinganAttackRolls = {}
 local kamuiState = {}
 
-local MOODLE_GOOD = 1
-local MOODLE_BAD = 2
-local MOODLE_TEXT = {
-    NLSharinganTomoe = {
-        [MOODLE_GOOD] = {
-            [1] = { "Sharingan", "First Tomoe awakened. Dodge chance: 30%." },
-            [2] = { "Sharingan", "Second Tomoe released. Dodge chance: 60%." },
-            [3] = { "Sharingan", "Third Tomoe released. Dodge chance: 90%." },
-            [4] = { "Mangekyo Sharingan", "Mangekyo Sharingan awakened. Kamui is available." },
-        },
-    },
-    NLKamuiVision = {
-        [MOODLE_BAD] = {
-            [1] = { "Vision Impaired", "Kamui has strained your vision. Recovery: 1 in-game hour." },
-            [2] = { "Vision Impaired", "Repeated Kamui use has damaged your vision. Recovery: 6 in-game hours." },
-            [3] = { "Vision Impaired", "Kamui overuse has severely damaged your vision. Recovery: 1 full in-game day." },
-            [4] = { "Vision Impaired", "Kamui overuse has severely damaged your vision. Recovery: 1 full in-game day." },
-        },
-    },
-}
-
-local function setMoodleValue(name, player, value)
-    if not MF or not MF.getMoodle then return end
-    local playerNum = player:getPlayerNum()
-    local ok, moodle = pcall(function() return MF.getMoodle(name, playerNum) end)
-    if ok and moodle then
-        local text = MOODLE_TEXT[name]
-        if text and not moodle.NinjaLineagesTextConfigured then
-            for moodleType, levels in pairs(text) do
-                for level, moodleText in pairs(levels) do
-                    pcall(function() moodle:setTitle(moodleType, level, moodleText[1]) end)
-                    pcall(function() moodle:setDescription(moodleType, level, moodleText[2]) end)
-                end
-            end
-            moodle.NinjaLineagesTextConfigured = true
-        end
-        moodle:setValue(value)
-    end
-end
-
 local function getSharinganDodgeChance(player)
     local data = NinjaLineages.getNLData(player)
     if not data.eyePowerActive then return 0 end
     local stage = NinjaLineages.getSharinganStage(player)
-    if stage == 1 then return 30 end
-    if stage == 2 then return 60 end
-    if stage == 3 then return 90 end
+    if stage == 1 then return consts.Uchiha.SharinganDodgeChance[1] end
+    if stage == 2 then return consts.Uchiha.SharinganDodgeChance[2] end
+    if stage == 3 then return consts.Uchiha.SharinganDodgeChance[3] end
     return 0
 end
 
 local function updateSharinganMoodle(player)
     local data = NinjaLineages.getNLData(player)
     if not NinjaLineages.hasSharingan(player) or not data.eyePowerActive then
-        setMoodleValue("NLSharinganTomoe", player, 0.5)
+        NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.5)
         data.lastSharinganStage = nil
         return
     end
 
     local stage = NinjaLineages.getSharinganStage(player)
     if data.mangekyoUnlocked then
-        setMoodleValue("NLSharinganTomoe", player, 0.9)
+        NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.9)
     elseif stage == 3 then
-        setMoodleValue("NLSharinganTomoe", player, 0.8)
+        NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.8)
     elseif stage == 2 then
-        setMoodleValue("NLSharinganTomoe", player, 0.7)
+        NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.7)
     elseif stage == 1 then
-        setMoodleValue("NLSharinganTomoe", player, 0.6)
+        NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.6)
     else
-        setMoodleValue("NLSharinganTomoe", player, 0.5)
+        NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.5)
     end
 
     local lastStage = data.lastSharinganStage or 0
@@ -96,48 +59,18 @@ local function updateSharinganMoodle(player)
     end
 end
 
-local function getWornItemByType(player, itemTypes)
-    local wornItems = player:getWornItems()
-    if not wornItems then return nil end
-    for i = 0, wornItems:size() - 1 do
-        local wornItem = wornItems:getItemByIndex(i)
-        if wornItem then
-            local fullType = wornItem:getFullType()
-            local typeName = wornItem:getType()
-            for _, itemType in ipairs(itemTypes) do
-                if fullType == itemType or typeName == itemType:gsub("^Base%.", "") then
-                    return wornItem
-                end
-            end
-        end
-    end
-    return nil
-end
-
-local function removeInventoryItems(player, itemTypes)
-    local inv = player:getInventory()
-    if not inv then return end
-    for _, itemType in ipairs(itemTypes) do
-        local item = inv:getItemFromType(itemType)
-        while item do
-            inv:Remove(item)
-            item = inv:getItemFromType(itemType)
-        end
-    end
-end
-
 local function applyKamuiVisionItem(player)
     local data = NinjaLineages.getNLData(player)
     local level = data.kamuiVisionLevel or 0
-    local equipped = getWornItemByType(player, consts.VISION_ITEMS)
-    local desiredType = level > 0 and consts.VISION_ITEMS[level] or nil
+    local equipped = NinjaLineages.Utils.Inventory.getWornItemByType(player, consts.Uchiha.Vision.ITEMS)
+    local desiredType = level > 0 and consts.Uchiha.Vision.ITEMS[level] or nil
     if equipped and desiredType and equipped:getFullType() == desiredType then
         if level == 1 then
-            setMoodleValue("NLKamuiVision", player, 0.4)
+            NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.4)
         elseif level == 2 then
-            setMoodleValue("NLKamuiVision", player, 0.3)
+            NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.3)
         else
-            setMoodleValue("NLKamuiVision", player, 0.2)
+            NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.2)
         end
         return
     end
@@ -147,12 +80,12 @@ local function applyKamuiVisionItem(player)
     end
 
     if level <= 0 then
-        removeInventoryItems(player, consts.VISION_ITEMS)
-        setMoodleValue("NLKamuiVision", player, 0.5)
+        NinjaLineages.Utils.Inventory.removeInventoryItems(player, consts.Uchiha.Vision.ITEMS)
+        NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.5)
         return
     end
 
-    removeInventoryItems(player, consts.VISION_ITEMS)
+    NinjaLineages.Utils.Inventory.removeInventoryItems(player, consts.Uchiha.Vision.ITEMS)
     local inv = player:getInventory()
     if not inv then return end
     local item = inv:AddItem(desiredType)
@@ -161,20 +94,12 @@ local function applyKamuiVisionItem(player)
     end
 
     if level == 1 then
-        setMoodleValue("NLKamuiVision", player, 0.4)
+        NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.4)
     elseif level == 2 then
-        setMoodleValue("NLKamuiVision", player, 0.3)
+        NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.3)
     else
-        setMoodleValue("NLKamuiVision", player, 0.2)
+        NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.2)
     end
-end
-
-local function getWorldAgeHours()
-    local gameTime = getGameTime()
-    if gameTime and gameTime.getWorldAgeHours then
-        return gameTime:getWorldAgeHours()
-    end
-    return 0
 end
 
 local function recoverKamuiVision(player)
@@ -187,12 +112,12 @@ local function recoverKamuiVision(player)
         return
     end
 
-    local now = getWorldAgeHours()
+    local now = NinjaLineages.Utils.Time.worldAgeHours()
     if data.kamuiVisionRecoverAt and now >= data.kamuiVisionRecoverAt then
         level = math.max(0, level - 1)
         data.kamuiVisionLevel = level
         if level > 0 then
-            data.kamuiVisionRecoverAt = now + consts.VISION_RECOVERY_HOURS[level]
+            data.kamuiVisionRecoverAt = now + consts.Uchiha.Vision.RECOVERY_HOURS[level]
         else
             data.kamuiVisionRecoverAt = nil
         end
@@ -203,10 +128,10 @@ end
 
 local function addKamuiVisionPenalty(player)
     local data = NinjaLineages.getNLData(player)
-    local now = getWorldAgeHours()
+    local now = NinjaLineages.Utils.Time.worldAgeHours()
     local level = math.min(3, (data.kamuiVisionLevel or 0) + 1)
     data.kamuiVisionLevel = level
-    data.kamuiVisionRecoverAt = now + consts.VISION_RECOVERY_HOURS[level]
+    data.kamuiVisionRecoverAt = now + consts.Uchiha.Vision.RECOVERY_HOURS[level]
     applyKamuiVisionItem(player)
     NinjaLineages.transmitPlayerData(player)
 end
@@ -268,7 +193,7 @@ local function updateKamui(player)
     local state = kamuiState[player]
     if not state then return end
 
-    local nowMs = getTimestampMs()
+    local nowMs = NinjaLineages.Utils.Time.nowMs()
     local stats = player:getStats()
     if not stats then
         stopKamui(player, true)
@@ -281,12 +206,12 @@ local function updateKamui(player)
 
     -- Drain chakra
     local chakra = NinjaLineages.Chakra.getChakra(player)
-    chakra = math.max(0.0, chakra - (NinjaLineages.Chakra.KAMUI_DRAIN_PER_SECOND * deltaSeconds))
+    chakra = math.max(0.0, chakra - (consts.Uchiha.Kamui.DRAIN_PER_SECOND * deltaSeconds))
     NinjaLineages.Chakra.setChakra(player, chakra)
 
     failNearbyZombieAttacks(player)
 
-    if elapsedMs >= consts.KAMUI_DURATION_MS or chakra <= 0 then
+    if elapsedMs >= consts.Uchiha.Kamui.DURATION_MS or chakra <= 0 then
         stopKamui(player, true)
     end
 end
@@ -294,11 +219,6 @@ end
 local function canUseKamui(player)
     local data = NinjaLineages.getNLData(player)
     return NinjaLineages.hasSharingan(player) and data.mangekyoUnlocked == true
-end
-
-local function getTimestampSeconds()
-    if getTimestamp then return getTimestamp() end
-    return math.floor(getTimestampMs() / 1000)
 end
 
 function NinjaLineages.Uchiha.startKamui(player)
@@ -314,13 +234,13 @@ function NinjaLineages.Uchiha.startKamui(player)
         return
     end
 
-    local now = getTimestampSeconds()
-    if data.kamuiCooldownUntil and now < data.kamuiCooldownUntil then
-        player:Say("Kamui cooldown: " .. tostring(math.ceil(data.kamuiCooldownUntil - now)) .. "s")
+    local onCd, remaining = NinjaLineages.Cooldowns.isOnCooldown(player, "uchiha.kamui")
+    if onCd then
+        player:Say("Kamui cooldown: " .. tostring(remaining) .. "s")
         return
     end
 
-    if not NinjaLineages.Chakra.canAffordChakra(player, NinjaLineages.Chakra.KAMUI_MIN_GATE) then
+    if not NinjaLineages.Chakra.canAffordChakra(player, consts.Uchiha.Kamui.MIN_CHAKRA_GATE) then
         player:Say("Too exhausted (low chakra) for Kamui")
         return
     end
@@ -331,7 +251,7 @@ function NinjaLineages.Uchiha.startKamui(player)
         updateSharinganMoodle(player)
     end
 
-    local nowMs = getTimestampMs()
+    local nowMs = NinjaLineages.Utils.Time.nowMs()
     kamuiState[player] = {
         startedAt = nowMs,
         lastTick = nowMs,
@@ -344,8 +264,7 @@ function NinjaLineages.Uchiha.startKamui(player)
     safeSetBool(player, "setGodMod", true)
     safeSetNoClip(player, true)
 
-    data.kamuiCooldownUntil = now + consts.KAMUI_COOLDOWN_SECONDS
-    NinjaLineages.transmitPlayerData(player)
+    NinjaLineages.Cooldowns.set(player, "uchiha.kamui", consts.Uchiha.Kamui.COOLDOWN_SECONDS)
     player:Say("Kamui")
 end
 
@@ -450,9 +369,9 @@ function NinjaLineages.Uchiha.getEyePowerDrain(player, data)
     if data.eyePowerActive and NinjaLineages.hasSharingan(player) then
         local tomoe = data.sharinganTomoe or 1
         if tomoe == 4 or data.mangekyoUnlocked then
-            return consts.MANGEKYO_DRAIN_PER_MINUTE
+            return consts.Uchiha.MangekyoDrainPerMinute
         else
-            return consts.SHARINGAN_DRAIN_PER_MINUTE[tomoe] or 48.0
+            return consts.Uchiha.SharinganDrainPerMinute[tomoe] or 48.0
         end
     end
     return 0.0
@@ -501,24 +420,7 @@ if Events.OnFillWorldObjectContextMenu then
         if test then return true end
 
         if canUseKamuiTestUnlock(player) then
-            -- Find or add NinjaLineages context menu
-            local nLOption = nil
-            for i = 1, #context.options do
-                if context.options[i].name == getText("UI_NL_NinjaLineagesMenu") then
-                    nLOption = context.options[i]
-                    break
-                end
-            end
-
-            local subMenu = nil
-            if nLOption then
-                subMenu = context:getSubMenu(nLOption)
-            else
-                nLOption = context:addOption(getText("UI_NL_NinjaLineagesMenu"))
-                subMenu = ISContextMenu:getNew(context)
-                context:addSubMenu(nLOption, subMenu)
-            end
-
+            local subMenu = NinjaLineages.UI.getOrCreateWorldSubMenu(context)
             if subMenu then
                 subMenu:addOption("Kamui Test: Unlock Mangekyo", player, unlockKamuiForSinglePlayerTest)
             end

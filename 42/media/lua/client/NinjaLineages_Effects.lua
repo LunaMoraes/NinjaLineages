@@ -1,7 +1,10 @@
 require "NinjaLineages_Traits"
+require "NinjaLineages_Utils"
 require "NinjaLineages_Items"
 require "NinjaLineages_Chakra"
 require "NinjaLineages_Skills"
+require "NinjaLineages_Moodles"
+require "NinjaLineages_UI"
 require "NinjaLineages_CommonJutsu"
 require "NinjaLineages_Meditation"
 
@@ -12,46 +15,7 @@ require "client/lineages/NinjaLineages_Senju"
 require "client/lineages/NinjaLineages_Rinnegan"
 require "client/lineages/NinjaLineages_Uzumaki"
 
-pcall(require, "MF_ISMoodle")
-pcall(require, "ISUI/ISContextMenu")
-pcall(require, "ISUI/ISRadialMenu")
-pcall(require, "TimedActions/ISBaseTimedAction")
-pcall(require, "TimedActions/ISTimedActionQueue")
-
-if MF and MF.createMoodle then
-    MF.createMoodle("NLSharinganTomoe")
-    MF.createMoodle("NLKamuiVision")
-    MF.createMoodle("NLChakra")
-end
-
-local MOODLE_BAD = 2
-local MOODLE_TEXT = {
-    NLChakra = {
-        [MOODLE_BAD] = {
-            [1] = { "Low Chakra", "Your chakra is low (<30%). Consider meditating." },
-            [2] = { "Very Low Chakra", "Your chakra is critical (<10%). Sustained powers will fail soon." },
-        },
-    },
-}
-
-local function setMoodleValue(name, player, value)
-    if not MF or not MF.getMoodle then return end
-    local playerNum = player:getPlayerNum()
-    local ok, moodle = pcall(function() return MF.getMoodle(name, playerNum) end)
-    if ok and moodle then
-        local text = MOODLE_TEXT[name]
-        if text and not moodle.NinjaLineagesTextConfigured then
-            for moodleType, levels in pairs(text) do
-                for level, moodleText in pairs(levels) do
-                    pcall(function() moodle:setTitle(moodleType, level, moodleText[1]) end)
-                    pcall(function() moodle:setDescription(moodleType, level, moodleText[2]) end)
-                end
-            end
-            moodle.NinjaLineagesTextConfigured = true
-        end
-        moodle:setValue(value)
-    end
-end
+local consts = NinjaLineages.Constants
 
 -- Ability selection logic
 local function getAvailableAbilities(player)
@@ -111,23 +75,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
     if not player or player:isDead() then return end
     if test then return true end
 
-    -- Find or create the common Ninja Lineages sub-context option
-    local option = nil
-    for i = 1, #context.options do
-        if context.options[i].name == getText("UI_NL_NinjaLineagesMenu") then
-            option = context.options[i]
-            break
-        end
-    end
-
-    local subMenu = nil
-    if option then
-        subMenu = context:getSubMenu(option)
-    else
-        option = context:addOption(getText("UI_NL_NinjaLineagesMenu"))
-        subMenu = ISContextMenu:getNew(context)
-        context:addSubMenu(option, subMenu)
-    end
+    local subMenu = NinjaLineages.UI.getOrCreateWorldSubMenu(context)
 
     -- Meditate
     subMenu:addOption(getText("UI_NL_MeditateOption"), player, function(p)
@@ -233,10 +181,10 @@ local function everyOneMinute()
     local currentChakra = NinjaLineages.Chakra.getChakra(player)
 
     -- 1. Chakra regeneration (2.0% of max chakra base per minute)
-    local baseRegenPct = 0.02
+    local baseRegenPct = consts.Chakra.BASE_REGEN_PCT_PER_MINUTE
     local regenRate = maxChakra * baseRegenPct
     if data.isMeditating then
-        regenRate = regenRate * 3.0
+        regenRate = regenRate * consts.Chakra.MEDITATION_REGEN_MULTIPLIER
     end
 
     local skillLevel = NinjaLineages.Skills.getChakraControlLevel(player)
@@ -259,11 +207,11 @@ local function everyOneMinute()
         drainRate = drainRate * drainReduction
 
         if data.isMeditating then
-            drainRate = drainRate * 0.25
+            drainRate = drainRate * consts.Chakra.MEDITATION_DRAIN_MULTIPLIER
         end
 
         if isEyeCovered(player) then
-            drainRate = drainRate * 0.5
+            drainRate = drainRate * consts.Chakra.COVERED_EYE_DRAIN_MULTIPLIER
         end
 
         newChakra = math.max(0.0, newChakra - drainRate)
@@ -286,12 +234,12 @@ local function everyOneMinute()
 
     -- 3. Moodle updates
     local pct = newChakra / maxChakra
-    if pct < 0.10 then
-        setMoodleValue("NLChakra", player, 0.3) -- Bad lvl 2 (Very Low)
-    elseif pct < 0.30 then
-        setMoodleValue("NLChakra", player, 0.4) -- Bad lvl 1 (Low)
+    if pct < consts.Chakra.CRITICAL_THRESHOLD then
+        NinjaLineages.Moodles.setValue("NLChakra", player, 0.3) -- Bad lvl 2 (Very Low)
+    elseif pct < consts.Chakra.LOW_THRESHOLD then
+        NinjaLineages.Moodles.setValue("NLChakra", player, 0.4) -- Bad lvl 1 (Low)
     else
-        setMoodleValue("NLChakra", player, 0.5) -- Hidden
+        NinjaLineages.Moodles.setValue("NLChakra", player, 0.5) -- Hidden
     end
 
     -- 4. Invoke lineage EveryMinute listeners

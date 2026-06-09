@@ -41,9 +41,10 @@ end
 
 chakra.colorFn = function(player)
     local percent = getPercent(player)
-    if percent < 0.1 then
+    local consts = NinjaLineages.Constants
+    if percent < consts.Chakra.CRITICAL_THRESHOLD then
         return { r = 1, g = 0, b = 0 }
-    elseif percent < 0.3 then
+    elseif percent < consts.Chakra.LOW_THRESHOLD then
         return { r = 1, g = 0.55, b = 0 }
     end
     return { r = 0.15, g = 0.55, b = 1 }
