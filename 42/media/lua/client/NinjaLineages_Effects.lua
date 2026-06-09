@@ -1,5 +1,9 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Items"
+require "NinjaLineages_Chakra"
+require "NinjaLineages_Skills"
+require "NinjaLineages_CommonJutsu"
+require "NinjaLineages_Meditation"
 
 pcall(require, "MF_ISMoodle")
 pcall(require, "ISUI/ISContextMenu")
@@ -10,9 +14,9 @@ pcall(require, "TimedActions/ISTimedActionQueue")
 if MF and MF.createMoodle then
     MF.createMoodle("NLSharinganTomoe")
     MF.createMoodle("NLKamuiVision")
+    MF.createMoodle("NLChakra")
 end
 
-local SENJU_ENDURANCE_RECOVERY_PER_SECOND = 0.01
 local SHARINGAN_STAGE_1_KILLS = 1
 local SHARINGAN_STAGE_2_KILLS = 100
 local SHARINGAN_STAGE_3_KILLS = 500
@@ -174,6 +178,8 @@ local function getSharinganStage(player)
 end
 
 local function getSharinganDodgeChance(player)
+    local data = getNLData(player)
+    if not data.eyePowerActive then return 0 end
     local stage = getSharinganStage(player)
     if stage == 1 then return 30 end
     if stage == 2 then return 60 end
@@ -202,7 +208,7 @@ end
 
 local function updateSharinganMoodle(player)
     local data = getNLData(player)
-    if not hasSharingan(player) then
+    if not hasSharingan(player) or not data.eyePowerActive then
         setMoodleValue("NLSharinganTomoe", player, 0.5)
         data.lastSharinganStage = nil
         return
@@ -278,24 +284,41 @@ local function applyByakugan(player)
     if not byakuganTrait then return end
 
     if player:hasTrait(byakuganTrait) then
-        local equipped = getWornByakuganSight(player)
-        if not equipped then
-            local inv = player:getInventory()
-            if inv then
-                local item = inv:getItemFromType("Base.NL_ByakuganSight")
-                if not item then
-                    item = inv:AddItem("Base.NL_ByakuganSight")
-                end
-                if item then
-                    player:setWornItem(item:getBodyLocation(), item)
+        local data = getNLData(player)
+        local chakra = NinjaLineages.Chakra.getChakra(player)
+        if data.eyePowerActive and chakra > 0 then
+            local equipped = getWornByakuganSight(player)
+            if not equipped then
+                local inv = player:getInventory()
+                if inv then
+                    local item = inv:getItemFromType("Base.NL_ByakuganSight")
+                    if not item then
+                        item = inv:AddItem("Base.NL_ByakuganSight")
+                    end
+                    if item then
+                        player:setWornItem(item:getBodyLocation(), item)
+                    end
                 end
             end
-        end
-        if not player:hasTrait(CharacterTrait.EAGLE_EYED) then
-            player:getCharacterTraits():add(CharacterTrait.EAGLE_EYED)
-        end
-        if not player:hasTrait(CharacterTrait.KEEN_HEARING) then
-            player:getCharacterTraits():add(CharacterTrait.KEEN_HEARING)
+            if not player:hasTrait(CharacterTrait.EAGLE_EYED) then
+                player:getCharacterTraits():add(CharacterTrait.EAGLE_EYED)
+            end
+            if not player:hasTrait(CharacterTrait.KEEN_HEARING) then
+                player:getCharacterTraits():add(CharacterTrait.KEEN_HEARING)
+            end
+        else
+            data.eyePowerActive = false
+            local equipped = getWornByakuganSight(player)
+            if equipped then
+                player:setWornItem(equipped:getBodyLocation(), nil)
+            end
+            if player:hasTrait(CharacterTrait.EAGLE_EYED) then
+                player:getCharacterTraits():remove(CharacterTrait.EAGLE_EYED)
+            end
+            if player:hasTrait(CharacterTrait.KEEN_HEARING) then
+                player:getCharacterTraits():remove(CharacterTrait.KEEN_HEARING)
+            end
+            removeInventoryItems(player, { "Base.NL_ByakuganSight" })
         end
     else
         local equipped = getWornByakuganSight(player)
@@ -411,18 +434,6 @@ local function applySenjuEndurance(player)
         data.senjuAddedFastHealer = true
         transmitPlayerData(player)
     end
-
-    local currentTime = getTimestampMs()
-    local lastRecovery = senjuLastRecoveryAt[player]
-    if lastRecovery and currentTime < lastRecovery + 1000 then return end
-    senjuLastRecoveryAt[player] = currentTime
-
-    local stats = player:getStats()
-    if not stats then return end
-
-    local current = stats:get(CharacterStat.ENDURANCE)
-    local boosted = math.min(1.0, current + SENJU_ENDURANCE_RECOVERY_PER_SECOND)
-    stats:set(CharacterStat.ENDURANCE, boosted)
 end
 
 local function safeGetBool(player, getterName)
@@ -493,13 +504,14 @@ local function updateKamui(player)
     local deltaSeconds = math.max(0, (nowMs - state.lastTick) / 1000)
     state.lastTick = nowMs
 
-    local endurance = stats:get(CharacterStat.ENDURANCE)
-    endurance = math.max(0, endurance - (KAMUI_ENDURANCE_DRAIN_PER_SECOND * deltaSeconds))
-    stats:set(CharacterStat.ENDURANCE, endurance)
+    -- Drain chakra
+    local chakra = NinjaLineages.Chakra.getChakra(player)
+    chakra = math.max(0.0, chakra - (NinjaLineages.Chakra.KAMUI_DRAIN_PER_SECOND * deltaSeconds))
+    NinjaLineages.Chakra.setChakra(player, chakra)
 
     failNearbyZombieAttacks(player)
 
-    if elapsedMs >= KAMUI_DURATION_MS or endurance <= 0 then
+    if elapsedMs >= KAMUI_DURATION_MS or chakra <= 0 then
         stopKamui(player, true)
     end
 end
@@ -528,10 +540,15 @@ local function startKamui(player)
         return
     end
 
-    local stats = player:getStats()
-    if not stats or stats:get(CharacterStat.ENDURANCE) < KAMUI_ENDURANCE_MIN then
-        player:Say("Too exhausted for Kamui")
+    if not NinjaLineages.Chakra.canAffordChakra(player, NinjaLineages.Chakra.KAMUI_MIN_GATE) then
+        player:Say("Too exhausted (low chakra) for Kamui")
         return
+    end
+
+    -- Automatically activate Sharingan if not already active
+    if not data.eyePowerActive then
+        data.eyePowerActive = true
+        updateSharinganMoodle(player)
     end
 
     local nowMs = getTimestampMs()
@@ -640,16 +657,15 @@ local function useShinraTensei(player)
 
     local targets = collectShinraTargets(player)
     local cost = math.min(
-        SHINRA_ENDURANCE_COST_CAP,
-        SHINRA_BASE_ENDURANCE_COST + (#targets * SHINRA_ENDURANCE_COST_PER_ZOMBIE)
+        NinjaLineages.Chakra.SHINRA_COST_CAP,
+        NinjaLineages.Chakra.SHINRA_BASE_COST + (#targets * NinjaLineages.Chakra.SHINRA_COST_PER_ZOMBIE)
     )
-    local endurance = stats:get(CharacterStat.ENDURANCE)
-    if endurance < cost then
-        player:Say("Too exhausted for Shinra Tensei")
+    if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
+        player:Say("Not enough chakra for Shinra Tensei")
         return
     end
 
-    stats:set(CharacterStat.ENDURANCE, math.max(0, endurance - cost))
+    NinjaLineages.Chakra.spendChakra(player, cost)
     for _, target in ipairs(targets) do
         applyShinraToZombie(player, target)
     end
@@ -705,15 +721,12 @@ local function useBindingRoots(player)
         return
     end
 
-    local stats = player:getStats()
-    if not stats then return end
-    local endurance = stats:get(CharacterStat.ENDURANCE)
-    if endurance < WOOD_ROOTS_ENDURANCE_COST then
-        player:Say("Too exhausted for Binding Roots")
+    if not NinjaLineages.Chakra.canAffordChakra(player, NinjaLineages.Chakra.WOOD_ROOTS_COST) then
+        player:Say("Not enough chakra for Binding Roots")
         return
     end
 
-    stats:set(CharacterStat.ENDURANCE, math.max(0, endurance - WOOD_ROOTS_ENDURANCE_COST))
+    NinjaLineages.Chakra.spendChakra(player, NinjaLineages.Chakra.WOOD_ROOTS_COST)
     for _, target in ipairs(collectZombieTargets(player, WOOD_ROOTS_RADIUS)) do
         applyBindingRootsToZombie(player, target)
     end
@@ -802,18 +815,18 @@ local function updateCreationRebirth(player)
 
     local parts = bodyDamage:getBodyParts()
     if not parts then return end
-    local endurance = stats:get(CharacterStat.ENDURANCE)
+    local chakra = NinjaLineages.Chakra.getChakra(player)
     for i = 0, parts:size() - 1 do
-        if endurance <= 0 then
-            stats:set(CharacterStat.ENDURANCE, 0)
+        if chakra <= 0 then
+            NinjaLineages.Chakra.setChakra(player, 0)
             stopCreationRebirth(player)
             return
         end
 
         local bodypart = parts:get(i)
         if bodypart and healBodyPartForCreationRebirth(bodyDamage, bodypart) then
-            endurance = math.max(0, endurance - CREATION_REBIRTH_ENDURANCE_PER_PART)
-            stats:set(CharacterStat.ENDURANCE, endurance)
+            chakra = math.max(0.0, chakra - NinjaLineages.Chakra.CREATION_REBIRTH_COST_PER_PART)
+            NinjaLineages.Chakra.setChakra(player, chakra)
         end
     end
 end
@@ -823,9 +836,8 @@ local function useCreationRebirth(player)
         player:Say("Senju lineage is required")
         return
     end
-    local stats = player:getStats()
-    if not stats or stats:get(CharacterStat.ENDURANCE) <= 0 then
-        player:Say("Too exhausted for Creation Rebirth")
+    if NinjaLineages.Chakra.getChakra(player) <= 0 then
+        player:Say("Too exhausted (low chakra) for Creation Rebirth")
         return
     end
     local nowMs = getTimestampMs()
@@ -978,12 +990,17 @@ local function placeAlarmSeal(player, square)
         player:Say("Uzumaki lineage is required")
         return
     end
+    if not NinjaLineages.Chakra.canAffordChakra(player, 5.0) then
+        player:Say("Not enough chakra to place Alarm Seal")
+        return
+    end
     local seal = getFirstInventoryItem(player, "Base.NL_AlarmSeal")
     if not seal then
         player:Say("No Alarm Seal")
         return
     end
     if not square then square = player:getSquare() end
+    NinjaLineages.Chakra.spendChakra(player, 5.0)
     registerAlarmSeal(square, player)
     consumeInventoryItem(player, seal)
     player:Say("Alarm Seal placed")
@@ -1090,12 +1107,17 @@ local function sealBackpackInScroll(player, backpack, scroll)
         player:Say("Uzumaki lineage is required")
         return
     end
+    if not NinjaLineages.Chakra.canAffordChakra(player, 10.0) then
+        player:Say("Not enough chakra for Storage Seal")
+        return
+    end
     if not isBackpackContainer(backpack) then return end
     local scrollInv = getScrollInventory(scroll)
     if not scrollInv or scrollInv:getItems():size() > 0 then
         player:Say("Scroll already contains a seal")
         return
     end
+    NinjaLineages.Chakra.spendChakra(player, 10.0)
     moveItemBetweenContainers(backpack, backpack:getContainer(), scrollInv)
     player:Say("Storage Seal")
 end
@@ -1258,6 +1280,8 @@ local function byakuganPushHit(zombie, attacker, bodyPartType, handWeapon)
     if not isBareHands(handWeapon) then return end
     if not isZombieCharacter(zombie) or zombie:isDead() then return end
 
+    if not NinjaLineages.Chakra.spendChakra(attacker, 2.0) then return end
+
     pcall(function() zombie:setHitFromBehind(attacker:isBehind(zombie)) end)
     pcall(function() zombie:setKnockedDown(true) end)
     pcall(function() zombie:setStaggerBack(true) end)
@@ -1269,8 +1293,48 @@ local function byakuganPushHit(zombie, attacker, bodyPartType, handWeapon)
     applyZombieDamage(attacker, zombie, getRandomDamage(BYAKUGAN_PUSH_MIN_DAMAGE, BYAKUGAN_PUSH_MAX_DAMAGE))
 end
 
+local function toggleByakugan(player)
+    local data = getNLData(player)
+    if data.eyePowerActive then
+        data.eyePowerActive = false
+        applyByakugan(player)
+        player:Say("Byakugan Deactivated")
+    else
+        if NinjaLineages.Chakra.getChakra(player) > 0 then
+            data.eyePowerActive = true
+            applyByakugan(player)
+            player:Say("Byakugan Activated")
+        else
+            player:Say("Not enough chakra!")
+        end
+    end
+end
+
+local function toggleSharingan(player)
+    local data = getNLData(player)
+    if data.eyePowerActive then
+        data.eyePowerActive = false
+        updateSharinganMoodle(player)
+        player:Say("Sharingan Deactivated")
+    else
+        if NinjaLineages.Chakra.getChakra(player) > 0 then
+            data.eyePowerActive = true
+            updateSharinganMoodle(player)
+            player:Say("Sharingan Activated")
+        else
+            player:Say("Not enough chakra!")
+        end
+    end
+end
+
 local function getAvailableAbilities(player)
     local abilities = {}
+    if hasByakugan(player) then
+        table.insert(abilities, { id = "byakugan", name = "Toggle Byakugan", action = toggleByakugan, texture = "media/ui/Traits/trait_byakugan.png" })
+    end
+    if hasSharingan(player) then
+        table.insert(abilities, { id = "sharingan", name = "Toggle Sharingan", action = toggleSharingan, texture = "media/ui/Traits/trait_sharingan.png" })
+    end
     if canUseKamui(player) then
         table.insert(abilities, { id = "kamui", name = "Kamui", action = startKamui, texture = "media/ui/Traits/trait_sharingan.png" })
     end
@@ -1322,21 +1386,54 @@ end
 local function addAbilityContextMenu(playerNum, context, worldObjects, test)
     local player = getSpecificPlayer(playerNum)
     if not player or player:isDead() then return end
-    local abilities = getAvailableAbilities(player)
-    local canTestUnlock = canUseKamuiTestUnlock(player)
-    local alarmSeal = getFirstInventoryItem(player, "Base.NL_AlarmSeal")
-    if #abilities == 0 and not canTestUnlock and not alarmSeal then return end
     if test then return true end
 
-    local option = context:addOption("Ninja Lineages")
+    local option = context:addOption(getText("UI_NL_NinjaLineagesMenu"))
     local subMenu = ISContextMenu:getNew(context)
     context:addSubMenu(option, subMenu)
-    if canTestUnlock then
+
+    -- 1. Test unlock Mangekyo Option
+    if canUseKamuiTestUnlock(player) then
         subMenu:addOption("Kamui Test: Unlock Mangekyo", player, unlockKamuiForSinglePlayerTest)
     end
+
+    -- 2. Lineage active abilities
+    local abilities = getAvailableAbilities(player)
     for _, ability in ipairs(abilities) do
         subMenu:addOption(ability.name, player, ability.action)
     end
+
+    -- 3. Meditate
+    subMenu:addOption(getText("UI_NL_MeditateOption"), player, function(p)
+        ISTimedActionQueue.add(NLMeditationAction:new(p))
+    end)
+
+    -- 4. Common Jutsu Submenu
+    local commonOption = subMenu:addOption(getText("UI_NL_CommonJutsuMenu"))
+    local commonSub = ISContextMenu:getNew(subMenu)
+    subMenu:addSubMenu(commonOption, commonSub)
+
+    local function addJutsuOption(menu, nameKey, func, jutsuKey)
+        local onCd, remaining = NinjaLineages.CommonJutsu.isOnCooldown(player, jutsuKey)
+        local label = getText("UI_NL_" .. nameKey)
+        if onCd then
+            label = label .. " (" .. tostring(remaining) .. "s)"
+        end
+        local opt = menu:addOption(label, player, func)
+        if onCd then
+            opt.notAvailable = true
+        end
+    end
+
+    addJutsuOption(commonSub, "HealingJutsu", NinjaLineages.CommonJutsu.castHealing, "healing")
+    addJutsuOption(commonSub, "ReinforcementJutsu", NinjaLineages.CommonJutsu.castReinforcement, "reinforcement")
+    addJutsuOption(commonSub, "QuietStepJutsu", NinjaLineages.CommonJutsu.castQuietStep, "quietstep")
+    addJutsuOption(commonSub, "FocusJutsu", NinjaLineages.CommonJutsu.castChakraFocus, "focus")
+    addJutsuOption(commonSub, "GripJutsu", NinjaLineages.CommonJutsu.castChakraGrip, "grip")
+    addJutsuOption(commonSub, "BodyFlickerJutsu", NinjaLineages.CommonJutsu.castBodyFlicker, "bodyflicker")
+
+    -- 7. Place Alarm Seal
+    local alarmSeal = getFirstInventoryItem(player, "Base.NL_AlarmSeal")
     if alarmSeal then
         local square = player:getSquare()
         for _, worldObject in ipairs(worldObjects or {}) do
@@ -1435,6 +1532,106 @@ local function onKeyStartPressed(key)
     end
 end
 
+local function isEyeCovered(player)
+    local wornItems = player:getWornItems()
+    if not wornItems then return false end
+    for i = 0, wornItems:size() - 1 do
+        local wornItem = wornItems:getItemByIndex(i)
+        if wornItem then
+            local location = wornItem:getBodyLocation()
+            local fullType = wornItem:getFullType()
+            if (location == "lefteye" or location == "righteye") and fullType ~= "Base.NL_ByakuganSight" then
+                return true
+            end
+        end
+    end
+    return false
+end
+NinjaLineages.isEyeCovered = isEyeCovered
+
+
+
+local function everyOneMinute()
+    local player = getPlayer()
+    if not player or player:isDead() then return end
+
+    local data = getNLData(player)
+    local maxChakra = NinjaLineages.Chakra.getMaxChakra(player)
+    local currentChakra = NinjaLineages.Chakra.getChakra(player)
+
+    -- 1. Chakra regeneration (1.0 base per minute)
+    local regenRate = 1.0
+    if data.isMeditating then
+        regenRate = regenRate * 3.0
+    end
+
+    local skillLevel = NinjaLineages.Skills.getChakraControlLevel(player)
+    local skillMult = NinjaLineages.Skills.getRegenMultiplier(skillLevel)
+    regenRate = regenRate * skillMult
+
+    local newChakra = math.min(maxChakra, currentChakra + regenRate)
+
+    -- 2. Sustained eye power chakra drains
+    if data.eyePowerActive then
+        local drainRate = 0.0
+        if hasTrait(player, getByakuganTrait()) then
+            drainRate = NinjaLineages.Chakra.BYAKUGAN_DRAIN_PER_MINUTE
+        elseif hasTrait(player, getSharinganTrait()) then
+            local tomoe = data.sharinganTomoe or 1
+            if tomoe == 4 or data.mangekyoUnlocked then
+                drainRate = NinjaLineages.Chakra.MANGEKYO_DRAIN_PER_MINUTE
+            else
+                drainRate = NinjaLineages.Chakra.SHARINGAN_DRAIN_PER_MINUTE[tomoe] or 48.0
+            end
+        end
+
+        local drainReduction = NinjaLineages.Skills.getDrainReduction(skillLevel)
+        drainRate = drainRate * drainReduction
+
+        if data.isMeditating then
+            drainRate = drainRate * 0.25
+        end
+
+        if isEyeCovered(player) then
+            drainRate = drainRate * 0.5
+        end
+
+        newChakra = math.max(0.0, newChakra - drainRate)
+
+        if newChakra <= 0.0 then
+            newChakra = 0.0
+            data.eyePowerActive = false
+            player:Say(getText("UI_NL_EyePowerDeactivated"))
+            if hasTrait(player, getByakuganTrait()) then
+                applyByakugan(player)
+            end
+        end
+    end
+
+    -- Save chakra
+    NinjaLineages.Chakra.setChakra(player, newChakra)
+
+    -- 3. Moodle updates
+    local pct = newChakra / maxChakra
+    if pct < 0.10 then
+        setMoodleValue("NLChakra", player, 0.3) -- Bad lvl 2 (Very Low)
+    elseif pct < 0.30 then
+        setMoodleValue("NLChakra", player, 0.4) -- Bad lvl 1 (Low)
+    else
+        setMoodleValue("NLChakra", player, 0.5) -- Hidden
+    end
+
+    -- 4. Senju endurance recovery (EveryOneMinute)
+    if hasTrait(player, getSenjuTrait()) then
+        local stats = player:getStats()
+        if stats then
+            local currentEndurance = stats:get(CharacterStat.ENDURANCE)
+            local boosted = math.min(1.0, currentEndurance + 0.15)
+            stats:set(CharacterStat.ENDURANCE, boosted)
+        end
+    end
+end
+
 local function initKeybinds()
     table.insert(keyBinding, { value = "[Ninja Lineages]" })
     table.insert(keyBinding, { value = "Ninja Ability", key = Keyboard.KEY_NONE })
@@ -1453,6 +1650,8 @@ local function onPlayerUpdate(player)
     updateKamui(player)
     updateCreationRebirth(player)
     updateAlarmSeals(player)
+    
+    NinjaLineages.CommonJutsu.update(player)
 end
 
 local function onPlayerGetDamage(player, damageType, damage)
@@ -1480,3 +1679,4 @@ Events.OnFillWorldObjectContextMenu.Add(addAbilityContextMenu)
 Events.OnFillInventoryObjectContextMenu.Add(addStorageSealContextMenu)
 Events.OnKeyStartPressed.Add(onKeyStartPressed)
 Events.OnPlayerGetDamage.Add(onPlayerGetDamage)
+Events.EveryOneMinute.Add(everyOneMinute)

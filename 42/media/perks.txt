@@ -1,0 +1,52 @@
+VERSION = 1,
+
+perk NinjaArts
+{
+	parent = None,
+	translation = NinjaArts,
+	passive = false,
+	xp1 = 0,
+	xp2 = 0,
+	xp3 = 0,
+	xp4 = 0,
+	xp5 = 0,
+	xp6 = 0,
+	xp7 = 0,
+	xp8 = 0,
+	xp9 = 0,
+	xp10 = 0,
+}
+
+perk ChakraControl
+{
+	parent = NinjaArts,
+	translation = ChakraControl,
+	passive = false,
+	xp1 = 75,
+	xp2 = 150,
+	xp3 = 300,
+	xp4 = 750,
+	xp5 = 1500,
+	xp6 = 3000,
+	xp7 = 4500,
+	xp8 = 6000,
+	xp9 = 7500,
+	xp10 = 9000,
+}
+
+perk JutsuProwess
+{
+	parent = NinjaArts,
+	translation = JutsuProwess,
+	passive = false,
+	xp1 = 75,
+	xp2 = 150,
+	xp3 = 300,
+	xp4 = 750,
+	xp5 = 1500,
+	xp6 = 3000,
+	xp7 = 4500,
+	xp8 = 6000,
+	xp9 = 7500,
+	xp10 = 9000,
+}

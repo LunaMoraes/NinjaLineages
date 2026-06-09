@@ -1,0 +1,5 @@
+IGUI_EN = {
+    IGUI_perks_NinjaArts = "Ninja Arts",
+    IGUI_perks_ChakraControl = "Chakra Control",
+    IGUI_perks_JutsuProwess = "Jutsu Prowess",
+}

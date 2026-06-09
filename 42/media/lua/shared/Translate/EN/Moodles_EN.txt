@@ -14,4 +14,9 @@ Moodles_EN {
     Moodles_NLKamuiVision_Bad_desc_lvl2 = "Repeated Kamui use has damaged your vision. Recovery: 6 in-game hours.",
     Moodles_NLKamuiVision_Bad_lvl3 = "Vision Impaired",
     Moodles_NLKamuiVision_Bad_desc_lvl3 = "Kamui overuse has severely damaged your vision. Recovery: 1 full in-game day.",
+
+    Moodles_NLChakra_Bad_lvl1 = "Low Chakra",
+    Moodles_NLChakra_Bad_desc_lvl1 = "Your chakra is low (<30%). Consider meditating.",
+    Moodles_NLChakra_Bad_lvl2 = "Very Low Chakra",
+    Moodles_NLChakra_Bad_desc_lvl2 = "Your chakra is critical (<10%). Sustained powers will fail soon.",
 }
