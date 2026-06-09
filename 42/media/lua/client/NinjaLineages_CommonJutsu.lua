@@ -64,14 +64,16 @@ function NinjaLineages.CommonJutsu.castHealing(player)
 
     for i = 0, bodyParts:size() - 1 do
         local part = bodyParts:get(i)
-        if part:getDamage() > maxDamage then
-            maxDamage = part:getDamage()
+        local damage = 100.0 - part:getHealth()
+        if damage > maxDamage then
+            maxDamage = damage
             mostDamagedPart = part
         end
     end
 
-    if mostDamagedPart then
-        mostDamagedPart:setDamage(math.max(0.0, mostDamagedPart:getDamage() - healAmount))
+    if mostDamagedPart and maxDamage > 0 then
+        local currentHealth = mostDamagedPart:getHealth()
+        mostDamagedPart:setHealth(math.min(100.0, currentHealth + healAmount))
         if mostDamagedPart:isCut() then
             mostDamagedPart:setCutTime(math.max(0.0, mostDamagedPart:getCutTime() - (10.0 + prowess * 2.0)))
         end
