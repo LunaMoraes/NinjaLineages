@@ -4,21 +4,9 @@ require "NinjaLineages_Skills"
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.CommonJutsu = {}
 
-local function getNLData(player)
-    local modData = player:getModData()
-    modData.NinjaLineages = modData.NinjaLineages or {}
-    return modData.NinjaLineages
-end
-
-local function transmitPlayerData(player)
-    if player and player.transmitModData then
-        pcall(function() player:transmitModData() end)
-    end
-end
-
 -- Helper to check cooldowns
 function NinjaLineages.CommonJutsu.isOnCooldown(player, jutsuKey)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     local cooldowns = data.cooldowns or {}
     local current = getTimestampMs()
     if cooldowns[jutsuKey] and current < cooldowns[jutsuKey] then
@@ -29,15 +17,15 @@ end
 
 -- Helper to set cooldowns
 function NinjaLineages.CommonJutsu.setCooldown(player, jutsuKey, durationSeconds)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     data.cooldowns = data.cooldowns or {}
     data.cooldowns[jutsuKey] = getTimestampMs() + (durationSeconds * 1000)
-    transmitPlayerData(player)
+    NinjaLineages.transmitPlayerData(player)
 end
 
 -- 1. Minor Healing Jutsu
 function NinjaLineages.CommonJutsu.castHealing(player)
-    local cost = NinjaLineages.Chakra.HEALING_JUTSU_COST
+    local cost = NinjaLineages.Constants.HEALING_JUTSU_COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_NotEnoughChakra"))
         return
@@ -89,7 +77,7 @@ end
 
 -- 2. Physical Reinforcement
 function NinjaLineages.CommonJutsu.castReinforcement(player)
-    local cost = NinjaLineages.Chakra.REINFORCEMENT_JUTSU_COST
+    local cost = NinjaLineages.Constants.REINFORCEMENT_JUTSU_COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_NotEnoughChakra"))
         return
@@ -107,16 +95,16 @@ function NinjaLineages.CommonJutsu.castReinforcement(player)
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
     local duration = (10 + prowess) * 1000 -- in ms
 
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     data.reinforcementEndTime = getTimestampMs() + duration
-    transmitPlayerData(player)
+    NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_ReinforcementCast"))
 end
 
 -- 3. Quiet Step
 function NinjaLineages.CommonJutsu.castQuietStep(player)
-    local cost = NinjaLineages.Chakra.QUIET_STEP_COST
+    local cost = NinjaLineages.Constants.QUIET_STEP_COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_NotEnoughChakra"))
         return
@@ -134,16 +122,16 @@ function NinjaLineages.CommonJutsu.castQuietStep(player)
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
     local duration = (15 + prowess * 1.5) * 1000 -- in ms
 
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     data.quietStepEndTime = getTimestampMs() + duration
-    transmitPlayerData(player)
+    NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_QuietStepCast"))
 end
 
 -- 4. Chakra Focus
 function NinjaLineages.CommonJutsu.castChakraFocus(player)
-    local cost = NinjaLineages.Chakra.CHAKRA_FOCUS_COST
+    local cost = NinjaLineages.Constants.CHAKRA_FOCUS_COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_NotEnoughChakra"))
         return
@@ -172,7 +160,7 @@ end
 
 -- 5. Chakra Grip
 function NinjaLineages.CommonJutsu.castChakraGrip(player)
-    local cost = NinjaLineages.Chakra.CHAKRA_GRIP_COST
+    local cost = NinjaLineages.Constants.CHAKRA_GRIP_COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_NotEnoughChakra"))
         return
@@ -190,16 +178,16 @@ function NinjaLineages.CommonJutsu.castChakraGrip(player)
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
     local duration = (12 + prowess) * 1000 -- in ms
 
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     data.chakraGripEndTime = getTimestampMs() + duration
-    transmitPlayerData(player)
+    NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_ChakraGripCast"))
 end
 
 -- 6. Body Flicker Step
 function NinjaLineages.CommonJutsu.castBodyFlicker(player)
-    local cost = NinjaLineages.Chakra.BODY_FLICKER_COST
+    local cost = NinjaLineages.Constants.BODY_FLICKER_COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_NotEnoughChakra"))
         return
@@ -215,16 +203,16 @@ function NinjaLineages.CommonJutsu.castBodyFlicker(player)
     NinjaLineages.CommonJutsu.setCooldown(player, "bodyflicker", 15)
 
     -- Sprint burst: set end time for speed boost (0.5s duration)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     data.bodyFlickerEndTime = getTimestampMs() + 500
-    transmitPlayerData(player)
+    NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_BodyFlickerCast"))
 end
 
 -- Update ticks for active buffs (called in Events.OnPlayerUpdate)
 function NinjaLineages.CommonJutsu.update(player)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     local current = getTimestampMs()
 
     -- 1. Quiet Step

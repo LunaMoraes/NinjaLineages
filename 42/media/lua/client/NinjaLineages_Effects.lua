@@ -17,44 +17,8 @@ if MF and MF.createMoodle then
     MF.createMoodle("NLChakra")
 end
 
-local SHARINGAN_STAGE_1_KILLS = 1
-local SHARINGAN_STAGE_2_KILLS = 100
-local SHARINGAN_STAGE_3_KILLS = 500
-local KAMUI_DURATION_MS = 10000
-local KAMUI_ENDURANCE_MIN = 0.20
-local KAMUI_ENDURANCE_DRAIN_PER_SECOND = 0.08
-local KAMUI_COOLDOWN_SECONDS = 15
-local SHINRA_COOLDOWN_SECONDS = 15
-local SHINRA_RADIUS = 7.0
-local SHINRA_GUARANTEED_KNOCKDOWN_RADIUS = 3.5
-local SHINRA_BASE_ENDURANCE_COST = 0.35
-local SHINRA_ENDURANCE_COST_PER_ZOMBIE = 0.03
-local SHINRA_ENDURANCE_COST_CAP = 0.75
-local SHINRA_MIN_DAMAGE = 0.75
-local SHINRA_MAX_DAMAGE = 1.10
-local SHINRA_MIN_DAMAGE_FALLOFF = 0.85
-local WOOD_ROOTS_RADIUS = 10.0
-local WOOD_ROOTS_INNER_RADIUS = 6.0
-local WOOD_ROOTS_COOLDOWN_SECONDS = 45
-local WOOD_ROOTS_ENDURANCE_COST = 0.35
-local WOOD_ROOTS_BIND_MS = 3500
-local CREATION_REBIRTH_DURATION_MS = 8000
-local CREATION_REBIRTH_TICK_MS = 250
-local CREATION_REBIRTH_ENDURANCE_PER_PART = 0.015
-local UZUMAKI_DAMAGE_REFUND = 0.33
-local UZUMAKI_BLEED_REFUND = 0.75
-local UZUMAKI_PASSIVE_TICK_MS = 1000
-local ALARM_SEAL_RADIUS = 2.0
-local ALARM_SEAL_SCAN_MS = 500
-local ALARM_SEAL_DISCOVERY_MS = 5000
-local BYAKUGAN_PUSH_MIN_DAMAGE = 0.18
-local BYAKUGAN_PUSH_MAX_DAMAGE = 0.75
-local VISION_RECOVERY_HOURS = { 1, 6, 24 }
-local VISION_ITEMS = {
-    "Base.NL_KamuiVision_L1",
-    "Base.NL_KamuiVision_L2",
-    "Base.NL_KamuiVision_L3",
-}
+local consts = NinjaLineages.Constants
+
 local MOODLE_GOOD = 1
 local MOODLE_BAD = 2
 local MOODLE_TEXT = {
@@ -92,121 +56,10 @@ local alarmSeals = {}
 local nextAlarmScanAt = 0
 local nextAlarmDiscoveryAt = 0
 
-local function getByakuganTrait()
-    local trait = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait.BYAKUGAN
-    if trait then return trait end
-    local ok, resolved = pcall(function()
-        return CharacterTrait.get(ResourceLocation.of(NinjaLineages.TRAIT_BYAKUGAN))
-    end)
-    return ok and resolved or nil
-end
-
-local function getSharinganTrait()
-    local trait = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait.SHARINGAN
-    if trait then return trait end
-    local ok, resolved = pcall(function()
-        return CharacterTrait.get(ResourceLocation.of(NinjaLineages.TRAIT_SHARINGAN))
-    end)
-    return ok and resolved or nil
-end
-
-local function getSenjuTrait()
-    local trait = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait.SENJU
-    if trait then return trait end
-    local ok, resolved = pcall(function()
-        return CharacterTrait.get(ResourceLocation.of(NinjaLineages.TRAIT_SENJU))
-    end)
-    return ok and resolved or nil
-end
-
-local function getRinneganTrait()
-    local trait = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait.RINNEGAN
-    if trait then return trait end
-    local ok, resolved = pcall(function()
-        return CharacterTrait.get(ResourceLocation.of(NinjaLineages.TRAIT_RINNEGAN))
-    end)
-    return ok and resolved or nil
-end
-
-local function getUzumakiTrait()
-    local trait = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait.UZUMAKI
-    if trait then return trait end
-    local ok, resolved = pcall(function()
-        return CharacterTrait.get(ResourceLocation.of(NinjaLineages.TRAIT_UZUMAKI))
-    end)
-    return ok and resolved or nil
-end
-
-local function getFastHealerTrait()
-    local ok, trait = pcall(function()
-        return CharacterTrait.get(ResourceLocation.of("base:fasthealer"))
-    end)
-    if ok then return trait end
-    return nil
-end
-
-local function getNLData(player)
-    local modData = player:getModData()
-    modData.NinjaLineages = modData.NinjaLineages or {}
-    return modData.NinjaLineages
-end
-
-local function transmitPlayerData(player)
-    if player and player.transmitModData then
-        pcall(function() player:transmitModData() end)
-    end
-end
-
-local function getTimestampSeconds()
-    if getTimestamp then return getTimestamp() end
-    return math.floor(getTimestampMs() / 1000)
-end
-
-local function getWorldAgeHours()
-    local gameTime = getGameTime()
-    if gameTime and gameTime.getWorldAgeHours then
-        return gameTime:getWorldAgeHours()
-    end
-    return 0
-end
-
-local function hasTrait(player, trait)
-    return player and trait and player:hasTrait(trait)
-end
-
-local function hasSharingan(player)
-    return hasTrait(player, getSharinganTrait())
-end
-
-local function hasByakugan(player)
-    return hasTrait(player, getByakuganTrait())
-end
-
-local function hasRinnegan(player)
-    return hasTrait(player, getRinneganTrait())
-end
-
-local function hasSenju(player)
-    return hasTrait(player, getSenjuTrait())
-end
-
-local function hasUzumaki(player)
-    return hasTrait(player, getUzumakiTrait())
-end
-
-local function getSharinganStage(player)
-    if not hasSharingan(player) then return 0 end
-    local kills = player:getZombieKills() or 0
-    if kills >= SHARINGAN_STAGE_3_KILLS then return 3 end
-    if kills >= SHARINGAN_STAGE_2_KILLS then return 2 end
-    if kills >= SHARINGAN_STAGE_1_KILLS then return 1 end
-    return 0
-end
-
 local function getSharinganDodgeChance(player)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     if not data.eyePowerActive then return 0 end
-    local stage = getSharinganStage(player)
+    local stage = NinjaLineages.getSharinganStage(player)
     if stage == 1 then return 30 end
     if stage == 2 then return 60 end
     if stage == 3 then return 90 end
@@ -233,14 +86,14 @@ local function setMoodleValue(name, player, value)
 end
 
 local function updateSharinganMoodle(player)
-    local data = getNLData(player)
-    if not hasSharingan(player) or not data.eyePowerActive then
+    local data = NinjaLineages.getNLData(player)
+    if not NinjaLineages.hasSharingan(player) or not data.eyePowerActive then
         setMoodleValue("NLSharinganTomoe", player, 0.5)
         data.lastSharinganStage = nil
         return
     end
 
-    local stage = getSharinganStage(player)
+    local stage = NinjaLineages.getSharinganStage(player)
     if data.mangekyoUnlocked then
         setMoodleValue("NLSharinganTomoe", player, 0.9)
     elseif stage == 3 then
@@ -263,10 +116,10 @@ local function updateSharinganMoodle(player)
             player:Say("Third Tomoe released")
         end
         data.lastSharinganStage = stage
-        transmitPlayerData(player)
+        NinjaLineages.transmitPlayerData(player)
     elseif stage < lastStage then
         data.lastSharinganStage = stage
-        transmitPlayerData(player)
+        NinjaLineages.transmitPlayerData(player)
     end
 end
 
@@ -306,11 +159,9 @@ end
 
 local function applyByakugan(player)
     if not player then return end
-    local byakuganTrait = getByakuganTrait()
-    if not byakuganTrait then return end
 
-    if player:hasTrait(byakuganTrait) then
-        local data = getNLData(player)
+    if NinjaLineages.hasByakugan(player) then
+        local data = NinjaLineages.getNLData(player)
         local chakra = NinjaLineages.Chakra.getChakra(player)
         if data.eyePowerActive and chakra > 0 then
             local equipped = getWornByakuganSight(player)
@@ -356,10 +207,10 @@ local function applyByakugan(player)
 end
 
 local function applyKamuiVisionItem(player)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     local level = data.kamuiVisionLevel or 0
-    local equipped = getWornItemByType(player, VISION_ITEMS)
-    local desiredType = level > 0 and VISION_ITEMS[level] or nil
+    local equipped = getWornItemByType(player, consts.VISION_ITEMS)
+    local desiredType = level > 0 and consts.VISION_ITEMS[level] or nil
     if equipped and desiredType and equipped:getFullType() == desiredType then
         if level == 1 then
             setMoodleValue("NLKamuiVision", player, 0.4)
@@ -376,12 +227,12 @@ local function applyKamuiVisionItem(player)
     end
 
     if level <= 0 then
-        removeInventoryItems(player, VISION_ITEMS)
+        removeInventoryItems(player, consts.VISION_ITEMS)
         setMoodleValue("NLKamuiVision", player, 0.5)
         return
     end
 
-    removeInventoryItems(player, VISION_ITEMS)
+    removeInventoryItems(player, consts.VISION_ITEMS)
     local inv = player:getInventory()
     if not inv then return end
     local item = inv:AddItem(desiredType)
@@ -398,8 +249,21 @@ local function applyKamuiVisionItem(player)
     end
 end
 
+local function getTimestampSeconds()
+    if getTimestamp then return getTimestamp() end
+    return math.floor(getTimestampMs() / 1000)
+end
+
+local function getWorldAgeHours()
+    local gameTime = getGameTime()
+    if gameTime and gameTime.getWorldAgeHours then
+        return gameTime:getWorldAgeHours()
+    end
+    return 0
+end
+
 local function recoverKamuiVision(player)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     local level = data.kamuiVisionLevel or 0
     if level <= 0 then
         data.kamuiVisionLevel = 0
@@ -413,38 +277,38 @@ local function recoverKamuiVision(player)
         level = math.max(0, level - 1)
         data.kamuiVisionLevel = level
         if level > 0 then
-            data.kamuiVisionRecoverAt = now + VISION_RECOVERY_HOURS[level]
+            data.kamuiVisionRecoverAt = now + consts.VISION_RECOVERY_HOURS[level]
         else
             data.kamuiVisionRecoverAt = nil
         end
-        transmitPlayerData(player)
+        NinjaLineages.transmitPlayerData(player)
     end
     applyKamuiVisionItem(player)
 end
 
 local function addKamuiVisionPenalty(player)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     local now = getWorldAgeHours()
     local level = math.min(3, (data.kamuiVisionLevel or 0) + 1)
     data.kamuiVisionLevel = level
-    data.kamuiVisionRecoverAt = now + VISION_RECOVERY_HOURS[level]
+    data.kamuiVisionRecoverAt = now + consts.VISION_RECOVERY_HOURS[level]
     applyKamuiVisionItem(player)
-    transmitPlayerData(player)
+    NinjaLineages.transmitPlayerData(player)
 end
 
 local function applySenjuEndurance(player)
     if not player then return end
 
-    local senjuTrait = getSenjuTrait()
+    local senjuTrait = NinjaLineages.getTraitObject(NinjaLineages.TRAIT_SENJU)
     if not senjuTrait then return end
-    local data = getNLData(player)
-    local fastHealer = getFastHealerTrait()
+    local data = NinjaLineages.getNLData(player)
+    local fastHealer = NinjaLineages.getTraitObject("base:fasthealer")
     if not player:hasTrait(senjuTrait) then
         senjuLastRecoveryAt[player] = nil
         if data.senjuAddedFastHealer and fastHealer then
             pcall(function() player:getCharacterTraits():remove(fastHealer) end)
             data.senjuAddedFastHealer = nil
-            transmitPlayerData(player)
+            NinjaLineages.transmitPlayerData(player)
         end
         return
     end
@@ -452,7 +316,7 @@ local function applySenjuEndurance(player)
     if fastHealer and not player:hasTrait(fastHealer) then
         pcall(function() player:getCharacterTraits():add(fastHealer) end)
         data.senjuAddedFastHealer = true
-        transmitPlayerData(player)
+        NinjaLineages.transmitPlayerData(player)
     end
 end
 
@@ -531,18 +395,18 @@ local function updateKamui(player)
 
     failNearbyZombieAttacks(player)
 
-    if elapsedMs >= KAMUI_DURATION_MS or chakra <= 0 then
+    if elapsedMs >= consts.KAMUI_DURATION_MS or chakra <= 0 then
         stopKamui(player, true)
     end
 end
 
 local function canUseKamui(player)
-    local data = getNLData(player)
-    return hasSharingan(player) and data.mangekyoUnlocked == true
+    local data = NinjaLineages.getNLData(player)
+    return NinjaLineages.hasSharingan(player) and data.mangekyoUnlocked == true
 end
 
 local function startKamui(player)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     if not canUseKamui(player) then
         player:Say("Mangekyo Sharingan is not unlocked")
         return
@@ -584,8 +448,8 @@ local function startKamui(player)
     safeSetBool(player, "setGodMod", true)
     safeSetNoClip(player, true)
 
-    data.kamuiCooldownUntil = now + KAMUI_COOLDOWN_SECONDS
-    transmitPlayerData(player)
+    data.kamuiCooldownUntil = now + consts.KAMUI_COOLDOWN_SECONDS
+    NinjaLineages.transmitPlayerData(player)
     player:Say("Kamui")
 end
 
@@ -597,7 +461,7 @@ local function collectShinraTargets(player)
         local zombie = zombies:get(i)
         if zombie and not zombie:isDead() then
             local distance = zombie:DistTo(player)
-            if distance <= SHINRA_RADIUS then
+            if distance <= consts.SHINRA_RADIUS then
                 table.insert(targets, { zombie = zombie, distance = distance })
             end
         end
@@ -628,18 +492,18 @@ local function applyShinraDamage(player, target)
     local zombie = target.zombie
     if not zombie or zombie:isDead() then return end
 
-    local falloff = math.max(SHINRA_MIN_DAMAGE_FALLOFF, 1.0 - ((target.distance / SHINRA_RADIUS) * 0.15))
-    local damage = getRandomDamage(SHINRA_MIN_DAMAGE, SHINRA_MAX_DAMAGE) * falloff
+    local falloff = math.max(consts.SHINRA_MIN_DAMAGE_FALLOFF, 1.0 - ((target.distance / consts.SHINRA_RADIUS) * 0.15))
+    local damage = getRandomDamage(consts.SHINRA_MIN_DAMAGE, consts.SHINRA_MAX_DAMAGE) * falloff
     applyZombieDamage(player, zombie, damage)
 end
 
 local function getKnockdownChance(distance)
-    if distance <= SHINRA_GUARANTEED_KNOCKDOWN_RADIUS then return 100 end
+    if distance <= consts.SHINRA_GUARANTEED_KNOCKDOWN_RADIUS then return 100 end
 
-    local outerRange = SHINRA_RADIUS - SHINRA_GUARANTEED_KNOCKDOWN_RADIUS
+    local outerRange = consts.SHINRA_RADIUS - consts.SHINRA_GUARANTEED_KNOCKDOWN_RADIUS
     if outerRange <= 0 then return 0 end
 
-    local remaining = math.max(0, SHINRA_RADIUS - distance)
+    local remaining = math.max(0, consts.SHINRA_RADIUS - distance)
     return math.floor((remaining / outerRange) * 100)
 end
 
@@ -660,12 +524,12 @@ local function applyShinraToZombie(player, target)
 end
 
 local function useShinraTensei(player)
-    if not hasRinnegan(player) then
+    if not NinjaLineages.hasRinnegan(player) then
         player:Say("Rinnegan is required")
         return
     end
 
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     local now = getTimestampSeconds()
     if data.shinraCooldownUntil and now < data.shinraCooldownUntil then
         player:Say("Shinra Tensei cooldown: " .. tostring(math.ceil(data.shinraCooldownUntil - now)) .. "s")
@@ -690,8 +554,8 @@ local function useShinraTensei(player)
         applyShinraToZombie(player, target)
     end
 
-    data.shinraCooldownUntil = now + SHINRA_COOLDOWN_SECONDS
-    transmitPlayerData(player)
+    data.shinraCooldownUntil = now + consts.SHINRA_COOLDOWN_SECONDS
+    NinjaLineages.transmitPlayerData(player)
     player:Say("Shinra Tensei")
 end
 
@@ -717,7 +581,7 @@ local function applyBindingRootsToZombie(player, target)
 
     zombie:setVariable("AttackOutcome", "fail")
     zombie:setStaggerBack(true)
-    local knockdownChance = target.distance <= WOOD_ROOTS_INNER_RADIUS and 65 or 35
+    local knockdownChance = target.distance <= consts.WOOD_ROOTS_INNER_RADIUS and 65 or 35
     if ZombRand(1, 101) <= knockdownChance then
         zombie:setKnockedDown(true)
     end
@@ -725,16 +589,16 @@ local function applyBindingRootsToZombie(player, target)
     pcall(function() zombie:setPlayerAttackPosition("FRONT") end)
     pcall(function() zombie:setHitForce(2.0) end)
     pcall(function() zombie:reportEvent("wasHit") end)
-    boundZombies[zombie] = getTimestampMs() + WOOD_ROOTS_BIND_MS
+    boundZombies[zombie] = getTimestampMs() + consts.WOOD_ROOTS_BIND_MS
 end
 
 local function useBindingRoots(player)
-    if not hasSenju(player) then
+    if not NinjaLineages.hasSenju(player) then
         player:Say("Senju lineage is required")
         return
     end
 
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     local now = getTimestampSeconds()
     if data.bindingRootsCooldownUntil and now < data.bindingRootsCooldownUntil then
         player:Say("Binding Roots cooldown: " .. tostring(math.ceil(data.bindingRootsCooldownUntil - now)) .. "s")
@@ -747,12 +611,12 @@ local function useBindingRoots(player)
     end
 
     NinjaLineages.Chakra.spendChakra(player, NinjaLineages.Chakra.WOOD_ROOTS_COST)
-    for _, target in ipairs(collectZombieTargets(player, WOOD_ROOTS_RADIUS)) do
+    for _, target in ipairs(collectZombieTargets(player, consts.WOOD_ROOTS_RADIUS)) do
         applyBindingRootsToZombie(player, target)
     end
 
-    data.bindingRootsCooldownUntil = now + WOOD_ROOTS_COOLDOWN_SECONDS
-    transmitPlayerData(player)
+    data.bindingRootsCooldownUntil = now + consts.WOOD_ROOTS_COOLDOWN_SECONDS
+    NinjaLineages.transmitPlayerData(player)
     player:Say("Mokuton")
 end
 
@@ -798,6 +662,7 @@ local function healBodyPartForCreationRebirth(bodyDamage, bodypart)
     changed = reducePartTimer(bodypart, "getDeepWoundTime", "setDeepWoundTime", 3.0) or changed
     changed = reducePartTimer(bodypart, "getBurnTime", "setBurnTime", 2.0) or changed
     changed = reducePartTimer(bodypart, "getFractureTime", "setFractureTime", 1.0) or changed
+
     if changed then
         pcall(function()
             if bodypart:getBleedingTime() <= 0 then
@@ -824,7 +689,7 @@ local function updateCreationRebirth(player)
         return
     end
     if nowMs < state.nextTickAt then return end
-    state.nextTickAt = nowMs + CREATION_REBIRTH_TICK_MS
+    state.nextTickAt = nowMs + consts.CREATION_REBIRTH_TICK_MS
 
     local stats = player:getStats()
     local bodyDamage = player:getBodyDamage()
@@ -852,7 +717,7 @@ local function updateCreationRebirth(player)
 end
 
 local function useCreationRebirth(player)
-    if not hasSenju(player) then
+    if not NinjaLineages.hasSenju(player) then
         player:Say("Senju lineage is required")
         return
     end
@@ -862,7 +727,7 @@ local function useCreationRebirth(player)
     end
     local nowMs = getTimestampMs()
     creationRebirthState[player] = {
-        endsAt = nowMs + CREATION_REBIRTH_DURATION_MS,
+        endsAt = nowMs + consts.CREATION_REBIRTH_DURATION_MS,
         nextTickAt = nowMs,
     }
     player:Say("Creation Rebirth")
@@ -895,7 +760,7 @@ local function captureUzumakiHealthState(player)
 end
 
 local function refundUzumakiDamage(player)
-    if not hasUzumaki(player) then return end
+    if not NinjaLineages.hasUzumaki(player) then return end
     local data = uzumakiHealthState[player]
     if not data then
         captureUzumakiHealthState(player)
@@ -907,14 +772,14 @@ local function refundUzumakiDamage(player)
 
     local ok, currentGeneral = pcall(function() return bodyDamage:getHealth() end)
     if ok and data.generalHealth and currentGeneral and currentGeneral < data.generalHealth then
-        pcall(function() bodyDamage:AddGeneralHealth((data.generalHealth - currentGeneral) * UZUMAKI_DAMAGE_REFUND) end)
+        pcall(function() bodyDamage:AddGeneralHealth((data.generalHealth - currentGeneral) * consts.UZUMAKI_DAMAGE_REFUND) end)
     end
 
     captureUzumakiHealthState(player)
 end
 
 local function applyUzumakiBleedSlow(player)
-    if not hasUzumaki(player) then
+    if not NinjaLineages.hasUzumaki(player) then
         uzumakiHealthState[player] = nil
         return
     end
@@ -925,7 +790,7 @@ local function applyUzumakiBleedSlow(player)
         captureUzumakiHealthState(player)
         return
     end
-    if data.lastPassiveAt and nowMs < data.lastPassiveAt + UZUMAKI_PASSIVE_TICK_MS then return end
+    if data.lastPassiveAt and nowMs < data.lastPassiveAt + consts.UZUMAKI_PASSIVE_TICK_MS then return end
 
     local bodyDamage = player:getBodyDamage()
     local parts = bodyDamage and bodyDamage:getBodyParts()
@@ -937,7 +802,7 @@ local function applyUzumakiBleedSlow(player)
         if previous and part then
             local okBleed, currentBleed = pcall(function() return part:getBleedingTime() end)
             if okBleed and currentBleed and currentBleed > 0 and previous.bleed and currentBleed < previous.bleed then
-                local restored = currentBleed + ((previous.bleed - currentBleed) * UZUMAKI_BLEED_REFUND)
+                local restored = currentBleed + ((previous.bleed - currentBleed) * consts.UZUMAKI_BLEED_REFUND)
                 pcall(function() part:setBleedingTime(restored) end)
             end
         end
@@ -1006,7 +871,7 @@ local function removeAlarmSeal(square)
 end
 
 local function placeAlarmSeal(player, square)
-    if not hasUzumaki(player) then
+    if not NinjaLineages.hasUzumaki(player) then
         player:Say("Uzumaki lineage is required")
         return
     end
@@ -1054,11 +919,11 @@ end
 local function updateAlarmSeals(player)
     local nowMs = getTimestampMs()
     if nowMs >= nextAlarmDiscoveryAt then
-        nextAlarmDiscoveryAt = nowMs + ALARM_SEAL_DISCOVERY_MS
+        nextAlarmDiscoveryAt = nowMs + consts.ALARM_SEAL_DISCOVERY_MS
         discoverAlarmSealsNearPlayer(player)
     end
     if nowMs < nextAlarmScanAt then return end
-    nextAlarmScanAt = nowMs + ALARM_SEAL_SCAN_MS
+    nextAlarmScanAt = nowMs + consts.ALARM_SEAL_SCAN_MS
 
     local zombies = getCell() and getCell():getZombieList()
     if not zombies then return end
@@ -1070,7 +935,7 @@ local function updateAlarmSeals(player)
                 local zombie = zombies:get(i)
                 local dx = zombie and (zombie:getX() - (square:getX() + 0.5)) or 999
                 local dy = zombie and (zombie:getY() - (square:getY() + 0.5)) or 999
-                if zombie and not zombie:isDead() and ((dx * dx) + (dy * dy)) <= (ALARM_SEAL_RADIUS * ALARM_SEAL_RADIUS) then
+                if zombie and not zombie:isDead() and ((dx * dx) + (dy * dy)) <= (consts.ALARM_SEAL_RADIUS * consts.ALARM_SEAL_RADIUS) then
                     triggerAlarmSeal(player, square)
                     break
                 end
@@ -1123,7 +988,7 @@ local function moveItemBetweenContainers(item, srcContainer, destContainer)
 end
 
 local function sealBackpackInScroll(player, backpack, scroll)
-    if not hasUzumaki(player) then
+    if not NinjaLineages.hasUzumaki(player) then
         player:Say("Uzumaki lineage is required")
         return
     end
@@ -1170,7 +1035,7 @@ function NLUnsealScrollAction:new(character, scroll)
 end
 
 local function unsealScroll(player, scroll)
-    if not hasUzumaki(player) then
+    if not NinjaLineages.hasUzumaki(player) then
         player:Say("Uzumaki lineage is required")
         return
     end
@@ -1192,9 +1057,9 @@ end
 
 local function canUseKamuiTestUnlock(player)
     if not isSinglePlayerGame() then return false end
-    if not hasSharingan(player) then return false end
-    if getSharinganStage(player) < 3 then return false end
-    return getNLData(player).mangekyoUnlocked ~= true
+    if not NinjaLineages.hasSharingan(player) then return false end
+    if NinjaLineages.getSharinganStage(player) < 3 then return false end
+    return NinjaLineages.getNLData(player).mangekyoUnlocked ~= true
 end
 
 local function unlockKamuiForSinglePlayerTest(player)
@@ -1203,9 +1068,9 @@ local function unlockKamuiForSinglePlayerTest(player)
         return
     end
 
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     data.mangekyoUnlocked = true
-    transmitPlayerData(player)
+    NinjaLineages.transmitPlayerData(player)
     updateSharinganMoodle(player)
     player:Say("Mangekyo Sharingan awakened")
 end
@@ -1215,12 +1080,12 @@ local function unlockMangekyoIfEligible(victim)
     local attacker = victim:getAttackedBy()
     if not attacker or not instanceof(attacker, "IsoPlayer") then return end
     if not attacker:isLocalPlayer() then return end
-    if not hasSharingan(attacker) or getSharinganStage(attacker) < 3 then return end
+    if not NinjaLineages.hasSharingan(attacker) or NinjaLineages.getSharinganStage(attacker) < 3 then return end
 
-    local data = getNLData(attacker)
+    local data = NinjaLineages.getNLData(attacker)
     if data.mangekyoUnlocked then return end
     data.mangekyoUnlocked = true
-    transmitPlayerData(attacker)
+    NinjaLineages.transmitPlayerData(attacker)
     attacker:Say("Mangekyo Sharingan awakened")
     updateSharinganMoodle(attacker)
 end
@@ -1296,8 +1161,8 @@ local function byakuganPushHit(zombie, attacker, bodyPartType, handWeapon)
     if not zombie or not attacker or not handWeapon then return end
     if not instanceof(attacker, "IsoPlayer") then return end
     if not attacker:isLocalPlayer() then return end
-    if not hasByakugan(attacker) then return end
-    local data = getNLData(attacker)
+    if not NinjaLineages.hasByakugan(attacker) then return end
+    local data = NinjaLineages.getNLData(attacker)
     if not data.eyePowerActive then return end
     if not isBareHands(handWeapon) then return end
     if not isZombieCharacter(zombie) or zombie:isDead() then return end
@@ -1312,11 +1177,11 @@ local function byakuganPushHit(zombie, attacker, bodyPartType, handWeapon)
     pcall(function() zombie:setHitForce(2.0) end)
     pcall(function() zombie:reportEvent("wasHit") end)
 
-    applyZombieDamage(attacker, zombie, getRandomDamage(BYAKUGAN_PUSH_MIN_DAMAGE, BYAKUGAN_PUSH_MAX_DAMAGE))
+    applyZombieDamage(attacker, zombie, getRandomDamage(consts.BYAKUGAN_PUSH_MIN_DAMAGE, consts.BYAKUGAN_PUSH_MAX_DAMAGE))
 end
 
 local function toggleByakugan(player)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     if data.eyePowerActive then
         data.eyePowerActive = false
         applyByakugan(player)
@@ -1333,13 +1198,13 @@ local function toggleByakugan(player)
 end
 
 local function toggleSharingan(player)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     if data.eyePowerActive then
         data.eyePowerActive = false
         updateSharinganMoodle(player)
         player:Say("Sharingan Deactivated")
     else
-        if getSharinganStage(player) == 0 then
+        if NinjaLineages.getSharinganStage(player) == 0 then
             player:Say(getText("UI_NL_SharinganLocked"))
             return
         end
@@ -1355,19 +1220,19 @@ end
 
 local function getAvailableAbilities(player)
     local abilities = {}
-    if hasByakugan(player) then
+    if NinjaLineages.hasByakugan(player) then
         table.insert(abilities, { id = "byakugan", name = "Toggle Byakugan", action = toggleByakugan, texture = "media/ui/Traits/trait_byakugan.png" })
     end
-    if hasSharingan(player) then
+    if NinjaLineages.hasSharingan(player) then
         table.insert(abilities, { id = "sharingan", name = "Toggle Sharingan", action = toggleSharingan, texture = "media/ui/Traits/trait_sharingan.png" })
     end
     if canUseKamui(player) then
         table.insert(abilities, { id = "kamui", name = "Kamui", action = startKamui, texture = "media/ui/Traits/trait_sharingan.png" })
     end
-    if hasRinnegan(player) then
+    if NinjaLineages.hasRinnegan(player) then
         table.insert(abilities, { id = "shinra_tensei", name = "Shinra Tensei", action = useShinraTensei, texture = "media/ui/Traits/trait_rinnegan.png" })
     end
-    if hasSenju(player) then
+    if NinjaLineages.hasSenju(player) then
         table.insert(abilities, { id = "binding_roots", name = "Wood Release - Binding Roots", action = useBindingRoots, texture = "media/ui/Traits/trait_senju.png" })
         table.insert(abilities, { id = "creation_rebirth", name = "Creation Rebirth", action = useCreationRebirth, texture = "media/ui/Traits/trait_senju.png" })
     end
@@ -1382,7 +1247,7 @@ local function getAvailableAbilities(player)
 end
 
 local function getSelectedAbility(player, abilities)
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     for _, ability in ipairs(abilities) do
         if data.selectedAbilityId == ability.id then
             return ability
@@ -1391,16 +1256,16 @@ local function getSelectedAbility(player, abilities)
     local fallback = abilities[1]
     if fallback and data.selectedAbilityId ~= fallback.id then
         data.selectedAbilityId = fallback.id
-        transmitPlayerData(player)
+        NinjaLineages.transmitPlayerData(player)
     end
     return fallback
 end
 
 local function selectAbility(player, ability)
     if not ability then return end
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     data.selectedAbilityId = ability.id
-    transmitPlayerData(player)
+    NinjaLineages.transmitPlayerData(player)
     player:Say(ability.name .. " selected")
 end
 
@@ -1469,7 +1334,7 @@ end
 local function addStorageSealContextMenu(playerNum, context, items)
     local player = getSpecificPlayer(playerNum)
     if not player or player:isDead() then return end
-    if not hasUzumaki(player) then return end
+    if not NinjaLineages.hasUzumaki(player) then return end
 
     local selected = nil
     if items then
@@ -1552,13 +1417,11 @@ local function isEyeCovered(player)
 end
 NinjaLineages.isEyeCovered = isEyeCovered
 
-
-
 local function everyOneMinute()
     local player = getPlayer()
     if not player or player:isDead() then return end
 
-    local data = getNLData(player)
+    local data = NinjaLineages.getNLData(player)
     local maxChakra = NinjaLineages.Chakra.getMaxChakra(player)
     local currentChakra = NinjaLineages.Chakra.getChakra(player)
 
@@ -1578,15 +1441,15 @@ local function everyOneMinute()
     -- 2. Sustained eye power chakra drains
     if data.eyePowerActive then
         local drainRate = 0.0
-        if hasTrait(player, getByakuganTrait()) then
-            drainRate = NinjaLineages.Chakra.BYAKUGAN_DRAIN_PER_MINUTE
-        elseif hasTrait(player, getSharinganTrait()) then
+        if NinjaLineages.hasByakugan(player) then
+            drainRate = NinjaLineages.Constants.BYAKUGAN_DRAIN_PER_MINUTE
+        elseif NinjaLineages.hasSharingan(player) then
             local tomoe = data.sharinganTomoe or 1
             if tomoe == 4 or data.mangekyoUnlocked then
-                drainRate = NinjaLineages.Chakra.MANGEKYO_DRAIN_PER_MINUTE
+                drainRate = NinjaLineages.Constants.MANGEKYO_DRAIN_PER_MINUTE
             else
-                drainRate = NinjaLineages.Chakra.SHARINGAN_DRAIN_PER_MINUTE[tomoe] or 48.0
-            end
+                drainRate = NinjaLineages.Constants.SHARINGAN_DRAIN_PER_MINUTE[tomoe] or 48.0
+              end
         end
 
         local drainReduction = NinjaLineages.Skills.getDrainReduction(skillLevel)
@@ -1606,7 +1469,7 @@ local function everyOneMinute()
             newChakra = 0.0
             data.eyePowerActive = false
             player:Say(getText("UI_NL_EyePowerDeactivated"))
-            if hasTrait(player, getByakuganTrait()) then
+            if NinjaLineages.hasByakugan(player) then
                 applyByakugan(player)
             end
         end
@@ -1626,7 +1489,7 @@ local function everyOneMinute()
     end
 
     -- 4. Senju endurance recovery (EveryOneMinute)
-    if hasTrait(player, getSenjuTrait()) then
+    if NinjaLineages.hasSenju(player) then
         local stats = player:getStats()
         if stats then
             local currentEndurance = stats:get(CharacterStat.ENDURANCE)

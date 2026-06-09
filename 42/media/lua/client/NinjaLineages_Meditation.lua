@@ -1,4 +1,5 @@
 require "TimedActions/ISBaseTimedAction"
+require "NinjaLineages_Traits"
 
 NLMeditationAction = ISBaseTimedAction:derive("NLMeditationAction")
 
@@ -7,12 +8,10 @@ function NLMeditationAction:isValid()
 end
 
 function NLMeditationAction:start()
-    local data = self.character:getModData().NinjaLineages
+    local data = NinjaLineages.getNLData(self.character)
     if data then
         data.isMeditating = true
-        if self.character.transmitModData then
-            pcall(function() self.character:transmitModData() end)
-        end
+        NinjaLineages.transmitPlayerData(self.character)
     end
     if not self.character:isSitOnGround() then
         self.character:reportEvent("EventSitOnGround")
@@ -32,23 +31,19 @@ function NLMeditationAction:update()
 end
 
 function NLMeditationAction:stop()
-    local data = self.character:getModData().NinjaLineages
+    local data = NinjaLineages.getNLData(self.character)
     if data then
         data.isMeditating = false
-        if self.character.transmitModData then
-            pcall(function() self.character:transmitModData() end)
-        end
+        NinjaLineages.transmitPlayerData(self.character)
     end
     ISBaseTimedAction.stop(self)
 end
 
 function NLMeditationAction:perform()
-    local data = self.character:getModData().NinjaLineages
+    local data = NinjaLineages.getNLData(self.character)
     if data then
         data.isMeditating = false
-        if self.character.transmitModData then
-            pcall(function() self.character:transmitModData() end)
-        end
+        NinjaLineages.transmitPlayerData(self.character)
     end
     self.character:Say(getText("UI_NL_MeditationComplete"))
     require "NinjaLineages_Skills"

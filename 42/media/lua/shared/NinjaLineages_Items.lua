@@ -1,17 +1,8 @@
+require "NinjaLineages_Traits"
+
 NinjaLineages = NinjaLineages or {}
 AcceptItemFunction = AcceptItemFunction or {}
 RecipeCodeOnTest = RecipeCodeOnTest or {}
-
-local function hasUzumakiTrait(player)
-    if not player then return false end
-    local trait = NinjaLineages.CharacterTrait and NinjaLineages.CharacterTrait.UZUMAKI
-    if trait and player:hasTrait(trait) then return true end
-
-    local ok, registeredTrait = pcall(function()
-        return CharacterTrait.get(ResourceLocation.of("NinjaLineages:uzumaki"))
-    end)
-    return ok and registeredTrait and player:hasTrait(registeredTrait)
-end
 
 function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(item, result)
     local player = nil
@@ -23,7 +14,7 @@ function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(item, result)
             if getSpecificPlayer then player = getSpecificPlayer(0) end
         end)
     end
-    return hasUzumakiTrait(player)
+    return NinjaLineages.hasUzumaki(player)
 end
 
 local function isSealedScroll(item)
