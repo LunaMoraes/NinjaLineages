@@ -8,6 +8,43 @@ NinjaLineages.TRAIT_SENJU = "NinjaLineages:senju"
 NinjaLineages.TRAIT_RINNEGAN = "NinjaLineages:rinnegan"
 NinjaLineages.TRAIT_UZUMAKI = "NinjaLineages:uzumaki"
 
+-- Centralized Registries for modular lineage architecture
+NinjaLineages.Abilities = {}
+NinjaLineages.PlayerUpdates = {}
+NinjaLineages.ZombieUpdates = {}
+NinjaLineages.HitZombieListeners = {}
+NinjaLineages.PlayerGetDamageListeners = {}
+NinjaLineages.EveryMinuteListeners = {}
+NinjaLineages.CreatePlayerListeners = {}
+
+function NinjaLineages.registerAbility(ability)
+    table.insert(NinjaLineages.Abilities, ability)
+end
+
+function NinjaLineages.registerPlayerUpdate(fn)
+    table.insert(NinjaLineages.PlayerUpdates, fn)
+end
+
+function NinjaLineages.registerZombieUpdate(fn)
+    table.insert(NinjaLineages.ZombieUpdates, fn)
+end
+
+function NinjaLineages.registerHitZombie(fn)
+    table.insert(NinjaLineages.HitZombieListeners, fn)
+end
+
+function NinjaLineages.registerPlayerGetDamage(fn)
+    table.insert(NinjaLineages.PlayerGetDamageListeners, fn)
+end
+
+function NinjaLineages.registerEveryMinute(fn)
+    table.insert(NinjaLineages.EveryMinuteListeners, fn)
+end
+
+function NinjaLineages.registerCreatePlayer(fn)
+    table.insert(NinjaLineages.CreatePlayerListeners, fn)
+end
+
 -- Helper to retrieve or initialize player modData
 function NinjaLineages.getNLData(player)
     if not player then return nil end
