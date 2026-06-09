@@ -9,6 +9,7 @@ module NinjaLineages
         UIName = UI_trait_NL_Byakugan,
         UIDescription = UI_trait_NL_ByakuganDesc,
         MutuallyExclusiveTraits = NinjaLineages:sharingan;NinjaLineages:senju;NinjaLineages:rinnegan;NinjaLineages:uzumaki,
+        XPBoosts = JutsuProwess=1;ChakraControl=3,
     }
 
     character_trait_definition NinjaLineages:sharingan
@@ -20,6 +21,7 @@ module NinjaLineages
         UIName = UI_trait_NL_Sharingan,
         UIDescription = UI_trait_NL_SharinganDesc,
         MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:senju;NinjaLineages:rinnegan;NinjaLineages:uzumaki,
+        XPBoosts = JutsuProwess=4;ChakraControl=1,
     }
 
     character_trait_definition NinjaLineages:senju
@@ -31,6 +33,7 @@ module NinjaLineages
         UIName = UI_trait_NL_Senju,
         UIDescription = UI_trait_NL_SenjuDesc,
         MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:rinnegan;NinjaLineages:uzumaki,
+        XPBoosts = JutsuProwess=1;ChakraControl=2,
     }
 
     character_trait_definition NinjaLineages:rinnegan
@@ -42,6 +45,7 @@ module NinjaLineages
         UIName = UI_trait_NL_Rinnegan,
         UIDescription = UI_trait_NL_RinneganDesc,
         MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:senju;NinjaLineages:uzumaki,
+        XPBoosts = JutsuProwess=4;ChakraControl=2,
     }
 
     character_trait_definition NinjaLineages:uzumaki
@@ -53,5 +57,6 @@ module NinjaLineages
         UIName = UI_trait_NL_Uzumaki,
         UIDescription = UI_trait_NL_UzumakiDesc,
         MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:senju;NinjaLineages:rinnegan,
+        XPBoosts = ChakraControl=4,
     }
 }
