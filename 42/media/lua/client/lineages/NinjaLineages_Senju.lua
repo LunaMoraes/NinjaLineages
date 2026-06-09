@@ -214,16 +214,16 @@ NinjaLineages.registerAbility({
     action = useCreationRebirth
 })
 
-NinjaLineages.registerPlayerUpdate(function(player)
+NinjaLineages.registerPlayerUpdate("senju.update", function(player)
     applySenjuEndurance(player)
     updateCreationRebirth(player)
 end)
 
-NinjaLineages.registerZombieUpdate(enforceBindingRoots)
+NinjaLineages.registerZombieUpdate("senju.zombieUpdate", enforceBindingRoots)
 
-NinjaLineages.registerCreatePlayer(applySenjuEndurance)
+NinjaLineages.registerCreatePlayer("senju.init", applySenjuEndurance)
 
-NinjaLineages.registerEveryMinute(function(player)
+NinjaLineages.registerEveryMinute("senju.passive", function(player)
     if NinjaLineages.hasSenju(player) then
         local stats = player:getStats()
         if stats then

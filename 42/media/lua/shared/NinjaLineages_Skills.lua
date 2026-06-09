@@ -1,5 +1,5 @@
 NinjaLineages = NinjaLineages or {}
-NinjaLineages.Skills = {}
+NinjaLineages.Skills = NinjaLineages.Skills or {}
 
 -- Safely retrieve perk enum values
 local function getChakraControlPerk()

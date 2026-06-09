@@ -134,6 +134,6 @@ NinjaLineages.registerAbility({
     action = NinjaLineages.Hyuga.toggleByakugan
 })
 
-NinjaLineages.registerPlayerUpdate(applyByakugan)
-NinjaLineages.registerHitZombie(byakuganPushHit)
-NinjaLineages.registerCreatePlayer(applyByakugan)
+NinjaLineages.registerPlayerUpdate("hyuga.applyByakugan", applyByakugan)
+NinjaLineages.registerHitZombie("hyuga.gentleFist", byakuganPushHit)
+NinjaLineages.registerCreatePlayer("hyuga.applyByakuganInit", applyByakugan)

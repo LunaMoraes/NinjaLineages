@@ -33,29 +33,24 @@ end
 function NinjaLineages.Chakra.setChakra(player, val)
     local data = NinjaLineages.getNLData(player)
     local maxVal = NinjaLineages.Chakra.getMaxChakra(player)
-    local oldVal = data.chakra or maxVal
-    local newVal = math.max(0.0, math.min(maxVal, val))
-
-    -- Award Jutsu Prowess XP on depletion (1:10 ratio)
-    if newVal < oldVal then
-        local depleted = oldVal - newVal
-        if depleted > 0 then
-            NinjaLineages.Skills.addJutsuProwessXP(player, depleted / 10.0)
-        end
-    end
-
-    data.chakra = newVal
+    data.chakra = math.max(0.0, math.min(maxVal, val))
     NinjaLineages.transmitPlayerData(player)
 end
 
 -- Spend chakra, returns boolean if successful
-function NinjaLineages.Chakra.spendChakra(player, amount)
+function NinjaLineages.Chakra.spendChakra(player, amount, opts)
     local current = NinjaLineages.Chakra.getChakra(player)
-    if current >= amount then
-        NinjaLineages.Chakra.setChakra(player, current - amount)
-        return true
+    if current < amount then return false end
+
+    NinjaLineages.Chakra.setChakra(player, current - amount)
+
+    opts = opts or {}
+    if opts.awardXP ~= false then
+        local ratio = opts.xpRatio or 0.1
+        NinjaLineages.Skills.addJutsuProwessXP(player, amount * ratio)
     end
-    return false
+
+    return true
 end
 
 -- Check if can afford chakra cost

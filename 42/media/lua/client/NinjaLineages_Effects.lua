@@ -21,17 +21,19 @@ local consts = NinjaLineages.Constants
 local function getAvailableAbilities(player)
     local abilities = {}
     for _, ability in ipairs(NinjaLineages.Abilities) do
-        if ability.condition(player) then
-            table.insert(abilities, ability)
+        if not ability.condition or ability.condition(player) then
+            local displayName = ability.name
+            if type(displayName) == "string" and displayName:sub(1, 3) == "UI_" then
+                displayName = getText(displayName)
+            end
+            local copy = {}
+            for k, v in pairs(ability) do
+                copy[k] = v
+            end
+            copy.name = displayName
+            table.insert(abilities, copy)
         end
     end
-    -- Common Jutsus (always available)
-    table.insert(abilities, { id = "healing", name = getText("UI_NL_HealingJutsu"), action = NinjaLineages.CommonJutsu.castHealing, texture = "media/ui/NLJutsu.png" })
-    table.insert(abilities, { id = "reinforcement", name = getText("UI_NL_ReinforcementJutsu"), action = NinjaLineages.CommonJutsu.castReinforcement, texture = "media/ui/NLJutsu.png" })
-    table.insert(abilities, { id = "quietstep", name = getText("UI_NL_QuietStepJutsu"), action = NinjaLineages.CommonJutsu.castQuietStep, texture = "media/ui/NLJutsu.png" })
-    table.insert(abilities, { id = "focus", name = getText("UI_NL_FocusJutsu"), action = NinjaLineages.CommonJutsu.castChakraFocus, texture = "media/ui/NLJutsu.png" })
-    table.insert(abilities, { id = "grip", name = getText("UI_NL_GripJutsu"), action = NinjaLineages.CommonJutsu.castChakraGrip, texture = "media/ui/NLJutsu.png" })
-    table.insert(abilities, { id = "bodyflicker", name = getText("UI_NL_BodyFlickerJutsu"), action = NinjaLineages.CommonJutsu.castBodyFlicker, texture = "media/ui/NLJutsu.png" })
     return abilities
 end
 
@@ -139,37 +141,39 @@ local function isEyeCovered(player)
 end
 NinjaLineages.isEyeCovered = isEyeCovered
 
+local function runListeners(registry, kind, ...)
+    for _, item in ipairs(registry) do
+        if type(item) == "function" then
+            NinjaLineages.safeCall(kind, "anonymous", item, ...)
+        elseif type(item) == "table" then
+            NinjaLineages.safeCall(kind, item.id, item.fn, ...)
+        end
+    end
+end
+
 -- Central Event Routing
 local function onPlayerUpdate(player)
     if not player then return end
     if not player:isLocalPlayer() then return end
 
-    for _, fn in ipairs(NinjaLineages.PlayerUpdates) do
-        pcall(fn, player)
-    end
+    runListeners(NinjaLineages.PlayerUpdates, "PlayerUpdate", player)
 
     NinjaLineages.CommonJutsu.update(player)
 end
 
 local function onZombieUpdate(zombie)
-    for _, fn in ipairs(NinjaLineages.ZombieUpdates) do
-        pcall(fn, zombie)
-    end
+    runListeners(NinjaLineages.ZombieUpdates, "ZombieUpdate", zombie)
 end
 
 local function onHitZombie(zombie, attacker, bodyPartType, handWeapon)
-    for _, fn in ipairs(NinjaLineages.HitZombieListeners) do
-        pcall(fn, zombie, attacker, bodyPartType, handWeapon)
-    end
+    runListeners(NinjaLineages.HitZombieListeners, "HitZombie", zombie, attacker, bodyPartType, handWeapon)
 end
 
 local function onPlayerGetDamage(player, damageType, damage)
     if not player or not instanceof(player, "IsoPlayer") then return end
     if not player:isLocalPlayer() then return end
 
-    for _, fn in ipairs(NinjaLineages.PlayerGetDamageListeners) do
-        pcall(fn, player, damageType, damage)
-    end
+    runListeners(NinjaLineages.PlayerGetDamageListeners, "PlayerGetDamage", player, damageType, damage)
 end
 
 local function everyOneMinute()
@@ -243,9 +247,7 @@ local function everyOneMinute()
     end
 
     -- 4. Invoke lineage EveryMinute listeners
-    for _, fn in ipairs(NinjaLineages.EveryMinuteListeners) do
-        pcall(fn, player)
-    end
+    runListeners(NinjaLineages.EveryMinuteListeners, "EveryMinute", player)
 end
 
 local function initKeybinds()
@@ -256,9 +258,7 @@ end
 
 Events.OnCreatePlayer.Add(function(playerIndex, player)
     if player then
-        for _, fn in ipairs(NinjaLineages.CreatePlayerListeners) do
-            pcall(fn, player)
-        end
+        runListeners(NinjaLineages.CreatePlayerListeners, "CreatePlayer", player)
     end
 end)
 

@@ -399,15 +399,15 @@ NinjaLineages.registerAbility({
     action = NinjaLineages.Uchiha.startKamui
 })
 
-NinjaLineages.registerPlayerUpdate(function(player)
+NinjaLineages.registerPlayerUpdate("uchiha.update", function(player)
     updateSharinganMoodle(player)
     recoverKamuiVision(player)
     updateKamui(player)
 end)
 
-NinjaLineages.registerZombieUpdate(sharinganEvade)
+NinjaLineages.registerZombieUpdate("uchiha.evade", sharinganEvade)
 
-NinjaLineages.registerCreatePlayer(function(player)
+NinjaLineages.registerCreatePlayer("uchiha.init", function(player)
     recoverKamuiVision(player)
     updateSharinganMoodle(player)
 end)

@@ -9,40 +9,63 @@ NinjaLineages.TRAIT_RINNEGAN = "NinjaLineages:rinnegan"
 NinjaLineages.TRAIT_UZUMAKI = "NinjaLineages:uzumaki"
 
 -- Centralized Registries for modular lineage architecture
-NinjaLineages.Abilities = {}
-NinjaLineages.PlayerUpdates = {}
-NinjaLineages.ZombieUpdates = {}
-NinjaLineages.HitZombieListeners = {}
-NinjaLineages.PlayerGetDamageListeners = {}
-NinjaLineages.EveryMinuteListeners = {}
-NinjaLineages.CreatePlayerListeners = {}
+NinjaLineages.Abilities = NinjaLineages.Abilities or {}
+NinjaLineages.PlayerUpdates = NinjaLineages.PlayerUpdates or {}
+NinjaLineages.ZombieUpdates = NinjaLineages.ZombieUpdates or {}
+NinjaLineages.HitZombieListeners = NinjaLineages.HitZombieListeners or {}
+NinjaLineages.PlayerGetDamageListeners = NinjaLineages.PlayerGetDamageListeners or {}
+NinjaLineages.EveryMinuteListeners = NinjaLineages.EveryMinuteListeners or {}
+NinjaLineages.CreatePlayerListeners = NinjaLineages.CreatePlayerListeners or {}
+
+-- Safe call wrapper for named listener logging
+function NinjaLineages.safeCall(kind, id, fn, ...)
+    if not fn then return end
+    local status, err = pcall(fn, ...)
+    if not status then
+        print("ERROR: [" .. tostring(kind) .. "] listener '" .. tostring(id) .. "' failed: " .. tostring(err))
+    end
+end
+
+local function addListener(registry, idOrFn, maybeFn)
+    local id, fn
+    if type(idOrFn) == "string" then
+        id = idOrFn
+        fn = maybeFn
+    else
+        id = "anonymous"
+        fn = idOrFn
+    end
+    if fn then
+        table.insert(registry, { id = id, fn = fn })
+    end
+end
 
 function NinjaLineages.registerAbility(ability)
     table.insert(NinjaLineages.Abilities, ability)
 end
 
-function NinjaLineages.registerPlayerUpdate(fn)
-    table.insert(NinjaLineages.PlayerUpdates, fn)
+function NinjaLineages.registerPlayerUpdate(idOrFn, maybeFn)
+    addListener(NinjaLineages.PlayerUpdates, idOrFn, maybeFn)
 end
 
-function NinjaLineages.registerZombieUpdate(fn)
-    table.insert(NinjaLineages.ZombieUpdates, fn)
+function NinjaLineages.registerZombieUpdate(idOrFn, maybeFn)
+    addListener(NinjaLineages.ZombieUpdates, idOrFn, maybeFn)
 end
 
-function NinjaLineages.registerHitZombie(fn)
-    table.insert(NinjaLineages.HitZombieListeners, fn)
+function NinjaLineages.registerHitZombie(idOrFn, maybeFn)
+    addListener(NinjaLineages.HitZombieListeners, idOrFn, maybeFn)
 end
 
-function NinjaLineages.registerPlayerGetDamage(fn)
-    table.insert(NinjaLineages.PlayerGetDamageListeners, fn)
+function NinjaLineages.registerPlayerGetDamage(idOrFn, maybeFn)
+    addListener(NinjaLineages.PlayerGetDamageListeners, idOrFn, maybeFn)
 end
 
-function NinjaLineages.registerEveryMinute(fn)
-    table.insert(NinjaLineages.EveryMinuteListeners, fn)
+function NinjaLineages.registerEveryMinute(idOrFn, maybeFn)
+    addListener(NinjaLineages.EveryMinuteListeners, idOrFn, maybeFn)
 end
 
-function NinjaLineages.registerCreatePlayer(fn)
-    table.insert(NinjaLineages.CreatePlayerListeners, fn)
+function NinjaLineages.registerCreatePlayer(idOrFn, maybeFn)
+    addListener(NinjaLineages.CreatePlayerListeners, idOrFn, maybeFn)
 end
 
 -- Helper to retrieve or initialize player modData

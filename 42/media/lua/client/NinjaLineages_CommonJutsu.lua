@@ -293,3 +293,46 @@ function NinjaLineages.CommonJutsu.update(player)
         data.bodyFlickerEndTime = nil
     end
 end
+
+-- Dynamic Registration of Common Jutsus
+NinjaLineages.registerAbility({
+    id = "healing",
+    name = "UI_NL_HealingJutsu",
+    texture = "media/ui/NLJutsu.png",
+    action = NinjaLineages.CommonJutsu.castHealing
+})
+
+NinjaLineages.registerAbility({
+    id = "reinforcement",
+    name = "UI_NL_ReinforcementJutsu",
+    texture = "media/ui/NLJutsu.png",
+    action = NinjaLineages.CommonJutsu.castReinforcement
+})
+
+NinjaLineages.registerAbility({
+    id = "quietstep",
+    name = "UI_NL_QuietStepJutsu",
+    texture = "media/ui/NLJutsu.png",
+    action = NinjaLineages.CommonJutsu.castQuietStep
+})
+
+NinjaLineages.registerAbility({
+    id = "focus",
+    name = "UI_NL_FocusJutsu",
+    texture = "media/ui/NLJutsu.png",
+    action = NinjaLineages.CommonJutsu.castChakraFocus
+})
+
+NinjaLineages.registerAbility({
+    id = "grip",
+    name = "UI_NL_GripJutsu",
+    texture = "media/ui/NLJutsu.png",
+    action = NinjaLineages.CommonJutsu.castChakraGrip
+})
+
+NinjaLineages.registerAbility({
+    id = "bodyflicker",
+    name = "UI_NL_BodyFlickerJutsu",
+    texture = "media/ui/NLJutsu.png",
+    action = NinjaLineages.CommonJutsu.castBodyFlicker
+})

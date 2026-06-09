@@ -353,14 +353,14 @@ local function addStorageSealContextMenu(playerNum, context, items)
 end
 
 -- Dynamic Registration
-NinjaLineages.registerPlayerUpdate(function(player)
+NinjaLineages.registerPlayerUpdate("uzumaki.update", function(player)
     applyUzumakiBleedSlow(player)
     updateAlarmSeals(player)
 end)
 
-NinjaLineages.registerPlayerGetDamage(refundUzumakiDamage)
+NinjaLineages.registerPlayerGetDamage("uzumaki.getDamage", refundUzumakiDamage)
 
-NinjaLineages.registerCreatePlayer(captureUzumakiHealthState)
+NinjaLineages.registerCreatePlayer("uzumaki.init", captureUzumakiHealthState)
 
 -- Hook context menus
 if Events.OnFillInventoryObjectContextMenu then
