@@ -172,21 +172,6 @@ Subscribe here:
 
 Then enable the mod in the Project Zomboid mod menu.
 
----
-
-## ⚖️ Balance Philosophy
-
-Each lineage is designed to have a distinct survival role:
-
-| Lineage | Strength |
-|---|---|
-| **Byakugan** | Awareness and precision |
-| **Sharingan** | Evasion and late progression |
-| **Senju** | Stamina and area control |
-| **Uzumaki** | Preparation and logistics |
-| **Rinnegan** | Emergency power |
-
-No lineage is meant to cover every situation alone.
 
 ---
 
@@ -194,11 +179,7 @@ No lineage is meant to cover every situation alone.
 
 Current focus:
 
-- Build 42 compatibility.
-- Trait identity.
-- Active ability polish.
-- Moodle/UI feedback.
-- Multiplayer-safe behavior where possible.
+- Balancing (some lineages are currently just better than others)
 
 ---
 
