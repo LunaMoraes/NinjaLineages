@@ -19,19 +19,7 @@
 
 **Ninja Lineages** adds selectable lineage traits to Project Zomboid, each with its own combat role, passive identity, and special mechanics.
 
-Choose a bloodline and survive the Knox Event with abilities inspired by legendary shinobi clans.
-
----
-
-## 🧬 Lineages
-
-| Lineage | Role | Core Fantasy |
-|---|---|---|
-| **Byakugan** | Precision / awareness | Superior perception and Gentle Fist combat |
-| **Sharingan** | Evasion / evolution | Tomoe progression, dodge chance, and Mangekyo Kamui |
-| **Senju** | Endurance / battlefield control | Life force, stamina recovery, and Wood Release |
-| **Uzumaki** | Preparation / logistics | Fuinjutsu seals for alarms and storage |
-| **Rinnegan** | High-power active ability | Shinra Tensei crowd disruption |
+Choose a bloodline and survive the Knox Event with abilities inspired by legendary shinobi clans. There are a few common jutsus available for everyone, train your chakra control and your jutsu prowess.
 
 ---
 
