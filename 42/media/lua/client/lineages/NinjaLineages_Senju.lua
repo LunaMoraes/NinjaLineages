@@ -6,6 +6,10 @@ NinjaLineages.Senju = {}
 
 local consts = NinjaLineages.Constants
 
+local senjuLastRecoveryAt = {}
+local boundZombies = {}
+local creationRebirthState = {}
+
 local function applySenjuEndurance(player)
     if not player then return end
 
@@ -29,10 +33,6 @@ local function applySenjuEndurance(player)
         NinjaLineages.transmitPlayerData(player)
     end
 end
-
-local senjuLastRecoveryAt = {}
-local boundZombies = {}
-local creationRebirthState = {}
 
 local function applyBindingRootsToZombie(player, target)
     local zombie = target.zombie

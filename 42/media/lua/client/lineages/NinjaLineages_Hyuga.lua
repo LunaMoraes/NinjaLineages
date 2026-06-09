@@ -76,6 +76,25 @@ function NinjaLineages.Hyuga.toggleByakugan(player)
     end
 end
 
+-- Gentle Fist hit logic helpers
+local function isBareHands(weapon)
+    if not weapon then return false end
+    local ok, weaponType = pcall(function() return weapon:getType() end)
+    return ok and weaponType == "BareHands"
+end
+
+local function getAttackPosition(attacker, zombie)
+    local ok, position = pcall(function() return zombie:testDotSide(attacker) end)
+    if ok and position then return position end
+    return "FRONT"
+end
+
+local function isZombieCharacter(zombie)
+    local ok, result = pcall(function() return zombie:isZombie() end)
+    if ok then return result == true end
+    return instanceof(zombie, "IsoZombie")
+end
+
 local function byakuganPushHit(zombie, attacker, bodyPartType, handWeapon)
     if not zombie or not attacker or not handWeapon then return end
     if not instanceof(attacker, "IsoPlayer") then return end
