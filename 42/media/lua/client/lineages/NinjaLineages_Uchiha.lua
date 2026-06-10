@@ -402,6 +402,8 @@ NinjaLineages.registerAbility({
     texture = "media/ui/Traits/trait_sharingan.png",
     condition = function(player) return canUseKamui(player) end,
     cooldownTier = "STANDARD",
+    channelDrainTier = "HIGH",
+    durationMs = consts.Uchiha.Kamui.DURATION_MS,
     action = NinjaLineages.Uchiha.startKamui
 })
 

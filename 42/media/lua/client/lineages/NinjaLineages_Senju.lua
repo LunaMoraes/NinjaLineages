@@ -188,17 +188,15 @@ local function updateCreationRebirth(player)
     for i = 0, parts:size() - 1 do
         local bodypart = parts:get(i)
         if bodypart and isBodyPartDamagedOrInjured(bodypart) then
-            local chakra = NinjaLineages.Chakra.getChakra(player)
-            if chakra < costStep then
+            if NinjaLineages.Chakra.getChakra(player) < costStep then
                 stopCreationRebirth(player)
                 return
             end
 
-            -- Spend immediately before healing
-            NinjaLineages.Chakra.spendChakra(player, costStep)
-
-            -- Apply healing
-            healBodyPartForCreationRebirth(bodyDamage, bodypart)
+            local changed = healBodyPartForCreationRebirth(bodyDamage, bodypart)
+            if changed then
+                NinjaLineages.Chakra.spendChakra(player, costStep)
+            end
         end
     end
 end
