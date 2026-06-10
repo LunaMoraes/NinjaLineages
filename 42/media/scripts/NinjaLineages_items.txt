@@ -49,7 +49,7 @@ module Base
     {
         DisplayCategory = Tools,
         ItemType = base:normal,
-        DisplayName = Alarm Seal,
+        DisplayName = UI_item_NL_AlarmSeal,
         Weight = 0.02,
         Icon = NLSealIcon,
         Tags = base:isfirefuel;base:isfiretinder,
@@ -59,7 +59,7 @@ module Base
     {
         DisplayCategory = Bag,
         ItemType = base:container,
-        DisplayName = Sealed Scroll,
+        DisplayName = UI_item_NL_SealedScroll,
         Weight = 0.1,
         Icon = NLSealIcon,
         Capacity = 80,
