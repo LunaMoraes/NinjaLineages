@@ -1,5 +1,6 @@
 require "TimedActions/ISBaseTimedAction"
 require "NinjaLineages_Traits"
+require "NinjaLineages_Utils"
 
 NLMeditationAction = ISBaseTimedAction:derive("NLMeditationAction")
 
@@ -16,12 +17,12 @@ function NLMeditationAction:start()
     if not self.character:isSitOnGround() then
         self.character:reportEvent("EventSitOnGround")
     end
-    self.lastXpTick = getTimestampMs()
+    self.lastXpTick = NinjaLineages.Utils.Time.nowGameMs(self.character)
     self.character:Say(getText("UI_NL_Meditating"))
 end
 
 function NLMeditationAction:update()
-    local current = getTimestampMs()
+    local current = NinjaLineages.Utils.Time.nowGameMs(self.character)
     if not self.lastXpTick then self.lastXpTick = current end
     if current - self.lastXpTick >= 5000 then
         self.lastXpTick = current
