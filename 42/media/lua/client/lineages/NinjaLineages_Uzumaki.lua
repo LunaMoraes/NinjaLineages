@@ -1,6 +1,7 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_UI"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uzumaki = {}
@@ -141,7 +142,8 @@ local function placeAlarmSeal(player, square)
         player:Say(getText("UI_NL_Error_LineageRequired", "Uzumaki lineage"))
         return
     end
-    if not NinjaLineages.Chakra.canAffordChakra(player, consts.Uzumaki.AlarmSeal.CHAKRA_COST) then
+    local cost = NinjaLineages.Balance.getCost("BASIC")
+    if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra_PlaceAlarmSeal"))
         return
     end
@@ -151,7 +153,7 @@ local function placeAlarmSeal(player, square)
         return
     end
     if not square then square = player:getSquare() end
-    NinjaLineages.Chakra.spendChakra(player, consts.Uzumaki.AlarmSeal.CHAKRA_COST)
+    NinjaLineages.Chakra.spendChakra(player, cost)
     registerAlarmSeal(square, player)
     NinjaLineages.Utils.Inventory.consumeInventoryItem(player, seal)
     player:Say(getText("UI_NL_Ability_AlarmSeal_Cast"))
@@ -248,7 +250,8 @@ local function sealBackpackInScroll(player, backpack, scroll)
         player:Say(getText("UI_NL_Error_LineageRequired", "Uzumaki lineage"))
         return
     end
-    if not NinjaLineages.Chakra.canAffordChakra(player, consts.Uzumaki.StorageSeal.CHAKRA_COST) then
+    local cost = NinjaLineages.Balance.getCost("BASIC")
+    if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra_StorageSeal"))
         return
     end
@@ -258,7 +261,7 @@ local function sealBackpackInScroll(player, backpack, scroll)
         player:Say(getText("UI_NL_Ability_StorageSeal_AlreadySealed"))
         return
     end
-    NinjaLineages.Chakra.spendChakra(player, consts.Uzumaki.StorageSeal.CHAKRA_COST)
+    NinjaLineages.Chakra.spendChakra(player, cost)
     NinjaLineages.Utils.Inventory.moveItemBetweenContainers(backpack, backpack:getContainer(), scrollInv)
     player:Say(getText("UI_NL_Ability_StorageSeal_Cast"))
 end

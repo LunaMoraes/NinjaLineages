@@ -2,6 +2,7 @@ require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Moodles"
 require "NinjaLineages_UI"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uchiha = {}
@@ -206,7 +207,7 @@ local function updateKamui(player)
 
     -- Drain chakra
     local chakra = NinjaLineages.Chakra.getChakra(player)
-    chakra = math.max(0.0, chakra - (consts.Uchiha.Kamui.DRAIN_PER_SECOND * deltaSeconds))
+    chakra = math.max(0.0, chakra - (NinjaLineages.Balance.getChannelDrain("HIGH") * deltaSeconds))
     NinjaLineages.Chakra.setChakra(player, chakra)
 
     failNearbyZombieAttacks(player)
@@ -264,7 +265,7 @@ function NinjaLineages.Uchiha.startKamui(player)
     safeSetBool(player, "setGodMod", true)
     safeSetNoClip(player, true)
 
-    NinjaLineages.Cooldowns.set(player, "uchiha.kamui", consts.Uchiha.Kamui.COOLDOWN_SECONDS)
+    NinjaLineages.Cooldowns.set(player, "uchiha.kamui", NinjaLineages.Balance.getCooldown("STANDARD"))
     player:Say(getText("UI_NL_Ability_Kamui_Cast"))
 end
 
@@ -385,7 +386,9 @@ end
 -- Dynamic Registration
 NinjaLineages.registerAbility({
     id = "sharingan",
+    lineage = "uchiha",
     name = "UI_NL_Ability_Sharingan_Name",
+    descriptionKey = "UI_NL_Ability_Sharingan_Desc",
     texture = "media/ui/Traits/trait_sharingan.png",
     condition = function(player) return NinjaLineages.hasSharingan(player) end,
     action = NinjaLineages.Uchiha.toggleSharingan
@@ -393,9 +396,12 @@ NinjaLineages.registerAbility({
 
 NinjaLineages.registerAbility({
     id = "kamui",
+    lineage = "uchiha",
     name = "UI_NL_Ability_Kamui_Name",
+    descriptionKey = "UI_NL_Ability_Kamui_Desc",
     texture = "media/ui/Traits/trait_sharingan.png",
     condition = function(player) return canUseKamui(player) end,
+    cooldownTier = "STANDARD",
     action = NinjaLineages.Uchiha.startKamui
 })
 

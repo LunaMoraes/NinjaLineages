@@ -1,5 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Senju = {}
@@ -41,7 +42,7 @@ local function applyBindingRootsToZombie(player, target)
     local knockdownChance = target.distance <= consts.Senju.BindingRoots.INNER_RADIUS and consts.Senju.BindingRoots.INNER_KNOCKDOWN_CHANCE or consts.Senju.BindingRoots.OUTER_KNOCKDOWN_CHANCE
     local shouldKnockdown = ZombRand(1, 101) <= knockdownChance
     NinjaLineages.Utils.Combat.staggerZombie(zombie, { knockdown = shouldKnockdown, position = "FRONT", force = 2.0 })
-    boundZombies[zombie] = NinjaLineages.Utils.Time.nowMs() + consts.Senju.BindingRoots.BIND_MS
+    boundZombies[zombie] = NinjaLineages.Utils.Time.nowMs() + NinjaLineages.Balance.getDuration("BRIEF_MS")
 end
 
 local function useBindingRoots(player)
@@ -57,17 +58,19 @@ local function useBindingRoots(player)
         return
     end
 
-    if not NinjaLineages.Chakra.canAffordChakra(player, consts.Senju.BindingRoots.COST) then
+    local cost = NinjaLineages.Balance.getCost("MAJOR")
+    if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra_BindingRoots"))
         return
     end
 
-    NinjaLineages.Chakra.spendChakra(player, consts.Senju.BindingRoots.COST)
-    for _, target in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, consts.Senju.BindingRoots.RADIUS)) do
+    NinjaLineages.Chakra.spendChakra(player, cost)
+    local radius = NinjaLineages.Balance.getRadius("LARGE")
+    for _, target in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, radius)) do
         applyBindingRootsToZombie(player, target)
     end
 
-    NinjaLineages.Cooldowns.set(player, "senju.binding_roots", consts.Senju.BindingRoots.COOLDOWN_SECONDS)
+    NinjaLineages.Cooldowns.set(player, "senju.binding_roots", NinjaLineages.Balance.getCooldown("STANDARD"))
     player:Say(getText("UI_NL_Ability_BindingRoots_Cast"))
 end
 
@@ -131,6 +134,33 @@ local function stopCreationRebirth(player)
     creationRebirthState[player] = nil
 end
 
+local function isBodyPartDamagedOrInjured(bodypart)
+    if not bodypart then return false end
+
+    local okHealth, health = pcall(function() return bodypart:getHealth() end)
+    if okHealth and health and health < 100 then return true end
+
+    local okBleed, bleed = pcall(function() return bodypart:getBleedingTime() end)
+    if okBleed and bleed and bleed > 0 then return true end
+
+    local okScratch, scratch = pcall(function() return bodypart:getScratchTime() end)
+    if okScratch and scratch and scratch > 0 then return true end
+
+    local okCut, cut = pcall(function() return bodypart:getCutTime() end)
+    if okCut and cut and cut > 0 then return true end
+
+    local okDeep, deep = pcall(function() return bodypart:getDeepWoundTime() end)
+    if okDeep and deep and deep > 0 then return true end
+
+    local okBurn, burn = pcall(function() return bodypart:getBurnTime() end)
+    if okBurn and burn and burn > 0 then return true end
+
+    local okFrac, frac = pcall(function() return bodypart:getFractureTime() end)
+    if okFrac and frac and frac > 0 then return true end
+
+    return false
+end
+
 local function updateCreationRebirth(player)
     local state = creationRebirthState[player]
     if not state then return end
@@ -152,18 +182,23 @@ local function updateCreationRebirth(player)
 
     local parts = bodyDamage:getBodyParts()
     if not parts then return end
-    local chakra = NinjaLineages.Chakra.getChakra(player)
-    for i = 0, parts:size() - 1 do
-        if chakra <= 0 then
-            NinjaLineages.Chakra.setChakra(player, 0)
-            stopCreationRebirth(player)
-            return
-        end
+    
+    local costStep = NinjaLineages.Balance.getCostStep("HARSH")
 
+    for i = 0, parts:size() - 1 do
         local bodypart = parts:get(i)
-        if bodypart and healBodyPartForCreationRebirth(bodyDamage, bodypart) then
-            chakra = math.max(0.0, chakra - consts.Senju.CreationRebirth.COST_PER_PART)
-            NinjaLineages.Chakra.setChakra(player, chakra)
+        if bodypart and isBodyPartDamagedOrInjured(bodypart) then
+            local chakra = NinjaLineages.Chakra.getChakra(player)
+            if chakra < costStep then
+                stopCreationRebirth(player)
+                return
+            end
+
+            -- Spend immediately before healing
+            NinjaLineages.Chakra.spendChakra(player, costStep)
+
+            -- Apply healing
+            healBodyPartForCreationRebirth(bodyDamage, bodypart)
         end
     end
 end
@@ -179,7 +214,7 @@ local function useCreationRebirth(player)
     end
     local nowMs = NinjaLineages.Utils.Time.nowMs()
     creationRebirthState[player] = {
-        endsAt = nowMs + consts.Senju.CreationRebirth.DURATION_MS,
+        endsAt = nowMs + NinjaLineages.Balance.getDuration("SHORT_MS"),
         nextTickAt = nowMs,
     }
     player:Say(getText("UI_NL_Ability_CreationRebirth_Cast"))
@@ -200,17 +235,27 @@ end
 -- Dynamic Registration
 NinjaLineages.registerAbility({
     id = "binding_roots",
+    lineage = "senju",
     name = "UI_NL_Ability_BindingRoots_Name",
+    descriptionKey = "UI_NL_Ability_BindingRoots_Desc",
     texture = "media/ui/Traits/trait_senju.png",
     condition = function(player) return NinjaLineages.hasSenju(player) end,
+    costTier = "MAJOR",
+    cooldownTier = "STANDARD",
+    radiusTier = "LARGE",
+    durationTier = "BRIEF_MS",
     action = useBindingRoots
 })
 
 NinjaLineages.registerAbility({
     id = "creation_rebirth",
+    lineage = "senju",
     name = "UI_NL_Ability_CreationRebirth_Name",
+    descriptionKey = "UI_NL_Ability_CreationRebirth_Desc",
     texture = "media/ui/Traits/trait_senju.png",
     condition = function(player) return NinjaLineages.hasSenju(player) end,
+    costStepTier = "HARSH",
+    durationTier = "SHORT_MS",
     action = useCreationRebirth
 })
 

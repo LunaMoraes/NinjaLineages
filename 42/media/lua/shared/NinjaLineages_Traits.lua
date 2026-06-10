@@ -1,4 +1,5 @@
 require "NinjaLineages_Constants"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 

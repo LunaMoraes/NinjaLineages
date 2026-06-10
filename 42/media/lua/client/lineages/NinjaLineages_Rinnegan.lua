@@ -1,5 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Rinnegan = {}
@@ -10,18 +11,20 @@ local function applyShinraDamage(player, target)
     local zombie = target.zombie
     if not zombie or zombie:isDead() then return end
 
-    local falloff = math.max(consts.Rinnegan.ShinraTensei.DAMAGE_MIN_FALLOFF, 1.0 - ((target.distance / consts.Rinnegan.ShinraTensei.RADIUS) * 0.15))
-    local damage = NinjaLineages.Utils.Combat.randomDamage(consts.Rinnegan.ShinraTensei.DAMAGE_MIN, consts.Rinnegan.ShinraTensei.DAMAGE_MAX) * falloff
+    local radius = NinjaLineages.Balance.getRadius("STANDARD")
+    local falloff = math.max(consts.Rinnegan.ShinraTensei.DAMAGE_MIN_FALLOFF, 1.0 - ((target.distance / radius) * 0.15))
+    local damage = NinjaLineages.Balance.rollDamage("HEAVY") * falloff
     NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
 end
 
 local function getKnockdownChance(distance)
+    local radius = NinjaLineages.Balance.getRadius("STANDARD")
     if distance <= consts.Rinnegan.ShinraTensei.GUARANTEED_KNOCKDOWN_RADIUS then return 100 end
 
-    local outerRange = consts.Rinnegan.ShinraTensei.RADIUS - consts.Rinnegan.ShinraTensei.GUARANTEED_KNOCKDOWN_RADIUS
+    local outerRange = radius - consts.Rinnegan.ShinraTensei.GUARANTEED_KNOCKDOWN_RADIUS
     if outerRange <= 0 then return 0 end
 
-    local remaining = math.max(0, consts.Rinnegan.ShinraTensei.RADIUS - distance)
+    local remaining = math.max(0, radius - distance)
     return math.floor((remaining / outerRange) * 100)
 end
 
@@ -51,10 +54,14 @@ local function useShinraTensei(player)
     local stats = player:getStats()
     if not stats then return end
 
-    local targets = NinjaLineages.Utils.Zombies.collectInRadius(player, consts.Rinnegan.ShinraTensei.RADIUS)
+    local radius = NinjaLineages.Balance.getRadius("STANDARD")
+    local targets = NinjaLineages.Utils.Zombies.collectInRadius(player, radius)
+    local baseCost = NinjaLineages.Balance.getCost("MAJOR")
+    local stepCost = NinjaLineages.Balance.getCostStep("SMALL")
+    local capCost = NinjaLineages.Balance.getCost("ULTIMATE")
     local cost = math.min(
-        consts.Rinnegan.ShinraTensei.COST_CAP,
-        consts.Rinnegan.ShinraTensei.BASE_COST + (#targets * consts.Rinnegan.ShinraTensei.COST_PER_ZOMBIE)
+        capCost,
+        baseCost + (#targets * stepCost)
     )
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra_ShinraTensei"))
@@ -66,15 +73,21 @@ local function useShinraTensei(player)
         applyShinraToZombie(player, target)
     end
 
-    NinjaLineages.Cooldowns.set(player, "rinnegan.shinra_tensei", consts.Rinnegan.ShinraTensei.COOLDOWN_SECONDS)
+    NinjaLineages.Cooldowns.set(player, "rinnegan.shinra_tensei", NinjaLineages.Balance.getCooldown("STANDARD"))
     player:Say(getText("UI_NL_Ability_ShinraTensei_Cast"))
 end
 
 -- Dynamic Registration
 NinjaLineages.registerAbility({
     id = "shinra_tensei",
+    lineage = "rinnegan",
     name = "UI_NL_Ability_ShinraTensei_Name",
+    descriptionKey = "UI_NL_Ability_ShinraTensei_Desc",
     texture = "media/ui/Traits/trait_rinnegan.png",
     condition = function(player) return NinjaLineages.hasRinnegan(player) end,
+    costTier = "MAJOR",
+    cooldownTier = "STANDARD",
+    radiusTier = "STANDARD",
+    damageTier = "HEAVY",
     action = useShinraTensei
 })

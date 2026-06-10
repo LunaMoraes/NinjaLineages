@@ -1,5 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Hyuga = {}
@@ -105,12 +106,12 @@ local function byakuganPushHit(zombie, attacker, bodyPartType, handWeapon)
     if not isBareHands(handWeapon) then return end
     if not isZombieCharacter(zombie) or zombie:isDead() then return end
 
-    if not NinjaLineages.Chakra.spendChakra(attacker, consts.Hyuga.GentleFist.CHAKRA_COST) then return end
+    if not NinjaLineages.Chakra.spendChakra(attacker, NinjaLineages.Balance.getCost("TRIVIAL")) then return end
 
     pcall(function() zombie:setHitFromBehind(attacker:isBehind(zombie)) end)
     NinjaLineages.Utils.Combat.staggerZombie(zombie, { knockdown = true, position = getAttackPosition(attacker, zombie), force = 2.0 })
 
-    NinjaLineages.Utils.Combat.applyZombieDamage(attacker, zombie, NinjaLineages.Utils.Combat.randomDamage(consts.Hyuga.GentleFist.DAMAGE_MIN, consts.Hyuga.GentleFist.DAMAGE_MAX))
+    NinjaLineages.Utils.Combat.applyZombieDamage(attacker, zombie, NinjaLineages.Balance.rollDamage("LIGHT"))
 end
 
 -- Modular eye drain implementation
@@ -128,7 +129,9 @@ end
 -- Dynamic Registration
 NinjaLineages.registerAbility({
     id = "byakugan",
+    lineage = "hyuga",
     name = "UI_NL_Ability_Byakugan_Name",
+    descriptionKey = "UI_NL_Ability_Byakugan_Desc",
     texture = "media/ui/Traits/trait_byakugan.png",
     condition = function(player) return NinjaLineages.hasByakugan(player) end,
     action = NinjaLineages.Hyuga.toggleByakugan

@@ -1,6 +1,7 @@
 require "NinjaLineages_Chakra"
 require "NinjaLineages_Skills"
 require "NinjaLineages_Utils"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.CommonJutsu = {}
@@ -37,7 +38,7 @@ end
 
 -- 1. Minor Healing Jutsu
 function NinjaLineages.CommonJutsu.castHealing(player)
-    local cost = consts.CommonJutsu.Healing.COST
+    local cost = NinjaLineages.Balance.getCost("STANDARD")
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
@@ -51,7 +52,7 @@ function NinjaLineages.CommonJutsu.castHealing(player)
 
     -- Deduct chakra and set cooldown
     NinjaLineages.Chakra.spendChakra(player, cost)
-    NinjaLineages.CommonJutsu.setCooldown(player, "healing", consts.CommonJutsu.Healing.COOLDOWN_SECONDS)
+    NinjaLineages.CommonJutsu.setCooldown(player, "healing", NinjaLineages.Balance.getCooldown("STANDARD"))
 
     -- Apply effect
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
@@ -89,7 +90,7 @@ end
 
 -- 2. Physical Reinforcement
 function NinjaLineages.CommonJutsu.castReinforcement(player)
-    local cost = consts.CommonJutsu.Reinforcement.COST
+    local cost = NinjaLineages.Balance.getCost("STANDARD")
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
@@ -102,7 +103,7 @@ function NinjaLineages.CommonJutsu.castReinforcement(player)
     end
 
     NinjaLineages.Chakra.spendChakra(player, cost)
-    NinjaLineages.CommonJutsu.setCooldown(player, "reinforcement", consts.CommonJutsu.Reinforcement.COOLDOWN_SECONDS)
+    NinjaLineages.CommonJutsu.setCooldown(player, "reinforcement", NinjaLineages.Balance.getCooldown("LONG"))
 
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
     local duration = (10 + prowess) * 1000 -- in ms
@@ -116,7 +117,7 @@ end
 
 -- 3. Quiet Step
 function NinjaLineages.CommonJutsu.castQuietStep(player)
-    local cost = consts.CommonJutsu.QuietStep.COST
+    local cost = NinjaLineages.Balance.getCost("BASIC")
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
@@ -129,7 +130,7 @@ function NinjaLineages.CommonJutsu.castQuietStep(player)
     end
 
     NinjaLineages.Chakra.spendChakra(player, cost)
-    NinjaLineages.CommonJutsu.setCooldown(player, "quietstep", consts.CommonJutsu.QuietStep.COOLDOWN_SECONDS)
+    NinjaLineages.CommonJutsu.setCooldown(player, "quietstep", NinjaLineages.Balance.getCooldown("STANDARD"))
 
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
     local duration = (15 + prowess * 1.5) * 1000 -- in ms
@@ -143,7 +144,7 @@ end
 
 -- 4. Chakra Focus
 function NinjaLineages.CommonJutsu.castChakraFocus(player)
-    local cost = consts.CommonJutsu.ChakraFocus.COST
+    local cost = NinjaLineages.Balance.getCost("BASIC")
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
@@ -156,7 +157,7 @@ function NinjaLineages.CommonJutsu.castChakraFocus(player)
     end
 
     NinjaLineages.Chakra.spendChakra(player, cost)
-    NinjaLineages.CommonJutsu.setCooldown(player, "focus", consts.CommonJutsu.ChakraFocus.COOLDOWN_SECONDS)
+    NinjaLineages.CommonJutsu.setCooldown(player, "focus", NinjaLineages.Balance.getCooldown("STANDARD"))
 
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
     local stats = player:getStats()
@@ -172,7 +173,7 @@ end
 
 -- 5. Chakra Grip
 function NinjaLineages.CommonJutsu.castChakraGrip(player)
-    local cost = consts.CommonJutsu.ChakraGrip.COST
+    local cost = NinjaLineages.Balance.getCost("BASIC")
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
@@ -185,7 +186,7 @@ function NinjaLineages.CommonJutsu.castChakraGrip(player)
     end
 
     NinjaLineages.Chakra.spendChakra(player, cost)
-    NinjaLineages.CommonJutsu.setCooldown(player, "grip", consts.CommonJutsu.ChakraGrip.COOLDOWN_SECONDS)
+    NinjaLineages.CommonJutsu.setCooldown(player, "grip", NinjaLineages.Balance.getCooldown("SHORT"))
 
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
     local duration = (12 + prowess) * 1000 -- in ms
@@ -199,7 +200,7 @@ end
 
 -- 6. Body Flicker Step
 function NinjaLineages.CommonJutsu.castBodyFlicker(player)
-    local cost = consts.CommonJutsu.BodyFlicker.COST
+    local cost = NinjaLineages.Balance.getCost("ADVANCED")
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
@@ -212,11 +213,11 @@ function NinjaLineages.CommonJutsu.castBodyFlicker(player)
     end
 
     NinjaLineages.Chakra.spendChakra(player, cost)
-    NinjaLineages.CommonJutsu.setCooldown(player, "bodyflicker", consts.CommonJutsu.BodyFlicker.COOLDOWN_SECONDS)
+    NinjaLineages.CommonJutsu.setCooldown(player, "bodyflicker", NinjaLineages.Balance.getCooldown("DASH"))
 
     -- Sprint burst: set end time for speed boost (duration in ms)
     local data = NinjaLineages.getNLData(player)
-    data.bodyFlickerEndTime = NinjaLineages.Utils.Time.nowMs() + consts.CommonJutsu.BodyFlicker.DURATION_MS
+    data.bodyFlickerEndTime = NinjaLineages.Utils.Time.nowMs() + NinjaLineages.Balance.getDuration("BURST_MS")
     NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_Ability_Dash_Cast"))
@@ -297,42 +298,67 @@ end
 -- Dynamic Registration of Common Jutsus
 NinjaLineages.registerAbility({
     id = "healing",
+    lineage = "common",
     name = "UI_NL_Ability_Healing_Name",
+    descriptionKey = "UI_NL_Ability_Healing_Desc",
     texture = "media/ui/NLJutsu.png",
+    costTier = "STANDARD",
+    cooldownTier = "STANDARD",
     action = NinjaLineages.CommonJutsu.castHealing
 })
 
 NinjaLineages.registerAbility({
     id = "reinforcement",
+    lineage = "common",
     name = "UI_NL_Ability_PhysicalReinforcement_Name",
+    descriptionKey = "UI_NL_Ability_PhysicalReinforcement_Desc",
     texture = "media/ui/NLJutsu.png",
+    costTier = "STANDARD",
+    cooldownTier = "LONG",
     action = NinjaLineages.CommonJutsu.castReinforcement
 })
 
 NinjaLineages.registerAbility({
     id = "quietstep",
+    lineage = "common",
     name = "UI_NL_Ability_QuietStep_Name",
+    descriptionKey = "UI_NL_Ability_QuietStep_Desc",
     texture = "media/ui/NLJutsu.png",
+    costTier = "BASIC",
+    cooldownTier = "STANDARD",
     action = NinjaLineages.CommonJutsu.castQuietStep
 })
 
 NinjaLineages.registerAbility({
     id = "focus",
+    lineage = "common",
     name = "UI_NL_Ability_ChakraFocus_Name",
+    descriptionKey = "UI_NL_Ability_ChakraFocus_Desc",
     texture = "media/ui/NLJutsu.png",
+    costTier = "BASIC",
+    cooldownTier = "STANDARD",
     action = NinjaLineages.CommonJutsu.castChakraFocus
 })
 
 NinjaLineages.registerAbility({
     id = "grip",
+    lineage = "common",
     name = "UI_NL_Ability_ChakraGrip_Name",
+    descriptionKey = "UI_NL_Ability_ChakraGrip_Desc",
     texture = "media/ui/NLJutsu.png",
+    costTier = "BASIC",
+    cooldownTier = "SHORT",
     action = NinjaLineages.CommonJutsu.castChakraGrip
 })
 
 NinjaLineages.registerAbility({
     id = "bodyflicker",
+    lineage = "common",
     name = "UI_NL_Ability_Dash_Name",
+    descriptionKey = "UI_NL_Ability_Dash_Desc",
     texture = "media/ui/NLJutsu.png",
+    costTier = "ADVANCED",
+    cooldownTier = "DASH",
+    durationTier = "BURST_MS",
     action = NinjaLineages.CommonJutsu.castBodyFlicker
 })
