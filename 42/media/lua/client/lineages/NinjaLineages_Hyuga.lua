@@ -64,14 +64,14 @@ function NinjaLineages.Hyuga.toggleByakugan(player)
     if data.eyePowerActive then
         data.eyePowerActive = false
         applyByakugan(player)
-        player:Say("Byakugan Deactivated")
+        player:Say(getText("UI_NL_Ability_Byakugan_Deactivated"))
     else
         if NinjaLineages.Chakra.getChakra(player) > 0 then
             data.eyePowerActive = true
             applyByakugan(player)
-            player:Say("Byakugan Activated")
+            player:Say(getText("UI_NL_Ability_Byakugan_Cast"))
         else
-            player:Say("Not enough chakra!")
+            player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         end
     end
 end
@@ -128,7 +128,7 @@ end
 -- Dynamic Registration
 NinjaLineages.registerAbility({
     id = "byakugan",
-    name = "Toggle Byakugan",
+    name = "UI_NL_Ability_Byakugan_Name",
     texture = "media/ui/Traits/trait_byakugan.png",
     condition = function(player) return NinjaLineages.hasByakugan(player) end,
     action = NinjaLineages.Hyuga.toggleByakugan

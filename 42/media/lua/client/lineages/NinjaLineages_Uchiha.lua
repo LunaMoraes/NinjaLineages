@@ -45,11 +45,11 @@ local function updateSharinganMoodle(player)
     local lastStage = data.lastSharinganStage or 0
     if stage > lastStage then
         if stage == 1 then
-            player:Say("Sharingan unlocked")
+            player:Say(getText("UI_NL_Unlock_SharinganTomoe1"))
         elseif stage == 2 then
-            player:Say("Second Tomoe released")
+            player:Say(getText("UI_NL_Unlock_SharinganTomoe2"))
         elseif stage == 3 then
-            player:Say("Third Tomoe released")
+            player:Say(getText("UI_NL_Unlock_SharinganTomoe3"))
         end
         data.lastSharinganStage = stage
         NinjaLineages.transmitPlayerData(player)
@@ -224,24 +224,24 @@ end
 function NinjaLineages.Uchiha.startKamui(player)
     local data = NinjaLineages.getNLData(player)
     if not canUseKamui(player) then
-        player:Say("Mangekyo Sharingan is not unlocked")
+        player:Say(getText("UI_NL_Error_MangekyoLocked"))
         return
     end
 
     if kamuiState[player] then
         stopKamui(player, false)
-        player:Say("Kamui cancelled")
+        player:Say(getText("UI_NL_Ability_Kamui_Cancelled"))
         return
     end
 
     local onCd, remaining = NinjaLineages.Cooldowns.isOnCooldown(player, "uchiha.kamui")
     if onCd then
-        player:Say("Kamui cooldown: " .. tostring(remaining) .. "s")
+        player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_Kamui_Name"), tostring(remaining)))
         return
     end
 
     if not NinjaLineages.Chakra.canAffordChakra(player, consts.Uchiha.Kamui.MIN_CHAKRA_GATE) then
-        player:Say("Too exhausted (low chakra) for Kamui")
+        player:Say(getText("UI_NL_Error_NotEnoughChakra_Kamui"))
         return
     end
 
@@ -265,7 +265,7 @@ function NinjaLineages.Uchiha.startKamui(player)
     safeSetNoClip(player, true)
 
     NinjaLineages.Cooldowns.set(player, "uchiha.kamui", consts.Uchiha.Kamui.COOLDOWN_SECONDS)
-    player:Say("Kamui")
+    player:Say(getText("UI_NL_Ability_Kamui_Cast"))
 end
 
 function NinjaLineages.Uchiha.toggleSharingan(player)
@@ -273,18 +273,18 @@ function NinjaLineages.Uchiha.toggleSharingan(player)
     if data.eyePowerActive then
         data.eyePowerActive = false
         updateSharinganMoodle(player)
-        player:Say("Sharingan Deactivated")
+        player:Say(getText("UI_NL_Ability_Sharingan_Deactivated"))
     else
         if NinjaLineages.getSharinganStage(player) == 0 then
-            player:Say(getText("UI_NL_SharinganLocked"))
+            player:Say(getText("UI_NL_Error_SharinganLocked"))
             return
         end
         if NinjaLineages.Chakra.getChakra(player) > 0 then
             data.eyePowerActive = true
             updateSharinganMoodle(player)
-            player:Say("Sharingan Activated")
+            player:Say(getText("UI_NL_Ability_Sharingan_Cast"))
         else
-            player:Say("Not enough chakra!")
+            player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         end
     end
 end
@@ -319,7 +319,7 @@ local function sharinganEvade(zombie)
     if ZombRand(1, 101) <= dodgeChance then
         zombie:setVariable("AttackOutcome", "fail")
         player:setHitReaction("EvasiveBlocked")
-        player:Say("Sharingan!")
+        player:Say(getText("UI_NL_Ability_Sharingan_Evade"))
     end
 end
 
@@ -338,7 +338,7 @@ end
 
 local function unlockKamuiForSinglePlayerTest(player)
     if not canUseKamuiTestUnlock(player) then
-        player:Say("Third Tomoe is required")
+        player:Say(getText("UI_NL_Error_ThirdTomoeRequired"))
         return
     end
 
@@ -346,7 +346,7 @@ local function unlockKamuiForSinglePlayerTest(player)
     data.mangekyoUnlocked = true
     NinjaLineages.transmitPlayerData(player)
     updateSharinganMoodle(player)
-    player:Say("Mangekyo Sharingan awakened")
+    player:Say(getText("UI_NL_Unlock_MangekyoAwakened"))
 end
 
 local function unlockMangekyoIfEligible(victim)
@@ -360,7 +360,7 @@ local function unlockMangekyoIfEligible(victim)
     if data.mangekyoUnlocked then return end
     data.mangekyoUnlocked = true
     NinjaLineages.transmitPlayerData(attacker)
-    attacker:Say("Mangekyo Sharingan awakened")
+    attacker:Say(getText("UI_NL_Unlock_MangekyoAwakened"))
     updateSharinganMoodle(attacker)
 end
 
@@ -385,7 +385,7 @@ end
 -- Dynamic Registration
 NinjaLineages.registerAbility({
     id = "sharingan",
-    name = "Toggle Sharingan",
+    name = "UI_NL_Ability_Sharingan_Name",
     texture = "media/ui/Traits/trait_sharingan.png",
     condition = function(player) return NinjaLineages.hasSharingan(player) end,
     action = NinjaLineages.Uchiha.toggleSharingan
@@ -393,7 +393,7 @@ NinjaLineages.registerAbility({
 
 NinjaLineages.registerAbility({
     id = "kamui",
-    name = "Kamui",
+    name = "UI_NL_Ability_Kamui_Name",
     texture = "media/ui/Traits/trait_sharingan.png",
     condition = function(player) return canUseKamui(player) end,
     action = NinjaLineages.Uchiha.startKamui
@@ -422,7 +422,7 @@ if Events.OnFillWorldObjectContextMenu then
         if canUseKamuiTestUnlock(player) then
             local subMenu = NinjaLineages.UI.getOrCreateWorldSubMenu(context)
             if subMenu then
-                subMenu:addOption("Kamui Test: Unlock Mangekyo", player, unlockKamuiForSinglePlayerTest)
+                subMenu:addOption(getText("UI_NL_Ability_Kamui_TestUnlock"), player, unlockKamuiForSinglePlayerTest)
             end
         end
     end)

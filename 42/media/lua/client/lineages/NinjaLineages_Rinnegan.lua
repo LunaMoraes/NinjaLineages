@@ -37,14 +37,14 @@ end
 
 local function useShinraTensei(player)
     if not NinjaLineages.hasRinnegan(player) then
-        player:Say("Rinnegan is required")
+        player:Say(getText("UI_NL_Error_LineageRequired", "Rinnegan"))
         return
     end
 
     local data = NinjaLineages.getNLData(player)
     local onCd, remaining = NinjaLineages.Cooldowns.isOnCooldown(player, "rinnegan.shinra_tensei")
     if onCd then
-        player:Say("Shinra Tensei cooldown: " .. tostring(remaining) .. "s")
+        player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_ShinraTensei_Name"), tostring(remaining)))
         return
     end
 
@@ -57,7 +57,7 @@ local function useShinraTensei(player)
         consts.Rinnegan.ShinraTensei.BASE_COST + (#targets * consts.Rinnegan.ShinraTensei.COST_PER_ZOMBIE)
     )
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
-        player:Say("Not enough chakra for Shinra Tensei")
+        player:Say(getText("UI_NL_Error_NotEnoughChakra_ShinraTensei"))
         return
     end
 
@@ -67,13 +67,13 @@ local function useShinraTensei(player)
     end
 
     NinjaLineages.Cooldowns.set(player, "rinnegan.shinra_tensei", consts.Rinnegan.ShinraTensei.COOLDOWN_SECONDS)
-    player:Say("Shinra Tensei")
+    player:Say(getText("UI_NL_Ability_ShinraTensei_Cast"))
 end
 
 -- Dynamic Registration
 NinjaLineages.registerAbility({
     id = "shinra_tensei",
-    name = "Shinra Tensei",
+    name = "UI_NL_Ability_ShinraTensei_Name",
     texture = "media/ui/Traits/trait_rinnegan.png",
     condition = function(player) return NinjaLineages.hasRinnegan(player) end,
     action = useShinraTensei

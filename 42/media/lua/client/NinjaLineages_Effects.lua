@@ -57,13 +57,13 @@ local function selectAbility(player, ability)
     local data = NinjaLineages.getNLData(player)
     data.selectedAbilityId = ability.id
     NinjaLineages.transmitPlayerData(player)
-    player:Say(ability.name .. " selected")
+    player:Say(getText("UI_NL_Ability_Selected", ability.name))
 end
 
 local function useSelectedAbility(player)
     local abilities = getAvailableAbilities(player)
     if #abilities == 0 then
-        player:Say("No ninja ability available")
+        player:Say(getText("UI_NL_Error_NoAbilityAvailable"))
         return
     end
     local ability = getSelectedAbility(player, abilities)

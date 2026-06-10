@@ -138,23 +138,23 @@ end
 
 local function placeAlarmSeal(player, square)
     if not NinjaLineages.hasUzumaki(player) then
-        player:Say("Uzumaki lineage is required")
+        player:Say(getText("UI_NL_Error_LineageRequired", "Uzumaki lineage"))
         return
     end
     if not NinjaLineages.Chakra.canAffordChakra(player, consts.Uzumaki.AlarmSeal.CHAKRA_COST) then
-        player:Say("Not enough chakra to place Alarm Seal")
+        player:Say(getText("UI_NL_Error_NotEnoughChakra_PlaceAlarmSeal"))
         return
     end
     local seal = NinjaLineages.Utils.Inventory.getFirstInventoryItem(player, "Base.NL_AlarmSeal")
     if not seal then
-        player:Say("No Alarm Seal")
+        player:Say(getText("UI_NL_Error_NoAlarmSealItem"))
         return
     end
     if not square then square = player:getSquare() end
     NinjaLineages.Chakra.spendChakra(player, consts.Uzumaki.AlarmSeal.CHAKRA_COST)
     registerAlarmSeal(square, player)
     NinjaLineages.Utils.Inventory.consumeInventoryItem(player, seal)
-    player:Say("Alarm Seal placed")
+    player:Say(getText("UI_NL_Ability_AlarmSeal_Cast"))
 end
 
 local function discoverAlarmSealsNearPlayer(player)
@@ -179,7 +179,7 @@ end
 local function triggerAlarmSeal(player, square)
     removeAlarmSeal(square)
     if player and not player:isDead() then
-        player:Say("Alarm Seal triggered!")
+        player:Say(getText("UI_NL_Ability_AlarmSeal_Triggered"))
     end
 end
 
@@ -245,22 +245,22 @@ end
 
 local function sealBackpackInScroll(player, backpack, scroll)
     if not NinjaLineages.hasUzumaki(player) then
-        player:Say("Uzumaki lineage is required")
+        player:Say(getText("UI_NL_Error_LineageRequired", "Uzumaki lineage"))
         return
     end
     if not NinjaLineages.Chakra.canAffordChakra(player, consts.Uzumaki.StorageSeal.CHAKRA_COST) then
-        player:Say("Not enough chakra for Storage Seal")
+        player:Say(getText("UI_NL_Error_NotEnoughChakra_StorageSeal"))
         return
     end
     if not isBackpackContainer(backpack) then return end
     local scrollInv = getScrollInventory(scroll)
     if not scrollInv or scrollInv:getItems():size() > 0 then
-        player:Say("Scroll already contains a seal")
+        player:Say(getText("UI_NL_Ability_StorageSeal_AlreadySealed"))
         return
     end
     NinjaLineages.Chakra.spendChakra(player, consts.Uzumaki.StorageSeal.CHAKRA_COST)
     NinjaLineages.Utils.Inventory.moveItemBetweenContainers(backpack, backpack:getContainer(), scrollInv)
-    player:Say("Storage Seal")
+    player:Say(getText("UI_NL_Ability_StorageSeal_Cast"))
 end
 
 NLUnsealScrollAction = ISBaseTimedAction and ISBaseTimedAction:derive("NLUnsealScrollAction") or {}
@@ -273,7 +273,7 @@ function NLUnsealScrollAction:perform()
     local backpack = getContainedBackpack(self.scroll)
     if backpack then
         NinjaLineages.Utils.Inventory.moveItemBetweenContainers(backpack, getScrollInventory(self.scroll), self.character:getInventory())
-        self.character:Say("Unsealed")
+        self.character:Say(getText("UI_NL_Ability_StorageSeal_Unsealed"))
     end
     if ISBaseTimedAction then
         ISBaseTimedAction.perform(self)
@@ -292,7 +292,7 @@ end
 
 local function unsealScroll(player, scroll)
     if not NinjaLineages.hasUzumaki(player) then
-        player:Say("Uzumaki lineage is required")
+        player:Say(getText("UI_NL_Error_LineageRequired", "Uzumaki lineage"))
         return
     end
     if ISTimedActionQueue and ISBaseTimedAction then
@@ -335,7 +335,7 @@ local function addStorageSealContextMenu(playerNum, context, items)
 
     if isSealedScrollItem(selected) then
         if getContainedBackpack(selected) then
-            context:addOption("Unseal Backpack", player, unsealScroll, selected)
+            context:addOption(getText("UI_NL_Ability_StorageSeal_Unseal"), player, unsealScroll, selected)
         end
         return
     end
@@ -344,7 +344,7 @@ local function addStorageSealContextMenu(playerNum, context, items)
     local scrolls = collectEmptyScrolls(player)
     if #scrolls == 0 then return end
 
-    local option = context:addOption("Seal Backpack")
+    local option = context:addOption(getText("UI_NL_Ability_StorageSeal_Seal"))
     local subMenu = ISContextMenu:getNew(context)
     context:addSubMenu(option, subMenu)
     for _, scroll in ipairs(scrolls) do
@@ -384,7 +384,7 @@ if Events.OnFillWorldObjectContextMenu then
                         break
                     end
                 end
-                subMenu:addOption("Place Alarm Seal", player, placeAlarmSeal, square)
+                subMenu:addOption(getText("UI_NL_Ability_AlarmSeal_Place"), player, placeAlarmSeal, square)
             end
         end
     end)

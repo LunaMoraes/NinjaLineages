@@ -39,13 +39,13 @@ end
 function NinjaLineages.CommonJutsu.castHealing(player)
     local cost = consts.CommonJutsu.Healing.COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
-        player:Say(getText("UI_NL_NotEnoughChakra"))
+        player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
     end
 
     local onCd, remaining = NinjaLineages.CommonJutsu.isOnCooldown(player, "healing")
     if onCd then
-        player:Say(getText("UI_NL_OnCooldown", tostring(remaining)))
+        player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_Healing_Name"), tostring(remaining)))
         return
     end
 
@@ -81,7 +81,7 @@ function NinjaLineages.CommonJutsu.castHealing(player)
             mostDamagedPart:setScratchTime(math.max(0.0, mostDamagedPart:getScratchTime() - (10.0 + prowess * 2.0)))
         end
         bodyDamage:Recalculate()
-        player:Say(getText("UI_NL_HealingCast"))
+        player:Say(getText("UI_NL_Ability_Healing_Cast"))
     else
         player:Say(getText("UI_NL_NoWounds"))
     end
@@ -91,13 +91,13 @@ end
 function NinjaLineages.CommonJutsu.castReinforcement(player)
     local cost = consts.CommonJutsu.Reinforcement.COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
-        player:Say(getText("UI_NL_NotEnoughChakra"))
+        player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
     end
 
     local onCd, remaining = NinjaLineages.CommonJutsu.isOnCooldown(player, "reinforcement")
     if onCd then
-        player:Say(getText("UI_NL_OnCooldown", tostring(remaining)))
+        player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_PhysicalReinforcement_Name"), tostring(remaining)))
         return
     end
 
@@ -111,20 +111,20 @@ function NinjaLineages.CommonJutsu.castReinforcement(player)
     data.reinforcementEndTime = NinjaLineages.Utils.Time.nowMs() + duration
     NinjaLineages.transmitPlayerData(player)
 
-    player:Say(getText("UI_NL_ReinforcementCast"))
+    player:Say(getText("UI_NL_Ability_PhysicalReinforcement_Cast"))
 end
 
 -- 3. Quiet Step
 function NinjaLineages.CommonJutsu.castQuietStep(player)
     local cost = consts.CommonJutsu.QuietStep.COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
-        player:Say(getText("UI_NL_NotEnoughChakra"))
+        player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
     end
 
     local onCd, remaining = NinjaLineages.CommonJutsu.isOnCooldown(player, "quietstep")
     if onCd then
-        player:Say(getText("UI_NL_OnCooldown", tostring(remaining)))
+        player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_QuietStep_Name"), tostring(remaining)))
         return
     end
 
@@ -138,20 +138,20 @@ function NinjaLineages.CommonJutsu.castQuietStep(player)
     data.quietStepEndTime = NinjaLineages.Utils.Time.nowMs() + duration
     NinjaLineages.transmitPlayerData(player)
 
-    player:Say(getText("UI_NL_QuietStepCast"))
+    player:Say(getText("UI_NL_Ability_QuietStep_Cast"))
 end
 
 -- 4. Chakra Focus
 function NinjaLineages.CommonJutsu.castChakraFocus(player)
     local cost = consts.CommonJutsu.ChakraFocus.COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
-        player:Say(getText("UI_NL_NotEnoughChakra"))
+        player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
     end
 
     local onCd, remaining = NinjaLineages.CommonJutsu.isOnCooldown(player, "focus")
     if onCd then
-        player:Say(getText("UI_NL_OnCooldown", tostring(remaining)))
+        player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_ChakraFocus_Name"), tostring(remaining)))
         return
     end
 
@@ -167,20 +167,20 @@ function NinjaLineages.CommonJutsu.castChakraFocus(player)
     stats:set(CharacterStat.PANIC, math.max(0.0, stats:get(CharacterStat.PANIC) - panicReduction))
     stats:set(CharacterStat.STRESS, math.max(0.0, stats:get(CharacterStat.STRESS) - stressReduction))
 
-    player:Say(getText("UI_NL_ChakraFocusCast"))
+    player:Say(getText("UI_NL_Ability_ChakraFocus_Cast"))
 end
 
 -- 5. Chakra Grip
 function NinjaLineages.CommonJutsu.castChakraGrip(player)
     local cost = consts.CommonJutsu.ChakraGrip.COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
-        player:Say(getText("UI_NL_NotEnoughChakra"))
+        player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
     end
 
     local onCd, remaining = NinjaLineages.CommonJutsu.isOnCooldown(player, "grip")
     if onCd then
-        player:Say(getText("UI_NL_OnCooldown", tostring(remaining)))
+        player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_ChakraGrip_Name"), tostring(remaining)))
         return
     end
 
@@ -194,20 +194,20 @@ function NinjaLineages.CommonJutsu.castChakraGrip(player)
     data.chakraGripEndTime = NinjaLineages.Utils.Time.nowMs() + duration
     NinjaLineages.transmitPlayerData(player)
 
-    player:Say(getText("UI_NL_ChakraGripCast"))
+    player:Say(getText("UI_NL_Ability_ChakraGrip_Cast"))
 end
 
 -- 6. Body Flicker Step
 function NinjaLineages.CommonJutsu.castBodyFlicker(player)
     local cost = consts.CommonJutsu.BodyFlicker.COST
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
-        player:Say(getText("UI_NL_NotEnoughChakra"))
+        player:Say(getText("UI_NL_Error_NotEnoughChakra"))
         return
     end
 
     local onCd, remaining = NinjaLineages.CommonJutsu.isOnCooldown(player, "bodyflicker")
     if onCd then
-        player:Say(getText("UI_NL_OnCooldown", tostring(remaining)))
+        player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_Dash_Name"), tostring(remaining)))
         return
     end
 
@@ -219,7 +219,7 @@ function NinjaLineages.CommonJutsu.castBodyFlicker(player)
     data.bodyFlickerEndTime = NinjaLineages.Utils.Time.nowMs() + consts.CommonJutsu.BodyFlicker.DURATION_MS
     NinjaLineages.transmitPlayerData(player)
 
-    player:Say(getText("UI_NL_BodyFlickerCast"))
+    player:Say(getText("UI_NL_Ability_Dash_Cast"))
 end
 
 -- Update ticks for active buffs (called in Events.OnPlayerUpdate)
@@ -297,42 +297,42 @@ end
 -- Dynamic Registration of Common Jutsus
 NinjaLineages.registerAbility({
     id = "healing",
-    name = "UI_NL_HealingJutsu",
+    name = "UI_NL_Ability_Healing_Name",
     texture = "media/ui/NLJutsu.png",
     action = NinjaLineages.CommonJutsu.castHealing
 })
 
 NinjaLineages.registerAbility({
     id = "reinforcement",
-    name = "UI_NL_ReinforcementJutsu",
+    name = "UI_NL_Ability_PhysicalReinforcement_Name",
     texture = "media/ui/NLJutsu.png",
     action = NinjaLineages.CommonJutsu.castReinforcement
 })
 
 NinjaLineages.registerAbility({
     id = "quietstep",
-    name = "UI_NL_QuietStepJutsu",
+    name = "UI_NL_Ability_QuietStep_Name",
     texture = "media/ui/NLJutsu.png",
     action = NinjaLineages.CommonJutsu.castQuietStep
 })
 
 NinjaLineages.registerAbility({
     id = "focus",
-    name = "UI_NL_FocusJutsu",
+    name = "UI_NL_Ability_ChakraFocus_Name",
     texture = "media/ui/NLJutsu.png",
     action = NinjaLineages.CommonJutsu.castChakraFocus
 })
 
 NinjaLineages.registerAbility({
     id = "grip",
-    name = "UI_NL_GripJutsu",
+    name = "UI_NL_Ability_ChakraGrip_Name",
     texture = "media/ui/NLJutsu.png",
     action = NinjaLineages.CommonJutsu.castChakraGrip
 })
 
 NinjaLineages.registerAbility({
     id = "bodyflicker",
-    name = "UI_NL_BodyFlickerJutsu",
+    name = "UI_NL_Ability_Dash_Name",
     texture = "media/ui/NLJutsu.png",
     action = NinjaLineages.CommonJutsu.castBodyFlicker
 })

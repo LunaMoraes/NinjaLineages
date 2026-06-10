@@ -46,19 +46,19 @@ end
 
 local function useBindingRoots(player)
     if not NinjaLineages.hasSenju(player) then
-        player:Say("Senju lineage is required")
+        player:Say(getText("UI_NL_Error_LineageRequired", "Senju lineage"))
         return
     end
 
     local data = NinjaLineages.getNLData(player)
     local onCd, remaining = NinjaLineages.Cooldowns.isOnCooldown(player, "senju.binding_roots")
     if onCd then
-        player:Say("Binding Roots cooldown: " .. tostring(remaining) .. "s")
+        player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_BindingRoots_Name"), tostring(remaining)))
         return
     end
 
     if not NinjaLineages.Chakra.canAffordChakra(player, consts.Senju.BindingRoots.COST) then
-        player:Say("Not enough chakra for Binding Roots")
+        player:Say(getText("UI_NL_Error_NotEnoughChakra_BindingRoots"))
         return
     end
 
@@ -68,7 +68,7 @@ local function useBindingRoots(player)
     end
 
     NinjaLineages.Cooldowns.set(player, "senju.binding_roots", consts.Senju.BindingRoots.COOLDOWN_SECONDS)
-    player:Say("Mokuton")
+    player:Say(getText("UI_NL_Ability_BindingRoots_Cast"))
 end
 
 -- Creation Rebirth
@@ -170,11 +170,11 @@ end
 
 local function useCreationRebirth(player)
     if not NinjaLineages.hasSenju(player) then
-        player:Say("Senju lineage is required")
+        player:Say(getText("UI_NL_Error_LineageRequired", "Senju lineage"))
         return
     end
     if NinjaLineages.Chakra.getChakra(player) <= 0 then
-        player:Say("Too exhausted (low chakra) for Creation Rebirth")
+        player:Say(getText("UI_NL_Error_NotEnoughChakra_CreationRebirth"))
         return
     end
     local nowMs = NinjaLineages.Utils.Time.nowMs()
@@ -182,7 +182,7 @@ local function useCreationRebirth(player)
         endsAt = nowMs + consts.Senju.CreationRebirth.DURATION_MS,
         nextTickAt = nowMs,
     }
-    player:Say("Creation Rebirth")
+    player:Say(getText("UI_NL_Ability_CreationRebirth_Cast"))
 end
 
 -- Zombie Update Bind
@@ -200,7 +200,7 @@ end
 -- Dynamic Registration
 NinjaLineages.registerAbility({
     id = "binding_roots",
-    name = "Wood Release - Binding Roots",
+    name = "UI_NL_Ability_BindingRoots_Name",
     texture = "media/ui/Traits/trait_senju.png",
     condition = function(player) return NinjaLineages.hasSenju(player) end,
     action = useBindingRoots
@@ -208,7 +208,7 @@ NinjaLineages.registerAbility({
 
 NinjaLineages.registerAbility({
     id = "creation_rebirth",
-    name = "Creation Rebirth",
+    name = "UI_NL_Ability_CreationRebirth_Name",
     texture = "media/ui/Traits/trait_senju.png",
     condition = function(player) return NinjaLineages.hasSenju(player) end,
     action = useCreationRebirth
