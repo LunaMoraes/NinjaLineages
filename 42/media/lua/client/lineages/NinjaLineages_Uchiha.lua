@@ -22,11 +22,33 @@ local function getSharinganDodgeChance(player)
     return 0
 end
 
+local function updateSharinganProgress(player)
+    if not NinjaLineages.hasSharingan(player) then return end
+
+    local data = NinjaLineages.getNLData(player)
+    local stage = NinjaLineages.getSharinganStage(player)
+    local lastStage = data.lastSharinganStage or 0
+
+    if stage > lastStage then
+        if stage == 1 then
+            player:Say(getText("UI_NL_Unlock_SharinganTomoe1"))
+        elseif stage == 2 then
+            player:Say(getText("UI_NL_Unlock_SharinganTomoe2"))
+        elseif stage == 3 then
+            player:Say(getText("UI_NL_Unlock_SharinganTomoe3"))
+        end
+        data.lastSharinganStage = stage
+        NinjaLineages.transmitPlayerData(player)
+    elseif stage < lastStage then
+        data.lastSharinganStage = stage
+        NinjaLineages.transmitPlayerData(player)
+    end
+end
+
 local function updateSharinganMoodle(player)
     local data = NinjaLineages.getNLData(player)
     if not NinjaLineages.hasSharingan(player) or not data.eyePowerActive then
         NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.5)
-        data.lastSharinganStage = nil
         return
     end
 
@@ -41,22 +63,6 @@ local function updateSharinganMoodle(player)
         NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.6)
     else
         NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.5)
-    end
-
-    local lastStage = data.lastSharinganStage or 0
-    if stage > lastStage then
-        if stage == 1 then
-            player:Say(getText("UI_NL_Unlock_SharinganTomoe1"))
-        elseif stage == 2 then
-            player:Say(getText("UI_NL_Unlock_SharinganTomoe2"))
-        elseif stage == 3 then
-            player:Say(getText("UI_NL_Unlock_SharinganTomoe3"))
-        end
-        data.lastSharinganStage = stage
-        NinjaLineages.transmitPlayerData(player)
-    elseif stage < lastStage then
-        data.lastSharinganStage = stage
-        NinjaLineages.transmitPlayerData(player)
     end
 end
 
@@ -368,13 +374,14 @@ end
 -- Modular eye drain implementation
 function NinjaLineages.Uchiha.getEyePowerDrain(player, data)
     if data.eyePowerActive and NinjaLineages.hasSharingan(player) then
-        local tomoe = data.sharinganTomoe or 1
-        if tomoe == 4 or data.mangekyoUnlocked then
+        if data.mangekyoUnlocked then
             return consts.Uchiha.MangekyoDrainPerMinute
-        else
-            return consts.Uchiha.SharinganDrainPerMinute[tomoe] or 48.0
         end
+
+        local tomoe = NinjaLineages.getSharinganStage(player)
+        return consts.Uchiha.SharinganDrainPerMinute[tomoe] or 0.0
     end
+
     return 0.0
 end
 
@@ -408,6 +415,7 @@ NinjaLineages.registerAbility({
 })
 
 NinjaLineages.registerPlayerUpdate("uchiha.update", function(player)
+    updateSharinganProgress(player)
     updateSharinganMoodle(player)
     recoverKamuiVision(player)
     updateKamui(player)
