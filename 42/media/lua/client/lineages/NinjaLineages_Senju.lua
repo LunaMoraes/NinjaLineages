@@ -74,91 +74,8 @@ local function useBindingRoots(player)
     player:Say(getText("UI_NL_Ability_BindingRoots_Cast"))
 end
 
--- Creation Rebirth
-local function reducePartTimer(bodypart, getter, setter, amount)
-    local ok, value = pcall(function()
-        if getter == "getBleedingTime" then return bodypart:getBleedingTime() end
-        if getter == "getScratchTime" then return bodypart:getScratchTime() end
-        if getter == "getCutTime" then return bodypart:getCutTime() end
-        if getter == "getDeepWoundTime" then return bodypart:getDeepWoundTime() end
-        if getter == "getBurnTime" then return bodypart:getBurnTime() end
-        if getter == "getFractureTime" then return bodypart:getFractureTime() end
-        return 0
-    end)
-    if not ok or not value or value <= 0 then return false end
-    local nextValue = math.max(0, value - amount)
-    pcall(function()
-        if setter == "setBleedingTime" then bodypart:setBleedingTime(nextValue) end
-        if setter == "setScratchTime" then bodypart:setScratchTime(nextValue) end
-        if setter == "setCutTime" then bodypart:setCutTime(nextValue) end
-        if setter == "setDeepWoundTime" then bodypart:setDeepWoundTime(nextValue) end
-        if setter == "setBurnTime" then bodypart:setBurnTime(nextValue) end
-        if setter == "setFractureTime" then bodypart:setFractureTime(nextValue) end
-    end)
-    return nextValue < value
-end
-
-local function restoreBodyPartHealth(bodyDamage, bodypart, amount)
-    local ok, health = pcall(function() return bodypart:getHealth() end)
-    if ok and health and health < 100 then
-        pcall(function() bodyDamage:AddGeneralHealth(amount) end)
-        return true
-    end
-    return false
-end
-
-local function healBodyPartForCreationRebirth(bodyDamage, bodypart)
-    if not bodypart then return false end
-    local changed = false
-
-    changed = reducePartTimer(bodypart, "getBleedingTime", "setBleedingTime", 4.0) or changed
-    changed = reducePartTimer(bodypart, "getScratchTime", "setScratchTime", 4.0) or changed
-    changed = reducePartTimer(bodypart, "getCutTime", "setCutTime", 4.0) or changed
-    changed = reducePartTimer(bodypart, "getDeepWoundTime", "setDeepWoundTime", 3.0) or changed
-    changed = reducePartTimer(bodypart, "getBurnTime", "setBurnTime", 2.0) or changed
-    changed = reducePartTimer(bodypart, "getFractureTime", "setFractureTime", 1.0) or changed
-
-    if changed then
-        pcall(function()
-            if bodypart:getBleedingTime() <= 0 then
-                bodypart:setBleeding(false)
-            end
-        end)
-    end
-
-    changed = restoreBodyPartHealth(bodyDamage, bodypart, 3.0) or changed
-    return changed
-end
-
 local function stopCreationRebirth(player)
     creationRebirthState[player] = nil
-end
-
-local function isBodyPartDamagedOrInjured(bodypart)
-    if not bodypart then return false end
-
-    local okHealth, health = pcall(function() return bodypart:getHealth() end)
-    if okHealth and health and health < 100 then return true end
-
-    local okBleed, bleed = pcall(function() return bodypart:getBleedingTime() end)
-    if okBleed and bleed and bleed > 0 then return true end
-
-    local okScratch, scratch = pcall(function() return bodypart:getScratchTime() end)
-    if okScratch and scratch and scratch > 0 then return true end
-
-    local okCut, cut = pcall(function() return bodypart:getCutTime() end)
-    if okCut and cut and cut > 0 then return true end
-
-    local okDeep, deep = pcall(function() return bodypart:getDeepWoundTime() end)
-    if okDeep and deep and deep > 0 then return true end
-
-    local okBurn, burn = pcall(function() return bodypart:getBurnTime() end)
-    if okBurn and burn and burn > 0 then return true end
-
-    local okFrac, frac = pcall(function() return bodypart:getFractureTime() end)
-    if okFrac and frac and frac > 0 then return true end
-
-    return false
 end
 
 local function updateCreationRebirth(player)
@@ -187,13 +104,21 @@ local function updateCreationRebirth(player)
 
     for i = 0, parts:size() - 1 do
         local bodypart = parts:get(i)
-        if bodypart and isBodyPartDamagedOrInjured(bodypart) then
+        if NinjaLineages.Utils.Healing.getPartSeverity(bodypart) > 0 then
             if NinjaLineages.Chakra.getChakra(player) < costStep then
                 stopCreationRebirth(player)
                 return
             end
 
-            local changed = healBodyPartForCreationRebirth(bodyDamage, bodypart)
+            local changed = NinjaLineages.Utils.Healing.healPart(bodyDamage, bodypart, {
+                health = 3.0,
+                bleeding = 4.0,
+                scratch = 4.0,
+                cut = 4.0,
+                deepWound = 3.0,
+                burn = 2.0,
+                fracture = 1.0,
+            })
             if changed then
                 NinjaLineages.Chakra.spendChakra(player, costStep)
             end

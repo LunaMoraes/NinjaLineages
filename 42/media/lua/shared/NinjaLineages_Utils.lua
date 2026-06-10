@@ -190,7 +190,125 @@ function NinjaLineages.Utils.Combat.staggerZombie(zombie, opts)
 end
 
 
--- 4. Centralized Cooldown Service
+-- 4. Body Damage Helpers
+NinjaLineages.Utils.Healing = NinjaLineages.Utils.Healing or {}
+
+local function getBodyPartValue(bodypart, valueName)
+    local ok, value = pcall(function()
+        if valueName == "health" then return bodypart:getHealth() end
+        if valueName == "bleeding" then return bodypart:getBleedingTime() end
+        if valueName == "scratch" then return bodypart:getScratchTime() end
+        if valueName == "cut" then return bodypart:getCutTime() end
+        if valueName == "deepWound" then return bodypart:getDeepWoundTime() end
+        if valueName == "burn" then return bodypart:getBurnTime() end
+        if valueName == "fracture" then return bodypart:getFractureTime() end
+        return nil
+    end)
+    if ok and type(value) == "number" then
+        return value
+    end
+    return nil
+end
+
+local function clearResolvedWound(bodypart, woundName)
+    return pcall(function()
+        if woundName == "bleeding" then
+            bodypart:setBleeding(false)
+        elseif woundName == "scratch" then
+            bodypart:setScratched(false, true)
+        elseif woundName == "cut" then
+            bodypart:setCut(false)
+        elseif woundName == "deepWound" then
+            bodypart:setDeepWounded(false)
+        end
+    end)
+end
+
+local function reduceBodyPartTimer(bodypart, woundName, amount, clearAtFullHealth)
+    if not amount or amount <= 0 then return false end
+
+    local current = getBodyPartValue(bodypart, woundName)
+    if not current or current <= 0 then return false end
+
+    local nextValue = math.max(0, current - amount)
+    local isSurfaceWound = woundName == "scratch" or woundName == "cut"
+    if clearAtFullHealth and isSurfaceWound then
+        nextValue = 0
+    end
+
+    local ok = pcall(function()
+        if woundName == "bleeding" then bodypart:setBleedingTime(nextValue) end
+        if woundName == "scratch" then bodypart:setScratchTime(nextValue) end
+        if woundName == "cut" then bodypart:setCutTime(nextValue) end
+        if woundName == "deepWound" then bodypart:setDeepWoundTime(nextValue) end
+        if woundName == "burn" then bodypart:setBurnTime(nextValue) end
+        if woundName == "fracture" then bodypart:setFractureTime(nextValue) end
+    end)
+    if not ok then return false end
+
+    local applied = getBodyPartValue(bodypart, woundName)
+    if not applied or applied >= current then return false end
+
+    if applied <= 0 then
+        clearResolvedWound(bodypart, woundName)
+    end
+    return true
+end
+
+function NinjaLineages.Utils.Healing.getPartSeverity(bodypart)
+    if not bodypart then return 0 end
+
+    local health = getBodyPartValue(bodypart, "health")
+    local severity = health and math.max(0, 100.0 - health) or 0
+    local woundNames = { "bleeding", "scratch", "cut", "deepWound", "burn", "fracture" }
+
+    for _, woundName in ipairs(woundNames) do
+        severity = math.max(severity, getBodyPartValue(bodypart, woundName) or 0)
+    end
+    return severity
+end
+
+function NinjaLineages.Utils.Healing.healPart(bodyDamage, bodypart, options)
+    if not bodyDamage or not bodypart or not options then return false end
+
+    local changed = false
+    local health = getBodyPartValue(bodypart, "health")
+    local healthAmount = options.health or 0
+
+    if health and health < 100 and healthAmount > 0 then
+        local ok = pcall(function() bodypart:AddHealth(healthAmount) end)
+        local nextHealth = getBodyPartValue(bodypart, "health")
+        changed = ok and nextHealth ~= nil and nextHealth > health
+    end
+
+    if not changed and health and health < 100 and healthAmount > 0 then
+        local before = nil
+        pcall(function() before = bodyDamage:getOverallBodyHealth() end)
+        local ok = pcall(function() bodyDamage:AddGeneralHealth(healthAmount) end)
+        local after = nil
+        pcall(function() after = bodyDamage:getOverallBodyHealth() end)
+        changed = ok and before ~= nil and after ~= nil and after > before
+    end
+
+    local currentHealth = getBodyPartValue(bodypart, "health")
+    local clearAtFullHealth = currentHealth ~= nil and currentHealth >= 100
+    local woundNames = { "bleeding", "scratch", "cut", "deepWound", "burn", "fracture" }
+
+    for _, woundName in ipairs(woundNames) do
+        changed = reduceBodyPartTimer(
+            bodypart,
+            woundName,
+            options[woundName],
+            clearAtFullHealth
+        ) or changed
+    end
+
+    pcall(function() bodyDamage:calculateOverallHealth() end)
+    return changed
+end
+
+
+-- 5. Centralized Cooldown Service
 NinjaLineages.Cooldowns = NinjaLineages.Cooldowns or {}
 
 function NinjaLineages.Cooldowns.isOnCooldown(player, key)

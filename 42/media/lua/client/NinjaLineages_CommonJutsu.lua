@@ -50,42 +50,53 @@ function NinjaLineages.CommonJutsu.castHealing(player)
         return
     end
 
-    -- Deduct chakra and set cooldown
-    NinjaLineages.Chakra.spendChakra(player, cost)
-    NinjaLineages.CommonJutsu.setCooldown(player, "healing", NinjaLineages.Balance.getCooldown("STANDARD"))
-
-    -- Apply effect
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
     local healAmount = consts.CommonJutsu.Healing.HEAL_BASE + (prowess * consts.CommonJutsu.Healing.HEAL_PER_PROWESS)
 
     local bodyDamage = player:getBodyDamage()
+    if not bodyDamage then
+        return
+    end
+
     local bodyParts = bodyDamage:getBodyParts()
+    if not bodyParts then
+        return
+    end
+
     local mostDamagedPart = nil
     local maxDamage = 0
 
     for i = 0, bodyParts:size() - 1 do
         local part = bodyParts:get(i)
-        local damage = 100.0 - part:getHealth()
-        if damage > maxDamage then
-            maxDamage = damage
+        local woundSeverity = NinjaLineages.Utils.Healing.getPartSeverity(part)
+
+        if woundSeverity > maxDamage then
+            maxDamage = woundSeverity
             mostDamagedPart = part
         end
     end
 
-    if mostDamagedPart and maxDamage > 0 then
-        local currentHealth = mostDamagedPart:getHealth()
-        mostDamagedPart:setHealth(math.min(100.0, currentHealth + healAmount))
-        if mostDamagedPart:isCut() then
-            mostDamagedPart:setCutTime(math.max(0.0, mostDamagedPart:getCutTime() - (10.0 + prowess * 2.0)))
-        end
-        if mostDamagedPart:isScratch() then
-            mostDamagedPart:setScratchTime(math.max(0.0, mostDamagedPart:getScratchTime() - (10.0 + prowess * 2.0)))
-        end
-        bodyDamage:Recalculate()
-        player:Say(getText("UI_NL_Ability_Healing_Cast"))
-    else
+    if not mostDamagedPart or maxDamage <= 0 then
         player:Say(getText("UI_NL_NoWounds"))
+        return
     end
+
+    local timerReduction = 10.0 + prowess * 2.0
+    local changed = NinjaLineages.Utils.Healing.healPart(bodyDamage, mostDamagedPart, {
+        health = healAmount,
+        scratch = timerReduction,
+        cut = timerReduction,
+    })
+
+    if not changed then
+        player:Say(getText("UI_NL_NoWounds"))
+        return
+    end
+
+    NinjaLineages.Chakra.spendChakra(player, cost)
+    NinjaLineages.CommonJutsu.setCooldown(player, "healing", NinjaLineages.Balance.getCooldown("STANDARD"))
+
+    player:Say(getText("UI_NL_Ability_Healing_Cast"))
 end
 
 -- 2. Physical Reinforcement
