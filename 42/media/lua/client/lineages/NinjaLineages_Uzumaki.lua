@@ -35,7 +35,7 @@ local function captureUzumakiHealthState(player)
     local data = uzumakiHealthState[player] or {}
     pcall(function() data.generalHealth = bodyDamage:getHealth() end)
     data.parts = getBodyPartSnapshot(player)
-    data.lastPassiveAt = NinjaLineages.Utils.Time.nowMs()
+    data.lastPassiveAt = NinjaLineages.Utils.Time.nowGameMs(player)
     uzumakiHealthState[player] = data
 end
 
@@ -64,7 +64,7 @@ local function applyUzumakiBleedSlow(player)
         return
     end
 
-    local nowMs = NinjaLineages.Utils.Time.nowMs()
+    local nowMs = NinjaLineages.Utils.Time.nowGameMs(player)
     local data = uzumakiHealthState[player]
     if not data then
         captureUzumakiHealthState(player)
@@ -186,7 +186,7 @@ local function triggerAlarmSeal(player, square)
 end
 
 local function updateAlarmSeals(player)
-    local nowMs = NinjaLineages.Utils.Time.nowMs()
+    local nowMs = NinjaLineages.Utils.Time.nowGameMs(player)
     if nowMs >= nextAlarmDiscoveryAt then
         nextAlarmDiscoveryAt = nowMs + consts.Uzumaki.AlarmSeal.DISCOVERY_MS
         discoverAlarmSealsNearPlayer(player)

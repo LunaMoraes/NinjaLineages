@@ -42,7 +42,7 @@ local function applyBindingRootsToZombie(player, target)
     local knockdownChance = target.distance <= consts.Senju.BindingRoots.INNER_RADIUS and consts.Senju.BindingRoots.INNER_KNOCKDOWN_CHANCE or consts.Senju.BindingRoots.OUTER_KNOCKDOWN_CHANCE
     local shouldKnockdown = ZombRand(1, 101) <= knockdownChance
     NinjaLineages.Utils.Combat.staggerZombie(zombie, { knockdown = shouldKnockdown, position = "FRONT", force = 2.0 })
-    boundZombies[zombie] = NinjaLineages.Utils.Time.nowMs() + NinjaLineages.Balance.getDuration("BRIEF_MS")
+    boundZombies[zombie] = NinjaLineages.Utils.Time.nowGameMs(player) + NinjaLineages.Balance.getDuration("BRIEF_MS")
 end
 
 local function useBindingRoots(player)
@@ -165,7 +165,7 @@ local function updateCreationRebirth(player)
     local state = creationRebirthState[player]
     if not state then return end
 
-    local nowMs = NinjaLineages.Utils.Time.nowMs()
+    local nowMs = NinjaLineages.Utils.Time.nowGameMs(player)
     if nowMs >= state.endsAt then
         stopCreationRebirth(player)
         return
@@ -210,7 +210,7 @@ local function useCreationRebirth(player)
         player:Say(getText("UI_NL_Error_NotEnoughChakra_CreationRebirth"))
         return
     end
-    local nowMs = NinjaLineages.Utils.Time.nowMs()
+    local nowMs = NinjaLineages.Utils.Time.nowGameMs(player)
     creationRebirthState[player] = {
         endsAt = nowMs + NinjaLineages.Balance.getDuration("SHORT_MS"),
         nextTickAt = nowMs,
@@ -222,7 +222,7 @@ end
 local function enforceBindingRoots(zombie)
     local bindUntil = boundZombies[zombie]
     if not bindUntil then return end
-    if not zombie or zombie:isDead() or NinjaLineages.Utils.Time.nowMs() > bindUntil then
+    if not zombie or zombie:isDead() or NinjaLineages.Utils.Time.nowGameMs() > bindUntil then
         boundZombies[zombie] = nil
         return
     end

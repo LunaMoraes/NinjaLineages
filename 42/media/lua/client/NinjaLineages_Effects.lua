@@ -156,6 +156,10 @@ local function onPlayerUpdate(player)
     if not player then return end
     if not player:isLocalPlayer() then return end
 
+    if player:getPlayerNum() == 0 then
+        NinjaLineages.Utils.Time.advanceGameplayClock(player)
+    end
+
     runListeners(NinjaLineages.PlayerUpdates, "PlayerUpdate", player)
 
     NinjaLineages.CommonJutsu.update(player)

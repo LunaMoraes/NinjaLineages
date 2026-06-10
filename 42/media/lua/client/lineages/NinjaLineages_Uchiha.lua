@@ -194,7 +194,7 @@ local function updateKamui(player)
     local state = kamuiState[player]
     if not state then return end
 
-    local nowMs = NinjaLineages.Utils.Time.nowMs()
+    local nowMs = NinjaLineages.Utils.Time.nowGameMs(player)
     local stats = player:getStats()
     if not stats then
         stopKamui(player, true)
@@ -252,7 +252,7 @@ function NinjaLineages.Uchiha.startKamui(player)
         updateSharinganMoodle(player)
     end
 
-    local nowMs = NinjaLineages.Utils.Time.nowMs()
+    local nowMs = NinjaLineages.Utils.Time.nowGameMs(player)
     kamuiState[player] = {
         startedAt = nowMs,
         lastTick = nowMs,

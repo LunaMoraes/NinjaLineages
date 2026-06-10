@@ -109,7 +109,7 @@ function NinjaLineages.CommonJutsu.castReinforcement(player)
     local duration = (10 + prowess) * 1000 -- in ms
 
     local data = NinjaLineages.getNLData(player)
-    data.reinforcementEndTime = NinjaLineages.Utils.Time.nowMs() + duration
+    data.reinforcementEndTime = NinjaLineages.Utils.Time.nowGameMs(player) + duration
     NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_Ability_PhysicalReinforcement_Cast"))
@@ -136,7 +136,7 @@ function NinjaLineages.CommonJutsu.castQuietStep(player)
     local duration = (15 + prowess * 1.5) * 1000 -- in ms
 
     local data = NinjaLineages.getNLData(player)
-    data.quietStepEndTime = NinjaLineages.Utils.Time.nowMs() + duration
+    data.quietStepEndTime = NinjaLineages.Utils.Time.nowGameMs(player) + duration
     NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_Ability_QuietStep_Cast"))
@@ -192,7 +192,7 @@ function NinjaLineages.CommonJutsu.castChakraGrip(player)
     local duration = (12 + prowess) * 1000 -- in ms
 
     local data = NinjaLineages.getNLData(player)
-    data.chakraGripEndTime = NinjaLineages.Utils.Time.nowMs() + duration
+    data.chakraGripEndTime = NinjaLineages.Utils.Time.nowGameMs(player) + duration
     NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_Ability_ChakraGrip_Cast"))
@@ -217,7 +217,7 @@ function NinjaLineages.CommonJutsu.castBodyFlicker(player)
 
     -- Sprint burst: set end time for speed boost (duration in ms)
     local data = NinjaLineages.getNLData(player)
-    data.bodyFlickerEndTime = NinjaLineages.Utils.Time.nowMs() + NinjaLineages.Balance.getDuration("BURST_MS")
+    data.bodyFlickerEndTime = NinjaLineages.Utils.Time.nowGameMs(player) + NinjaLineages.Balance.getDuration("BURST_MS")
     NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_Ability_Dash_Cast"))
@@ -226,7 +226,7 @@ end
 -- Update ticks for active buffs (called in Events.OnPlayerUpdate)
 function NinjaLineages.CommonJutsu.update(player)
     local data = NinjaLineages.getNLData(player)
-    local current = NinjaLineages.Utils.Time.nowMs()
+    local current = NinjaLineages.Utils.Time.nowGameMs(player)
 
     -- 1. Quiet Step
     if data.quietStepEndTime and current < data.quietStepEndTime then

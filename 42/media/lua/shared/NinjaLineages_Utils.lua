@@ -83,6 +83,54 @@ function NinjaLineages.Utils.Time.worldAgeHours()
     return 0
 end
 
+function NinjaLineages.Utils.Time.advanceGameplayClock(player)
+    local nowWallMs = NinjaLineages.Utils.Time.nowMs()
+    local lastWallMs = NinjaLineages.Utils.Time.lastWallMs
+
+    NinjaLineages.Utils.Time.lastWallMs = nowWallMs
+
+    if not lastWallMs or nowWallMs <= lastWallMs then return end
+
+    local gameTime = getGameTime and getGameTime() or nil
+    local multiplier = gameTime and gameTime.getMultiplier and gameTime:getMultiplier() or 0
+
+    if not multiplier or multiplier <= 0 then return end
+
+    local deltaMs = nowWallMs - lastWallMs
+
+    -- Drop suspicious gaps from pause, alt-tab, loading, etc.
+    if deltaMs > 1000 then return end
+
+    -- Bootstrap gameplayMs from player data if not set yet
+    if not NinjaLineages.Utils.Time.gameplayMs and player then
+        local data = NinjaLineages.getNLData(player)
+        if data and data.gameplayMs then
+            NinjaLineages.Utils.Time.gameplayMs = data.gameplayMs
+        end
+    end
+
+    NinjaLineages.Utils.Time.gameplayMs = (NinjaLineages.Utils.Time.gameplayMs or 0) + deltaMs
+
+    local data = player and NinjaLineages.getNLData(player)
+    if data then
+        data.gameplayMs = NinjaLineages.Utils.Time.gameplayMs
+    end
+end
+
+function NinjaLineages.Utils.Time.nowGameMs(player)
+    if not NinjaLineages.Utils.Time.gameplayMs then
+        local p = player
+        if not p and getSpecificPlayer then
+            p = getSpecificPlayer(0)
+        end
+        local data = p and NinjaLineages.getNLData(p)
+        if data and data.gameplayMs then
+            NinjaLineages.Utils.Time.gameplayMs = data.gameplayMs
+        end
+    end
+    return NinjaLineages.Utils.Time.gameplayMs or 0
+end
+
 
 -- 3. Zombie/Combat Helpers
 NinjaLineages.Utils.Zombies = NinjaLineages.Utils.Zombies or {}
@@ -148,7 +196,7 @@ NinjaLineages.Cooldowns = NinjaLineages.Cooldowns or {}
 function NinjaLineages.Cooldowns.isOnCooldown(player, key)
     local data = NinjaLineages.getNLData(player)
     local cooldowns = data.cooldowns or {}
-    local current = NinjaLineages.Utils.Time.nowMs()
+    local current = NinjaLineages.Utils.Time.nowGameMs(player)
     if cooldowns[key] and current < cooldowns[key] then
         return true, math.ceil((cooldowns[key] - current) / 1000)
     end
@@ -158,6 +206,6 @@ end
 function NinjaLineages.Cooldowns.set(player, key, durationSeconds)
     local data = NinjaLineages.getNLData(player)
     data.cooldowns = data.cooldowns or {}
-    data.cooldowns[key] = NinjaLineages.Utils.Time.nowMs() + (durationSeconds * 1000)
+    data.cooldowns[key] = NinjaLineages.Utils.Time.nowGameMs(player) + (durationSeconds * 1000)
     NinjaLineages.transmitPlayerData(player)
 end
