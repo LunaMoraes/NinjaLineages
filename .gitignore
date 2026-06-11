@@ -1,1 +1,12 @@
 .local/
+.vscode/
+.idea/
+*.log
+*.tmp
+*.bak
+*.zip
+*.7z
+.DS_Store
+Thumbs.db
+workshop_build/
+dist/

@@ -29,19 +29,37 @@ end
 
 local function addListener(registry, idOrFn, maybeFn)
     local id, fn
+
     if type(idOrFn) == "string" then
         id = idOrFn
         fn = maybeFn
     else
-        id = "anonymous"
+        id = "anonymous_" .. tostring(#registry + 1)
         fn = idOrFn
     end
-    if fn then
-        table.insert(registry, { id = id, fn = fn })
+
+    if not fn then return end
+
+    for i, existing in ipairs(registry) do
+        if existing.id == id then
+            registry[i] = { id = id, fn = fn }
+            return
+        end
     end
+
+    table.insert(registry, { id = id, fn = fn })
 end
 
 function NinjaLineages.registerAbility(ability)
+    if not ability or not ability.id then return end
+
+    for i, existing in ipairs(NinjaLineages.Abilities) do
+        if existing.id == ability.id then
+            NinjaLineages.Abilities[i] = ability
+            return
+        end
+    end
+
     table.insert(NinjaLineages.Abilities, ability)
 end
 

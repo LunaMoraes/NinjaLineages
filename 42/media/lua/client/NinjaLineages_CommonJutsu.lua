@@ -4,7 +4,7 @@ require "NinjaLineages_Utils"
 require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
-NinjaLineages.CommonJutsu = {}
+NinjaLineages.CommonJutsu = NinjaLineages.CommonJutsu or {}
 
 local consts = NinjaLineages.Constants
 

@@ -5,7 +5,7 @@ require "NinjaLineages_UI"
 require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
-NinjaLineages.Uchiha = {}
+NinjaLineages.Uchiha = NinjaLineages.Uchiha or {}
 
 local consts = NinjaLineages.Constants
 

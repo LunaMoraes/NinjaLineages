@@ -3,7 +3,7 @@ require "NinjaLineages_Utils"
 require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
-NinjaLineages.Senju = {}
+NinjaLineages.Senju = NinjaLineages.Senju or {}
 
 local consts = NinjaLineages.Constants
 
