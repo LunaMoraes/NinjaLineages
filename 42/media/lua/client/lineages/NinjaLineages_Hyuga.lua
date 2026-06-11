@@ -70,6 +70,9 @@ function NinjaLineages.Hyuga.toggleByakugan(player)
         if NinjaLineages.Chakra.getChakra(player) > 0 then
             data.eyePowerActive = true
             applyByakugan(player)
+            pcall(function()
+                player:playerVoiceSound(consts.Hyuga.Audio.ACTIVATION_VOICE)
+            end)
             player:Say(getText("UI_NL_Ability_Byakugan_Cast"))
         else
             player:Say(getText("UI_NL_Error_NotEnoughChakra"))

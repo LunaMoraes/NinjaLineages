@@ -1,0 +1,9 @@
+{
+    "Sandbox_NinjaLineages": "Ninja Lineages",
+    "Sandbox_NinjaLineages_SharinganFirstTomoeKills": "Sharingan: First Tomoe Kills",
+    "Sandbox_NinjaLineages_SharinganFirstTomoeKills_tooltip": "Zombie kills required to awaken the Sharingan's first Tomoe.",
+    "Sandbox_NinjaLineages_SharinganSecondTomoeKills": "Sharingan: Second Tomoe Kills",
+    "Sandbox_NinjaLineages_SharinganSecondTomoeKills_tooltip": "Zombie kills required to awaken the Sharingan's second Tomoe. Values below the first threshold are raised to match it.",
+    "Sandbox_NinjaLineages_SharinganThirdTomoeKills": "Sharingan: Third Tomoe Kills",
+    "Sandbox_NinjaLineages_SharinganThirdTomoeKills_tooltip": "Zombie kills required to awaken the Sharingan's third Tomoe. Values below the second threshold are raised to match it."
+}

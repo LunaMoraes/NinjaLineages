@@ -67,6 +67,9 @@ end
 
 local function finishLocalCast(player)
     addPulse(player:getX(), player:getY(), math.floor(player:getZ()))
+    pcall(function()
+        player:playerVoiceSound(consts.Rinnegan.ShinraTensei.ACTIVATION_VOICE)
+    end)
     player:Say(getText("UI_NL_Ability_ShinraTensei_Cast"))
 end
 
@@ -98,6 +101,9 @@ local function onServerCommand(module, command, args)
         addPulse(args.x, args.y, args.z)
         local player = getSpecificPlayer(0)
         if player and args.casterOnlineId == player:getOnlineID() then
+            pcall(function()
+                player:playerVoiceSound(consts.Rinnegan.ShinraTensei.ACTIVATION_VOICE)
+            end)
             player:Say(getText("UI_NL_Ability_ShinraTensei_Cast"))
         end
     elseif command == "shinraTenseiRejected" then

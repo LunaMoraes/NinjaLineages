@@ -241,13 +241,13 @@ function NinjaLineages.CommonJutsu.update(player)
 
     -- 1. Quiet Step
     if data.quietStepEndTime and current < data.quietStepEndTime then
-        if not player:getTraits():contains("Graceful") then
-            player:getTraits():add("Graceful")
+        if not player:hasTrait(CharacterTrait.GRACEFUL) then
+            player:getCharacterTraits():add(CharacterTrait.GRACEFUL)
             data.addedGracefulByJutsu = true
         end
     else
         if data.addedGracefulByJutsu then
-            player:getTraits():remove("Graceful")
+            player:getCharacterTraits():remove(CharacterTrait.GRACEFUL)
             data.addedGracefulByJutsu = nil
             player:Say(getText("UI_NL_QuietStepExpired"))
         end
@@ -268,13 +268,13 @@ function NinjaLineages.CommonJutsu.update(player)
 
     -- 3. Chakra Grip
     if data.chakraGripEndTime and current < data.chakraGripEndTime then
-        if not player:getTraits():contains("Strong") then
-            player:getTraits():add("Strong")
+        if not player:hasTrait(CharacterTrait.STRONG) then
+            player:getCharacterTraits():add(CharacterTrait.STRONG)
             data.addedStrongByJutsu = true
         end
     else
         if data.addedStrongByJutsu then
-            player:getTraits():remove("Strong")
+            player:getCharacterTraits():remove(CharacterTrait.STRONG)
             data.addedStrongByJutsu = nil
             player:Say(getText("UI_NL_ChakraGripExpired"))
         end

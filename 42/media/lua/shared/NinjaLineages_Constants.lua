@@ -60,11 +60,15 @@ NinjaLineages.Constants.Uchiha = {
 }
 
 NinjaLineages.Constants.Hyuga = {
+    Audio = {
+        ACTIVATION_VOICE = "NLByakuganActivation",
+    },
     ByakuganDrainPerMinute = 12.0,
 }
 
 NinjaLineages.Constants.Rinnegan = {
     ShinraTensei = {
+        ACTIVATION_VOICE = "NLShinraTenseiActivation",
         GUARANTEED_KNOCKDOWN_RADIUS = 3.5,
         DAMAGE_MIN_FALLOFF = 0.85,
         PUSH_STEP = 0.25,

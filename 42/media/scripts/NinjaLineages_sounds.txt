@@ -29,4 +29,44 @@ module Base
             distanceMax = 15,
         }
     }
+
+    sound VoiceMaleNLByakuganActivation
+    {
+        category = Player,
+        clip
+        {
+            file = media/sound/NL_ByakuganActivation_Male.wav,
+            distanceMax = 30,
+        }
+    }
+
+    sound VoiceFemaleNLByakuganActivation
+    {
+        category = Player,
+        clip
+        {
+            file = media/sound/NL_ByakuganActivation_Female.wav,
+            distanceMax = 30,
+        }
+    }
+
+    sound VoiceMaleNLShinraTenseiActivation
+    {
+        category = Player,
+        clip
+        {
+            file = media/sound/NL_ShinraTenseiActivation_Male.wav,
+            distanceMax = 50,
+        }
+    }
+
+    sound VoiceFemaleNLShinraTenseiActivation
+    {
+        category = Player,
+        clip
+        {
+            file = media/sound/NL_ShinraTenseiActivation_Female.wav,
+            distanceMax = 50,
+        }
+    }
 }

@@ -168,14 +168,25 @@ function NinjaLineages.hasUzumaki(player)
     return NinjaLineages.hasTrait(player, "UZUMAKI", NinjaLineages.TRAIT_UZUMAKI)
 end
 
+function NinjaLineages.getSharinganStageKills()
+    local defaults = NinjaLineages.Constants.Uchiha.SharinganStageKills
+    local options = SandboxVars and SandboxVars.NinjaLineages or nil
+
+    local first = math.max(0, math.floor(tonumber(options and options.SharinganFirstTomoeKills) or defaults[1]))
+    local second = math.max(first, math.floor(tonumber(options and options.SharinganSecondTomoeKills) or defaults[2]))
+    local third = math.max(second, math.floor(tonumber(options and options.SharinganThirdTomoeKills) or defaults[3]))
+
+    return { [1] = first, [2] = second, [3] = third }
+end
+
 -- Sharingan Stage lookup
 function NinjaLineages.getSharinganStage(player)
     if not NinjaLineages.hasSharingan(player) then return 0 end
     local kills = player:getZombieKills() or 0
-    local consts = NinjaLineages.Constants
-    if kills >= consts.Uchiha.SharinganStageKills[3] then return 3 end
-    if kills >= consts.Uchiha.SharinganStageKills[2] then return 2 end
-    if kills >= consts.Uchiha.SharinganStageKills[1] then return 1 end
+    local stageKills = NinjaLineages.getSharinganStageKills()
+    if kills >= stageKills[3] then return 3 end
+    if kills >= stageKills[2] then return 2 end
+    if kills >= stageKills[1] then return 1 end
     return 0
 end
 

@@ -283,7 +283,8 @@ function NinjaLineages.Uchiha.toggleSharingan(player)
         player:Say(getText("UI_NL_Ability_Sharingan_Deactivated"))
     else
         if NinjaLineages.getSharinganStage(player) == 0 then
-            player:Say(getText("UI_NL_Error_SharinganLocked"))
+            local stageKills = NinjaLineages.getSharinganStageKills()
+            player:Say(getText("UI_NL_Error_SharinganLocked", tostring(stageKills[1])))
             return
         end
         if NinjaLineages.Chakra.getChakra(player) > 0 then
