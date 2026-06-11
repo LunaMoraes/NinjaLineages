@@ -289,6 +289,9 @@ function NinjaLineages.Uchiha.toggleSharingan(player)
         if NinjaLineages.Chakra.getChakra(player) > 0 then
             data.eyePowerActive = true
             updateSharinganMoodle(player)
+            pcall(function()
+                player:playerVoiceSound(consts.Uchiha.Audio.ACTIVATION_VOICE)
+            end)
             player:Say(getText("UI_NL_Ability_Sharingan_Cast"))
         else
             player:Say(getText("UI_NL_Error_NotEnoughChakra"))
@@ -326,6 +329,9 @@ local function sharinganEvade(zombie)
     if ZombRand(1, 101) <= dodgeChance then
         zombie:setVariable("AttackOutcome", "fail")
         player:setHitReaction("EvasiveBlocked")
+        pcall(function()
+            player:playSound(consts.Uchiha.Audio.DODGE_EFFECT)
+        end)
         player:Say(getText("UI_NL_Ability_Sharingan_Evade"))
     end
 end

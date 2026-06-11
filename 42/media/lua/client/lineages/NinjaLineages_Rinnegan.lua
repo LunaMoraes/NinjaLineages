@@ -1,83 +1,113 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Balance"
+require "NinjaLineages_RinneganMechanics"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Rinnegan = NinjaLineages.Rinnegan or {}
 
 local consts = NinjaLineages.Constants
+local mechanics = NinjaLineages.RinneganMechanics
+local pulses = {}
 
-local function applyShinraDamage(player, target)
-    local zombie = target.zombie
-    if not zombie or zombie:isDead() then return end
-
-    local radius = NinjaLineages.Balance.getRadius("STANDARD")
-    local falloff = math.max(consts.Rinnegan.ShinraTensei.DAMAGE_MIN_FALLOFF, 1.0 - ((target.distance / radius) * 0.15))
-    local damage = NinjaLineages.Balance.rollDamage("HEAVY") * falloff
-    NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
+local function addPulse(x, y, z)
+    table.insert(pulses, {
+        x = x,
+        y = y,
+        z = z,
+        startedAt = NinjaLineages.Utils.Time.nowMs(),
+    })
 end
 
-local function getKnockdownChance(distance)
-    local radius = NinjaLineages.Balance.getRadius("STANDARD")
-    if distance <= consts.Rinnegan.ShinraTensei.GUARANTEED_KNOCKDOWN_RADIUS then return 100 end
-
-    local outerRange = radius - consts.Rinnegan.ShinraTensei.GUARANTEED_KNOCKDOWN_RADIUS
-    if outerRange <= 0 then return 0 end
-
-    local remaining = math.max(0, radius - distance)
-    return math.floor((remaining / outerRange) * 100)
-end
-
-local function applyShinraToZombie(player, target)
-    local zombie = target.zombie
-    if not zombie or zombie:isDead() then return end
-
-    local knockdown = ZombRand(1, 101) <= getKnockdownChance(target.distance)
-    local force = math.max(2.0, 8.0 - target.distance)
-    NinjaLineages.Utils.Combat.staggerZombie(zombie, { knockdown = knockdown, position = "FRONT", force = force })
-    applyShinraDamage(player, target)
-end
-
-local function useShinraTensei(player)
-    if not NinjaLineages.hasRinnegan(player) then
+local function sayCastError(player, reason, remaining)
+    if reason == "lineage" then
         player:Say(getText("UI_NL_Error_LineageRequired", "Rinnegan"))
-        return
-    end
-
-    local data = NinjaLineages.getNLData(player)
-    local onCd, remaining = NinjaLineages.Cooldowns.isOnCooldown(player, "rinnegan.shinra_tensei")
-    if onCd then
-        player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_ShinraTensei_Name"), tostring(remaining)))
-        return
-    end
-
-    local stats = player:getStats()
-    if not stats then return end
-
-    local radius = NinjaLineages.Balance.getRadius("STANDARD")
-    local targets = NinjaLineages.Utils.Zombies.collectInRadius(player, radius)
-    local baseCost = NinjaLineages.Balance.getCost("MAJOR")
-    local stepCost = NinjaLineages.Balance.getCostStep("SMALL")
-    local capCost = NinjaLineages.Balance.getCost("ULTIMATE")
-    local cost = math.min(
-        capCost,
-        baseCost + (#targets * stepCost)
-    )
-    if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
+    elseif reason == "cooldown" then
+        player:Say(getText(
+            "UI_NL_Error_AbilityOnCooldown",
+            getText("UI_NL_Ability_ShinraTensei_Name"),
+            tostring(remaining)
+        ))
+    elseif reason == "chakra" then
         player:Say(getText("UI_NL_Error_NotEnoughChakra_ShinraTensei"))
-        return
     end
+end
 
-    NinjaLineages.Chakra.spendChakra(player, cost)
-    for _, target in ipairs(targets) do
-        applyShinraToZombie(player, target)
+local function renderPulses()
+    local now = NinjaLineages.Utils.Time.nowMs()
+    local pulseConsts = consts.Rinnegan.ShinraTensei
+
+    for i = #pulses, 1, -1 do
+        local pulse = pulses[i]
+        local progress = (now - pulse.startedAt) / pulseConsts.PULSE_DURATION_MS
+        if progress >= 1 then
+            table.remove(pulses, i)
+        elseif progress >= 0 then
+            local expansionProgress = math.min(1.0, progress / 0.7)
+            local radius = math.max(0.1, mechanics.getRadius() * expansionProgress)
+            local alpha = 0.8
+            if progress > 0.7 then
+                alpha = alpha * (1.0 - ((progress - 0.7) / 0.3))
+            end
+            renderIsoCircle(
+                pulse.x,
+                pulse.y,
+                pulse.z,
+                radius,
+                pulseConsts.PULSE_SEGMENTS,
+                pulseConsts.PULSE_THICKNESS,
+                pulseConsts.PULSE_COLOR.R,
+                pulseConsts.PULSE_COLOR.G,
+                pulseConsts.PULSE_COLOR.B,
+                alpha
+            )
+        end
     end
+end
 
-    NinjaLineages.Cooldowns.set(player, "rinnegan.shinra_tensei", NinjaLineages.Balance.getCooldown("STANDARD"))
+local function finishLocalCast(player)
+    addPulse(player:getX(), player:getY(), math.floor(player:getZ()))
     player:Say(getText("UI_NL_Ability_ShinraTensei_Cast"))
 end
 
--- Dynamic Registration
+local function useShinraTensei(player)
+    local targets = mechanics.collectTargets(player)
+    local valid, reason, remaining = mechanics.validateCast(player, targets)
+    if not valid then
+        sayCastError(player, reason, remaining)
+        return
+    end
+
+    if isClient and isClient() then
+        sendClientCommand(player, "NinjaLineages", "shinraTensei", {})
+        return
+    end
+
+    local executed, executeReason, executeRemaining = mechanics.execute(player)
+    if not executed then
+        sayCastError(player, executeReason, executeRemaining)
+        return
+    end
+    finishLocalCast(player)
+end
+
+local function onServerCommand(module, command, args)
+    if module ~= "NinjaLineages" then return end
+
+    if command == "shinraTenseiPulse" then
+        addPulse(args.x, args.y, args.z)
+        local player = getSpecificPlayer(0)
+        if player and args.casterOnlineId == player:getOnlineID() then
+            player:Say(getText("UI_NL_Ability_ShinraTensei_Cast"))
+        end
+    elseif command == "shinraTenseiRejected" then
+        local player = getSpecificPlayer(0)
+        if player then
+            sayCastError(player, args.reason, args.remaining)
+        end
+    end
+end
+
 NinjaLineages.registerAbility({
     id = "shinra_tensei",
     lineage = "rinnegan",
@@ -91,3 +121,6 @@ NinjaLineages.registerAbility({
     damageTier = "HEAVY",
     action = useShinraTensei
 })
+
+Events.OnPostRender.Add(renderPulses)
+Events.OnServerCommand.Add(onServerCommand)

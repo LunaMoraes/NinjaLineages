@@ -25,6 +25,10 @@ NinjaLineages.Constants.CommonJutsu = {
 }
 
 NinjaLineages.Constants.Uchiha = {
+    Audio = {
+        ACTIVATION_VOICE = "NLSharinganActivation",
+        DODGE_EFFECT = "NLSharinganDodge",
+    },
     SharinganStageKills = {
         [1] = 1,
         [2] = 100,
@@ -63,6 +67,15 @@ NinjaLineages.Constants.Rinnegan = {
     ShinraTensei = {
         GUARANTEED_KNOCKDOWN_RADIUS = 3.5,
         DAMAGE_MIN_FALLOFF = 0.85,
+        PUSH_STEP = 0.25,
+        PULSE_DURATION_MS = 700,
+        PULSE_SEGMENTS = 64,
+        PULSE_THICKNESS = 2.0,
+        PULSE_COLOR = {
+            R = 0.58,
+            G = 0.20,
+            B = 0.86,
+        },
     },
 }
 

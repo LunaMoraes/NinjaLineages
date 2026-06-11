@@ -1,0 +1,32 @@
+module Base
+{
+    sound VoiceMaleNLSharinganActivation
+    {
+        category = Player,
+        clip
+        {
+            file = media/sound/NL_SharinganActivation_Male.wav,
+            distanceMax = 30,
+        }
+    }
+
+    sound VoiceFemaleNLSharinganActivation
+    {
+        category = Player,
+        clip
+        {
+            file = media/sound/NL_SharinganActivation_Female.wav,
+            distanceMax = 30,
+        }
+    }
+
+    sound NLSharinganDodge
+    {
+        category = Player,
+        clip
+        {
+            file = media/sound/NL_SharinganDodge.ogg,
+            distanceMax = 15,
+        }
+    }
+}
