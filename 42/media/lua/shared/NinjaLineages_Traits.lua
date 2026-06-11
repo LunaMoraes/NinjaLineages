@@ -52,6 +52,9 @@ end
 
 function NinjaLineages.registerAbility(ability)
     if not ability or not ability.id then return end
+    if ability.sealFree == nil then
+        ability.sealFree = ability.lineage ~= "common"
+    end
 
     for i, existing in ipairs(NinjaLineages.Abilities) do
         if existing.id == ability.id then

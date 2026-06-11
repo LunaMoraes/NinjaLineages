@@ -6,6 +6,7 @@ require "NinjaLineages_Skills"
 require "NinjaLineages_Moodles"
 require "NinjaLineages_UI"
 require "NinjaLineages_CommonJutsu"
+require "NinjaLineages_HandSigns"
 require "NinjaLineages_Meditation"
 
 -- Load modular lineages (dynamic registries)
@@ -20,8 +21,7 @@ local consts = NinjaLineages.Constants
 -- Ability selection logic
 local function getAvailableAbilities(player)
     local abilities = {}
-    for _, ability in ipairs(NinjaLineages.Abilities) do
-        if not ability.condition or ability.condition(player) then
+    for _, ability in ipairs(NinjaLineages.HandSigns.getAvailableAbilities(player)) do
             local displayName = ability.name
             if type(displayName) == "string" and displayName:sub(1, 3) == "UI_" then
                 displayName = getText(displayName)
@@ -32,7 +32,6 @@ local function getAvailableAbilities(player)
             end
             copy.name = displayName
             table.insert(abilities, copy)
-        end
     end
     return abilities
 end
@@ -40,11 +39,18 @@ end
 local function getSelectedAbility(player, abilities)
     local data = NinjaLineages.getNLData(player)
     for _, ability in ipairs(abilities) do
-        if data.selectedAbilityId == ability.id then
+        if data.selectedAbilityId == ability.id
+                and (not NinjaLineages.HandSigns.isClassic() or ability.sealFree) then
             return ability
         end
     end
-    local fallback = abilities[1]
+    local fallback = nil
+    for _, ability in ipairs(abilities) do
+        if not NinjaLineages.HandSigns.isClassic() or ability.sealFree then
+            fallback = ability
+            break
+        end
+    end
     if fallback and data.selectedAbilityId ~= fallback.id then
         data.selectedAbilityId = fallback.id
         NinjaLineages.transmitPlayerData(player)
@@ -54,6 +60,10 @@ end
 
 local function selectAbility(player, ability)
     if not ability then return end
+    if NinjaLineages.HandSigns.isClassic() and not ability.sealFree then
+        player:Say(getText("UI_NL_HandSigns_ClassicDisabled"))
+        return
+    end
     local data = NinjaLineages.getNLData(player)
     data.selectedAbilityId = ability.id
     NinjaLineages.transmitPlayerData(player)
@@ -67,9 +77,7 @@ local function useSelectedAbility(player)
         return
     end
     local ability = getSelectedAbility(player, abilities)
-    if ability and ability.action then
-        ability.action(player)
-    end
+    NinjaLineages.HandSigns.activateAbility(player, ability)
 end
 
 local function addAbilityContextMenu(playerNum, context, worldObjects, test)
@@ -102,7 +110,14 @@ local function showAbilityRadial(player)
     menu:setX(getPlayerScreenLeft(player:getPlayerNum()) + getPlayerScreenWidth(player:getPlayerNum()) / 2 - menu:getWidth() / 2)
     menu:setY(getPlayerScreenTop(player:getPlayerNum()) + getPlayerScreenHeight(player:getPlayerNum()) / 2 - menu:getHeight() / 2)
     for _, ability in ipairs(abilities) do
-        menu:addSlice(ability.name, getTexture(ability.texture), selectAbility, player, ability)
+        local sequence = NinjaLineages.HandSigns.formatSequence(ability)
+        local text = ability.name .. "\n" .. sequence
+        local command = selectAbility
+        if NinjaLineages.HandSigns.isClassic() and not ability.sealFree then
+            text = text .. "\n" .. getText("UI_NL_HandSigns_ClassicDisabled")
+            command = nil
+        end
+        menu:addSlice(text, getTexture(ability.texture), command, player, ability)
     end
     menu:addToUIManager()
     getSoundManager():playUISound("UIVehicleMenuOpen")
@@ -113,6 +128,8 @@ end
 local function onKeyStartPressed(key)
     local player = getSpecificPlayer(0)
     if not player or player:isDead() then return end
+
+    if NinjaLineages.HandSigns.handleKey(player, key) then return end
 
     if getCore():isKey("Ninja Ability", key) then
         useSelectedAbility(player)
@@ -162,6 +179,7 @@ local function onPlayerUpdate(player)
 
     runListeners(NinjaLineages.PlayerUpdates, "PlayerUpdate", player)
 
+    NinjaLineages.HandSigns.update(player)
     NinjaLineages.CommonJutsu.update(player)
 end
 

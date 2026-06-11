@@ -1,5 +1,14 @@
 VERSION = 1,
 
+option NinjaLineages.HandSignBehaviour
+{
+    type = enum,
+    numValues = 2,
+    default = 2,
+    page = NinjaLineages,
+    translation = NinjaLineages_HandSignBehaviour,
+}
+
 option NinjaLineages.SharinganFirstTomoeKills
 {
     type = integer,

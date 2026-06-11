@@ -1,5 +1,9 @@
 {
     "Sandbox_NinjaLineages": "Ninja Lineages",
+    "Sandbox_NinjaLineages_HandSignBehaviour": "Hand Sign Behaviour",
+    "Sandbox_NinjaLineages_HandSignBehaviour_tooltip": "Classic requires manual keypad hand-sign sequences for common jutsu. Shippuden performs the selected common jutsu's sequence automatically.",
+    "Sandbox_NinjaLineages_HandSignBehaviour_option1": "Classic",
+    "Sandbox_NinjaLineages_HandSignBehaviour_option2": "Shippuden",
     "Sandbox_NinjaLineages_SharinganFirstTomoeKills": "Sharingan: First Tomoe Kills",
     "Sandbox_NinjaLineages_SharinganFirstTomoeKills_tooltip": "Zombie kills required to awaken the Sharingan's first Tomoe.",
     "Sandbox_NinjaLineages_SharinganSecondTomoeKills": "Sharingan: Second Tomoe Kills",

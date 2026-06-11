@@ -8,6 +8,53 @@ NinjaLineages.CommonJutsu = NinjaLineages.CommonJutsu or {}
 
 local consts = NinjaLineages.Constants
 
+local function checkCostAndCooldown(player, id, costTier, cooldownNameKey, showFeedback)
+    local cost = NinjaLineages.Balance.getCost(costTier)
+    if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
+        if showFeedback then player:Say(getText("UI_NL_Error_NotEnoughChakra")) end
+        return false
+    end
+
+    local onCd, remaining = NinjaLineages.CommonJutsu.isOnCooldown(player, id)
+    if onCd then
+        if showFeedback then
+            player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText(cooldownNameKey), tostring(remaining)))
+        end
+        return false
+    end
+    return true
+end
+
+function NinjaLineages.CommonJutsu.canCast(player, id, showFeedback)
+    if id == "healing" then
+        if not checkCostAndCooldown(player, id, "STANDARD", "UI_NL_Ability_Healing_Name", showFeedback) then
+            return false
+        end
+        local bodyDamage = player:getBodyDamage()
+        local bodyParts = bodyDamage and bodyDamage:getBodyParts()
+        if bodyParts then
+            for i = 0, bodyParts:size() - 1 do
+                if NinjaLineages.Utils.Healing.getPartSeverity(bodyParts:get(i)) > 0 then
+                    return true
+                end
+            end
+        end
+        if showFeedback then player:Say(getText("UI_NL_NoWounds")) end
+        return false
+    elseif id == "reinforcement" then
+        return checkCostAndCooldown(player, id, "STANDARD", "UI_NL_Ability_PhysicalReinforcement_Name", showFeedback)
+    elseif id == "quietstep" then
+        return checkCostAndCooldown(player, id, "BASIC", "UI_NL_Ability_QuietStep_Name", showFeedback)
+    elseif id == "focus" then
+        return checkCostAndCooldown(player, id, "BASIC", "UI_NL_Ability_ChakraFocus_Name", showFeedback)
+    elseif id == "grip" then
+        return checkCostAndCooldown(player, id, "BASIC", "UI_NL_Ability_ChakraGrip_Name", showFeedback)
+    elseif id == "bodyflicker" then
+        return checkCostAndCooldown(player, id, "ADVANCED", "UI_NL_Ability_Dash_Name", showFeedback)
+    end
+    return true
+end
+
 -- Helper to check cooldowns
 function NinjaLineages.CommonJutsu.isOnCooldown(player, jutsuKey)
     local mapping = {
@@ -315,6 +362,10 @@ NinjaLineages.registerAbility({
     texture = "media/ui/NLJutsu.png",
     costTier = "STANDARD",
     cooldownTier = "STANDARD",
+    handSigns = { "boar", "ram", "snake" },
+    preCast = function(player, showFeedback)
+        return NinjaLineages.CommonJutsu.canCast(player, "healing", showFeedback)
+    end,
     action = NinjaLineages.CommonJutsu.castHealing
 })
 
@@ -326,6 +377,10 @@ NinjaLineages.registerAbility({
     texture = "media/ui/NLJutsu.png",
     costTier = "STANDARD",
     cooldownTier = "LONG",
+    handSigns = { "tiger", "horse", "ox" },
+    preCast = function(player, showFeedback)
+        return NinjaLineages.CommonJutsu.canCast(player, "reinforcement", showFeedback)
+    end,
     action = NinjaLineages.CommonJutsu.castReinforcement
 })
 
@@ -337,6 +392,10 @@ NinjaLineages.registerAbility({
     texture = "media/ui/NLJutsu.png",
     costTier = "BASIC",
     cooldownTier = "STANDARD",
+    handSigns = { "rat", "snake", "hare" },
+    preCast = function(player, showFeedback)
+        return NinjaLineages.CommonJutsu.canCast(player, "quietstep", showFeedback)
+    end,
     action = NinjaLineages.CommonJutsu.castQuietStep
 })
 
@@ -348,6 +407,10 @@ NinjaLineages.registerAbility({
     texture = "media/ui/NLJutsu.png",
     costTier = "BASIC",
     cooldownTier = "STANDARD",
+    handSigns = { "ram", "dragon", "tiger" },
+    preCast = function(player, showFeedback)
+        return NinjaLineages.CommonJutsu.canCast(player, "focus", showFeedback)
+    end,
     action = NinjaLineages.CommonJutsu.castChakraFocus
 })
 
@@ -359,6 +422,10 @@ NinjaLineages.registerAbility({
     texture = "media/ui/NLJutsu.png",
     costTier = "BASIC",
     cooldownTier = "SHORT",
+    handSigns = { "dog", "ox", "horse" },
+    preCast = function(player, showFeedback)
+        return NinjaLineages.CommonJutsu.canCast(player, "grip", showFeedback)
+    end,
     action = NinjaLineages.CommonJutsu.castChakraGrip
 })
 
@@ -371,5 +438,9 @@ NinjaLineages.registerAbility({
     costTier = "ADVANCED",
     cooldownTier = "DASH",
     durationTier = "BURST_MS",
+    handSigns = { "bird", "hare", "rat" },
+    preCast = function(player, showFeedback)
+        return NinjaLineages.CommonJutsu.canCast(player, "bodyflicker", showFeedback)
+    end,
     action = NinjaLineages.CommonJutsu.castBodyFlicker
 })
