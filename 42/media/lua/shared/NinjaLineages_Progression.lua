@@ -84,11 +84,13 @@ function Progression.awardXP(player, source, rawAmount, authoritative)
 end
 
 function Progression.requestUnlock(player, nodeId)
+    local data = NinjaLineages.getNLData(player)
+    local bypass = (data and data.bypassTraining == true)
     if isClient and isClient() then
-        sendClientCommand(player, "NinjaLineages", "unlockNode", { nodeId = nodeId })
+        sendClientCommand(player, "NinjaLineages", "unlockNode", { nodeId = nodeId, bypass = bypass })
         return true
     end
-    return Progression.unlockNode(player, nodeId)
+    return Progression.unlockNode(player, nodeId, bypass)
 end
 
 function Progression.requestCompleteTraining(player, nodeId, item)
@@ -160,16 +162,25 @@ function Progression.getOrCreateTrainingItem(player, nodeId)
     return item
 end
 
-function Progression.unlockNode(player, nodeId)
+function Progression.unlockNode(player, nodeId, bypass)
     local definition = Trees.getNode(nodeId)
     if not definition then return false, "invalid" end
     if Progression.getNodeState(player, nodeId) ~= "available" then return false, "unavailable" end
     local cost = Progression.getNodeCost(player, nodeId)
     if Progression.getNinjaXP(player) < cost then return false, "xp" end
 
+    local isBypass = false
+    if bypass and SandboxVars and SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.DebugMode == true then
+        isBypass = true
+    end
+
     local state = getState(player)
     state.ninjaXP = state.ninjaXP - cost
-    state.nodes[nodeId] = "unlocked"
+    if isBypass then
+        state.nodes[nodeId] = "completed"
+    else
+        state.nodes[nodeId] = "unlocked"
+    end
     NinjaLineages.transmitPlayerData(player)
     return true
 end

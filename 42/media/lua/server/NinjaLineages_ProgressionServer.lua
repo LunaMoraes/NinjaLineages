@@ -23,7 +23,7 @@ local function handleAward(player, args)
 end
 
 local function handleUnlock(player, args)
-    local ok, reason = NinjaLineages.Progression.unlockNode(player, args and args.nodeId)
+    local ok, reason = NinjaLineages.Progression.unlockNode(player, args and args.nodeId, args and args.bypass)
     sendState(player, "unlockResult", { ok = ok == true, reason = reason, nodeId = args and args.nodeId })
 end
 

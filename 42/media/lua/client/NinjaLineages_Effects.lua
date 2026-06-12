@@ -114,7 +114,19 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
             end
         end)
 
-        -- 2. Unlock Mangekyo (moved from Uchiha)
+        -- 2. Bypass Training Toggle
+        local data = NinjaLineages.getNLData(player)
+        local bypassText = "Bypass Training: " .. (data and data.bypassTraining and "ON" or "OFF")
+        debugSubMenu:addOption(bypassText, player, function(p)
+            local d = NinjaLineages.getNLData(p)
+            if d then
+                d.bypassTraining = not d.bypassTraining
+                NinjaLineages.transmitPlayerData(p)
+                p:Say("Bypass Training: " .. (d.bypassTraining and "Enabled" or "Disabled"))
+            end
+        end)
+
+        -- 3. Unlock Mangekyo (moved from Uchiha)
         if NinjaLineages.Uchiha and NinjaLineages.Uchiha.canUseKamuiTestUnlock and NinjaLineages.Uchiha.canUseKamuiTestUnlock(player) then
             debugSubMenu:addOption(getText("UI_NL_Ability_Kamui_TestUnlock"), player, NinjaLineages.Uchiha.unlockKamuiForSinglePlayerTest)
         end

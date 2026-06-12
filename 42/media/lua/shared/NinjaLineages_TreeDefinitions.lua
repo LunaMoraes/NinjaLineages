@@ -64,9 +64,11 @@ Trees.Nodes = {
     veil_presence = node("veil_presence", "genjutsu", "CHUNIN", { "quiet_step", "false_sound" }),
     killing_intent = node("killing_intent", "genjutsu", "JONIN", { "veil_presence" }),
 
-    physical_reinforcement = node("physical_reinforcement", "ninjutsu", "GENIN"),
+    
     chakra_focus = node("chakra_focus", "ninjutsu", "GENIN"),
     chakra_grip = node("chakra_grip", "ninjutsu", "GENIN"),
+    physical_reinforcement = node("physical_reinforcement", "ninjutsu", "GENIN"),
+    
     chakra_burst = node("chakra_burst", "ninjutsu", "CHUNIN", { "physical_reinforcement", "chakra_grip" }),
     pressure_point_pulse = node("pressure_point_pulse", "ninjutsu", "CHUNIN", { "chakra_focus", "chakra_grip" }),
     shadow_close = node("shadow_close", "ninjutsu", "JONIN", { "chakra_burst", "pressure_point_pulse" }),
@@ -96,8 +98,9 @@ Trees.Nodes = {
     maintenance_jonin = node("maintenance_jonin", "kenjutsu", "JONIN", { "maintenance_chunin" }, "passive"),
 
     minor_healing = node("minor_healing", "medical", "GENIN"),
-    chakra_needle = node("chakra_needle", "medical", "GENIN"),
     cell_stimulation = node("cell_stimulation", "medical", "GENIN"),
+    chakra_needle = node("chakra_needle", "medical", "GENIN"),
+    
     nervous_system_shock = node("nervous_system_shock", "medical", "CHUNIN", { "chakra_needle", "cell_stimulation" }),
     field_surgery = node("field_surgery", "medical", "CHUNIN", { "minor_healing", "cell_stimulation" }),
     bleeding_suppression = node("bleeding_suppression", "medical", "JONIN", { "nervous_system_shock", "field_surgery" }),
