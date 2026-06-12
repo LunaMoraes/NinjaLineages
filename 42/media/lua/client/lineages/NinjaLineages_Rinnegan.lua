@@ -43,12 +43,8 @@ local function renderPulses()
         if progress >= 1 then
             table.remove(pulses, i)
         elseif progress >= 0 then
-            local expansionProgress = math.min(1.0, progress / 0.7)
-            local radius = math.max(0.1, mechanics.getRadius() * expansionProgress)
-            local alpha = 0.8
-            if progress > 0.7 then
-                alpha = alpha * (1.0 - ((progress - 0.7) / 0.3))
-            end
+            local radius = math.max(0.1, mechanics.getRadius() * progress)
+            local alpha = 0.8 * (1.0 - (progress * 0.35))
             renderIsoCircle(
                 pulse.x,
                 pulse.y,
@@ -127,6 +123,12 @@ NinjaLineages.registerAbility({
     damageTier = "HEAVY",
     action = useShinraTensei
 })
+
+NinjaLineages.registerPlayerUpdate("rinnegan.shinraTenseiPush", function()
+    if not (isClient and isClient()) then
+        mechanics.update()
+    end
+end)
 
 Events.OnPostRender.Add(renderPulses)
 Events.OnServerCommand.Add(onServerCommand)

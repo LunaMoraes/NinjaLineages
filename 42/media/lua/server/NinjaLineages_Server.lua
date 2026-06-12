@@ -45,3 +45,4 @@ local function onClientCommand(module, command, player, args)
 end
 
 Events.OnClientCommand.Add(onClientCommand)
+Events.OnTick.Add(NinjaLineages.RinneganMechanics.update)

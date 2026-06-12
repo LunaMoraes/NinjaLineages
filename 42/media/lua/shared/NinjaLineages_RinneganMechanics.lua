@@ -9,6 +9,8 @@ NinjaLineages.RinneganMechanics = NinjaLineages.RinneganMechanics or {}
 local mechanics = NinjaLineages.RinneganMechanics
 local consts = NinjaLineages.Constants
 local cooldownKey = "rinnegan.shinra_tensei"
+local activePushes = {}
+local nextPushUpdateAt = 0
 
 function mechanics.getRadius()
     return NinjaLineages.Balance.getRadius("STANDARD")
@@ -105,19 +107,19 @@ local function canEnterSquare(fromSquare, toSquare)
     return true
 end
 
-local function pushZombieToRadius(player, target)
+local function getValidPush(player, target)
     local zombie = target.zombie
     local distanceToPush = math.max(0, mechanics.getRadius() - target.distance)
-    if distanceToPush <= 0 then return end
-
     local dirX, dirY = getPushDirection(player, target)
     local startX = zombie:getX()
     local startY = zombie:getY()
     local z = math.floor(zombie:getZ())
+    if distanceToPush <= 0 then
+        return startX, startY, dirX, dirY, 0
+    end
+
     local stepSize = consts.Rinnegan.ShinraTensei.PUSH_STEP
     local travelled = 0
-    local validX = startX
-    local validY = startY
     local currentSquare = zombie:getCurrentSquare()
 
     while travelled < distanceToPush do
@@ -130,42 +132,95 @@ local function pushZombieToRadius(player, target)
             break
         end
 
-        validX = nextX
-        validY = nextY
         currentSquare = nextSquare
         travelled = nextTravelled
     end
 
-    if validX ~= startX or validY ~= startY then
-        zombie:setX(validX)
-        zombie:setY(validY)
-    end
+    return startX, startY, dirX, dirY, travelled
 end
 
-local function applyDamage(player, target)
+local function applyDamage(player, state)
+    local zombie = state.zombie
     local radius = mechanics.getRadius()
-    local falloff = math.max(
-        consts.Rinnegan.ShinraTensei.DAMAGE_MIN_FALLOFF,
-        1.0 - ((target.distance / radius) * 0.15)
-    )
-    local damage = NinjaLineages.Balance.rollDamage("HEAVY") * falloff
-    NinjaLineages.Utils.Combat.applyZombieDamage(player, target.zombie, damage)
+    if state.startDistance <= radius / 2 then
+        local ok, health = pcall(function() return zombie:getHealth() end)
+        NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, ok and health or 1000)
+        return
+    end
+
+    local travelRatio = math.min(1, state.maxTravel / radius)
+    local minDamage, maxDamage = NinjaLineages.Balance.getDamageRange("HEAVY")
+    local damage = minDamage + ((maxDamage - minDamage) * travelRatio)
+    NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
 end
 
-local function applyToZombie(player, target)
-    local zombie = target.zombie
+local function finishPush(state)
+    local zombie = state.zombie
     if not zombie or zombie:isDead() then return end
-
-    pushZombieToRadius(player, target)
-
-    local knockdown = ZombRand(1, 101) <= getKnockdownChance(target.distance)
-    local force = math.max(2.0, 8.0 - target.distance)
+    local knockdown = ZombRand(1, 101) <= getKnockdownChance(state.startDistance)
+    local force = math.max(2.0, 8.0 - state.startDistance)
     NinjaLineages.Utils.Combat.staggerZombie(zombie, {
         knockdown = knockdown,
         position = "FRONT",
         force = force,
     })
-    applyDamage(player, target)
+    applyDamage(state.player, state)
+end
+
+local function beginPush(player, target, startedAt)
+    local zombie = target.zombie
+    if not zombie or zombie:isDead() then return end
+    local startX, startY, dirX, dirY, maxTravel = getValidPush(player, target)
+    table.insert(activePushes, {
+        player = player,
+        zombie = zombie,
+        startX = startX,
+        startY = startY,
+        dirX = dirX,
+        dirY = dirY,
+        startDistance = target.distance,
+        maxTravel = maxTravel,
+        lastTravel = 0,
+        startedAt = startedAt,
+    })
+end
+
+function mechanics.update()
+    if #activePushes == 0 then return end
+    local now = NinjaLineages.Utils.Time.nowMs()
+    if now < nextPushUpdateAt then return end
+    nextPushUpdateAt = now + consts.Rinnegan.ShinraTensei.PUSH_UPDATE_INTERVAL_MS
+
+    local duration = consts.Rinnegan.ShinraTensei.PULSE_DURATION_MS
+    local radius = mechanics.getRadius()
+
+    for i = #activePushes, 1, -1 do
+        local state = activePushes[i]
+        local zombie = state.zombie
+        if not zombie or zombie:isDead() then
+            table.remove(activePushes, i)
+        else
+            local progress = math.min(1, math.max(0, (now - state.startedAt) / duration))
+            local waveRadius = radius * progress
+            local travelled = math.min(
+                state.maxTravel,
+                math.max(0, waveRadius - state.startDistance)
+            )
+
+            if travelled > state.lastTravel then
+                local x = state.startX + (state.dirX * travelled)
+                local y = state.startY + (state.dirY * travelled)
+                zombie:setX(x)
+                zombie:setY(y)
+                state.lastTravel = travelled
+            end
+
+            if progress >= 1 then
+                finishPush(state)
+                table.remove(activePushes, i)
+            end
+        end
+    end
 end
 
 function mechanics.execute(player)
@@ -174,8 +229,9 @@ function mechanics.execute(player)
     if not valid then return false, reason, remaining end
 
     NinjaLineages.Chakra.spendChakra(player, cost)
+    local startedAt = NinjaLineages.Utils.Time.nowMs()
     for _, target in ipairs(targets) do
-        applyToZombie(player, target)
+        beginPush(player, target, startedAt)
     end
 
     NinjaLineages.Cooldowns.set(
