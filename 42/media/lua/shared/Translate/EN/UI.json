@@ -143,7 +143,7 @@
     "UI_NL_Tree_Locked": "Locked",
     "UI_NL_Tree_SelectNode": "Select a node",
     "UI_NL_Tree_Unlock": "Unlock (%1 XP)",
-    "UI_NL_Tree_Train": "Train (%1 / %2 sec)",
+    "UI_NL_Tree_Train": "Train (Learning Progression: %1%%)",
     "UI_NL_Tree_NinjaLevel": "Ninja Level: %1",
     "UI_NL_Tree_XP": "Accumulated Experience: %1",
     "UI_NL_Tree_State_locked": "Locked",

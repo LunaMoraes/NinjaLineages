@@ -319,7 +319,11 @@ function NLJutsuTreeUI:updateActionButton()
     elseif state == "unlocked" then
         local progress = NinjaLineages.Progression.getTrainingPagesRead(self.player, self.selectedNode)
         local required = NinjaLineages.Progression.getTrainingPages(self.player, self.selectedNode)
-        self.actionButton.title = text("UI_NL_Tree_Train", math.floor(progress), required)
+        local pct = 0
+        if required > 0 then
+            pct = math.floor((progress / required) * 100)
+        end
+        self.actionButton.title = text("UI_NL_Tree_Train", pct)
         self.actionButton.enable = true
     else
         self.actionButton.title = text("UI_NL_Tree_State_" .. state)

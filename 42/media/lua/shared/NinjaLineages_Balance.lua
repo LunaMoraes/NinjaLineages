@@ -94,9 +94,10 @@ NinjaLineages.Balance.Progression = {
         JONIN = 500,
     },
     TrainingPages = {
-        GENIN = 220,
-        CHUNIN = 300,
-        JONIN = 380,
+        GENIN = 100,
+        CHUNIN = 200,
+        JONIN = 300,
+        KAGE = 360,
     },
     NinjaXP = {
         KILL = 2,

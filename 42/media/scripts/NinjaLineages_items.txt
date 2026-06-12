@@ -78,7 +78,7 @@ module Base
         DisplayName = UI_item_NL_CreationRebirthScroll,
         Weight = 0.1,
         Icon = NLSealIcon,
-        NumberOfPages = 380,
+        NumberOfPages = 360,
         ReadType = book,
         Tags = base:isfirefuel;base:isfiretinder,
     }

@@ -27,6 +27,9 @@ ISInventoryPaneContextMenu.readItem = function(item, player)
     local chance = NinjaLineages.CreationRebirth.getLearningChance(playerObj) * 100
     playerObj:Say(getText("UI_NL_CreationRebirthStudyChance", string.format("%.1f", chance)))
 
+    local pages = NinjaLineages.Balance.Progression.TrainingPages.KAGE or 360
+    item:setNumberOfPages(pages)
+
     ISInventoryPaneContextMenu.transferIfNeeded(playerObj, item)
     ISTimedActionQueue.add(NLCreationRebirthReadAction:new(playerObj, item))
     ISCraftingUI.ReturnItemToOriginalContainer(playerObj, item)
