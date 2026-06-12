@@ -39,10 +39,40 @@ local function castShinraTensei(player)
     })
 end
 
+local function handleDamageZombie(player, args)
+    local onlineId = args and args.zombieOnlineId
+    local damage = tonumber(args and args.damage) or 0
+    if not onlineId or damage <= 0 then return end
+    local cell = getCell()
+    local zombies = cell and cell:getZombieList()
+    if not zombies then return end
+    for i = 0, zombies:size() - 1 do
+        local zombie = zombies:get(i)
+        if zombie and zombie:getOnlineID() == onlineId then
+            NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
+            break
+        end
+    end
+end
+
+local function handleAddWorldSound(player, args)
+    local x = tonumber(args and args.x) or 0
+    local y = tonumber(args and args.y) or 0
+    local z = tonumber(args and args.z) or 0
+    local radius = tonumber(args and args.radius) or 0
+    local volume = tonumber(args and args.volume) or 0
+    if radius <= 0 or volume <= 0 then return end
+    addSound(player, x, y, z, radius, volume)
+end
+
 local function onClientCommand(module, command, player, args)
     if module ~= "NinjaLineages" then return end
     if command == "shinraTensei" then
         castShinraTensei(player)
+    elseif command == "damageZombie" then
+        handleDamageZombie(player, args)
+    elseif command == "addWorldSound" then
+        handleAddWorldSound(player, args)
     end
 end
 

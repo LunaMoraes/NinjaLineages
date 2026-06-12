@@ -56,7 +56,7 @@ local function castFalseSound(player)
     local radius = Balance.getRadius(config.radius)
     if not commit(player, "false_sound", "BASIC", "SHORT") then return false end
     local x, y = projectedPoint(player, radius)
-    addSound(player, x, y, player:getZ(), radius, radius)
+    NinjaLineages.Utils.Combat.addWorldSound(player, x, y, player:getZ(), radius, radius)
     return true
 end
 
@@ -72,7 +72,7 @@ local function castVeilPresence(player)
     data.veilPresenceEndTime = NinjaLineages.Utils.Time.nowGameMs(player) + duration
     local radius = Balance.getRadius(config.radius)
     local x, y = projectedPoint(player, radius)
-    addSound(player, x, y, player:getZ(), radius, radius)
+    NinjaLineages.Utils.Combat.addWorldSound(player, x, y, player:getZ(), radius, radius)
     return true
 end
 
@@ -131,7 +131,7 @@ local function castShadowClose(player)
         end
     end
     local radius = Balance.getRadius(config.decoyRadius)
-    addSound(player, originX, originY, player:getZ(), radius, radius)
+    NinjaLineages.Utils.Combat.addWorldSound(player, originX, originY, player:getZ(), radius, radius)
     NinjaLineages.Utils.Combat.applyControlTier(target, "GENIN")
     return true
 end

@@ -96,10 +96,12 @@ function NinjaLineages.Utils.Time.advanceGameplayClock(player)
 
     if not multiplier or multiplier <= 0 then return end
 
-    local deltaMs = nowWallMs - lastWallMs
+    local rawDeltaMs = nowWallMs - lastWallMs
 
     -- Drop suspicious gaps from pause, alt-tab, loading, etc.
-    if deltaMs > 1000 then return end
+    if rawDeltaMs > 1000 then return end
+
+    local deltaMs = rawDeltaMs * multiplier
 
     -- Bootstrap gameplayMs from player data if not set yet
     if not NinjaLineages.Utils.Time.gameplayMs and player then
@@ -187,6 +189,14 @@ end
 
 function NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
     if not zombie or zombie:isDead() then return end
+    if isClient and isClient() then
+        sendClientCommand(player, "NinjaLineages", "damageZombie", {
+            zombieOnlineId = zombie:getOnlineID(),
+            damage = damage,
+        })
+        return
+    end
+
     pcall(function() zombie:setAttackedBy(player) end)
     local ok, health = pcall(function() return zombie:getHealth() end)
     if ok and health then
@@ -196,6 +206,20 @@ function NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
             pcall(function() zombie:Kill(player) end)
         end
     end
+end
+
+function NinjaLineages.Utils.Combat.addWorldSound(player, x, y, z, radius, volume)
+    if isClient and isClient() then
+        sendClientCommand(player, "NinjaLineages", "addWorldSound", {
+            x = x,
+            y = y,
+            z = z,
+            radius = radius,
+            volume = volume,
+        })
+        return
+    end
+    addSound(player, x, y, z, radius, volume)
 end
 
 function NinjaLineages.Utils.Combat.failZombieAttack(zombie)
