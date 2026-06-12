@@ -48,20 +48,20 @@ end
 local function useBindingRoots(player)
     if not NinjaLineages.hasSenju(player) then
         player:Say(getText("UI_NL_Error_LineageRequired", "Senju lineage"))
-        return
+        return false
     end
 
     local data = NinjaLineages.getNLData(player)
     local onCd, remaining = NinjaLineages.Cooldowns.isOnCooldown(player, "senju.binding_roots")
     if onCd then
         player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_BindingRoots_Name"), tostring(remaining)))
-        return
+        return false
     end
 
     local cost = NinjaLineages.Balance.getCost("MAJOR")
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra_BindingRoots"))
-        return
+        return false
     end
 
     NinjaLineages.Chakra.spendChakra(player, cost)
@@ -72,6 +72,7 @@ local function useBindingRoots(player)
 
     NinjaLineages.Cooldowns.set(player, "senju.binding_roots", NinjaLineages.Balance.getCooldown("STANDARD"))
     player:Say(getText("UI_NL_Ability_BindingRoots_Cast"))
+    return true
 end
 
 local function stopCreationRebirth(player)
@@ -129,11 +130,11 @@ end
 local function useCreationRebirth(player)
     if not NinjaLineages.hasSenju(player) then
         player:Say(getText("UI_NL_Error_LineageRequired", "Senju lineage"))
-        return
+        return false
     end
     if NinjaLineages.Chakra.getChakra(player) <= 0 then
         player:Say(getText("UI_NL_Error_NotEnoughChakra_CreationRebirth"))
-        return
+        return false
     end
     local nowMs = NinjaLineages.Utils.Time.nowGameMs(player)
     creationRebirthState[player] = {
@@ -141,6 +142,7 @@ local function useCreationRebirth(player)
         nextTickAt = nowMs,
     }
     player:Say(getText("UI_NL_Ability_CreationRebirth_Cast"))
+    return true
 end
 
 -- Zombie Update Bind

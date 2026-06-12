@@ -232,24 +232,24 @@ function NinjaLineages.Uchiha.startKamui(player)
     local data = NinjaLineages.getNLData(player)
     if not canUseKamui(player) then
         player:Say(getText("UI_NL_Error_MangekyoLocked"))
-        return
+        return false
     end
 
     if kamuiState[player] then
         stopKamui(player, false)
         player:Say(getText("UI_NL_Ability_Kamui_Cancelled"))
-        return
+        return true
     end
 
     local onCd, remaining = NinjaLineages.Cooldowns.isOnCooldown(player, "uchiha.kamui")
     if onCd then
         player:Say(getText("UI_NL_Error_AbilityOnCooldown", getText("UI_NL_Ability_Kamui_Name"), tostring(remaining)))
-        return
+        return false
     end
 
     if not NinjaLineages.Chakra.canAffordChakra(player, consts.Uchiha.Kamui.MIN_CHAKRA_GATE) then
         player:Say(getText("UI_NL_Error_NotEnoughChakra_Kamui"))
-        return
+        return false
     end
 
     -- Automatically activate Sharingan if not already active
@@ -273,6 +273,7 @@ function NinjaLineages.Uchiha.startKamui(player)
 
     NinjaLineages.Cooldowns.set(player, "uchiha.kamui", NinjaLineages.Balance.getCooldown("STANDARD"))
     player:Say(getText("UI_NL_Ability_Kamui_Cast"))
+    return true
 end
 
 function NinjaLineages.Uchiha.toggleSharingan(player)
@@ -281,11 +282,12 @@ function NinjaLineages.Uchiha.toggleSharingan(player)
         data.eyePowerActive = false
         updateSharinganMoodle(player)
         player:Say(getText("UI_NL_Ability_Sharingan_Deactivated"))
+        return true
     else
         if NinjaLineages.getSharinganStage(player) == 0 then
             local stageKills = NinjaLineages.getSharinganStageKills()
             player:Say(getText("UI_NL_Error_SharinganLocked", tostring(stageKills[1])))
-            return
+            return false
         end
         if NinjaLineages.Chakra.getChakra(player) > 0 then
             data.eyePowerActive = true
@@ -294,8 +296,10 @@ function NinjaLineages.Uchiha.toggleSharingan(player)
                 player:playerVoiceSound(consts.Uchiha.Audio.ACTIVATION_VOICE)
             end)
             player:Say(getText("UI_NL_Ability_Sharingan_Cast"))
+            return true
         else
             player:Say(getText("UI_NL_Error_NotEnoughChakra"))
+            return false
         end
     end
 end

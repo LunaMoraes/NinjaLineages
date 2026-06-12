@@ -74,20 +74,21 @@ local function useShinraTensei(player)
     local valid, reason, remaining = mechanics.validateCast(player, targets)
     if not valid then
         sayCastError(player, reason, remaining)
-        return
+        return false
     end
 
     if isClient and isClient() then
         sendClientCommand(player, "NinjaLineages", "shinraTensei", {})
-        return
+        return true
     end
 
     local executed, executeReason, executeRemaining = mechanics.execute(player)
     if not executed then
         sayCastError(player, executeReason, executeRemaining)
-        return
+        return false
     end
     finishLocalCast(player)
+    return true
 end
 
 local function onServerCommand(module, command, args)

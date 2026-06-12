@@ -8,6 +8,7 @@ local HandSigns = NinjaLineages.HandSigns
 local classicInputs = {}
 
 HandSigns.INPUT_TIMEOUT_MS = 4000
+HandSigns.EMOTE = "nl_handseal_tiger"
 
 HandSigns.Definitions = {
     monkey = { nameKey = "UI_NL_HandSign_Monkey" },
@@ -78,17 +79,22 @@ local function playSign(player, signId)
     player:Say(getText(sign.nameKey))
 end
 
+function HandSigns.playSeal(player)
+    if not player or player:isDead() or player:getVehicle() then return false end
+    local ok = pcall(function() player:playEmote(HandSigns.EMOTE) end)
+    return ok
+end
+
 function HandSigns.activateAbility(player, ability)
     if not ability or not ability.action then return false end
-    if ability.sealFree then
-        ability.action(player)
-        return true
-    end
-    if HandSigns.isClassic() then
+    if HandSigns.isClassic() and not ability.sealFree then
         player:Say(getText("UI_NL_HandSigns_ClassicDisabled"))
         return false
     end
-    ability.action(player)
+    if ability.preCast and not ability.preCast(player, true) then return false end
+    local succeeded = ability.action(player)
+    if succeeded ~= true then return false end
+    HandSigns.playSeal(player)
     return true
 end
 
@@ -129,8 +135,7 @@ end
 
 function HandSigns.handleClassicSign(player, signId)
     if not HandSigns.isClassic() then return false end
-    if not player or player:isDead() or player:getVehicle() or player:isMoving()
-            or player:isAttacking() or player:hasTimedActions() then
+    if not player or player:isDead() or player:getVehicle() then
         if player then player:Say(getText("UI_NL_HandSigns_Busy")) end
         return true
     end
@@ -143,6 +148,7 @@ function HandSigns.handleClassicSign(player, signId)
     state.lastAt = now
     table.insert(state.signs, signId)
     playSign(player, signId)
+    HandSigns.playSeal(player)
 
     for _, ability in ipairs(abilities) do
         if sequenceEquals(state.signs, ability.handSigns) then

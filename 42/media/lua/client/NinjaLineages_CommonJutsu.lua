@@ -144,6 +144,7 @@ function NinjaLineages.CommonJutsu.castHealing(player)
     NinjaLineages.CommonJutsu.setCooldown(player, "healing", NinjaLineages.Balance.getCooldown("STANDARD"))
 
     player:Say(getText("UI_NL_Ability_Healing_Cast"))
+    return true
 end
 
 -- 2. Physical Reinforcement
@@ -171,6 +172,7 @@ function NinjaLineages.CommonJutsu.castReinforcement(player)
     NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_Ability_PhysicalReinforcement_Cast"))
+    return true
 end
 
 -- 3. Quiet Step
@@ -198,6 +200,7 @@ function NinjaLineages.CommonJutsu.castQuietStep(player)
     NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_Ability_QuietStep_Cast"))
+    return true
 end
 
 -- 4. Chakra Focus
@@ -227,6 +230,7 @@ function NinjaLineages.CommonJutsu.castChakraFocus(player)
     stats:set(CharacterStat.STRESS, math.max(0.0, stats:get(CharacterStat.STRESS) - stressReduction))
 
     player:Say(getText("UI_NL_Ability_ChakraFocus_Cast"))
+    return true
 end
 
 -- 5. Chakra Grip
@@ -254,6 +258,7 @@ function NinjaLineages.CommonJutsu.castChakraGrip(player)
     NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_Ability_ChakraGrip_Cast"))
+    return true
 end
 
 -- 6. Body Flicker Step
@@ -279,6 +284,7 @@ function NinjaLineages.CommonJutsu.castBodyFlicker(player)
     NinjaLineages.transmitPlayerData(player)
 
     player:Say(getText("UI_NL_Ability_Dash_Cast"))
+    return true
 end
 
 -- Update ticks for active buffs (called in Events.OnPlayerUpdate)

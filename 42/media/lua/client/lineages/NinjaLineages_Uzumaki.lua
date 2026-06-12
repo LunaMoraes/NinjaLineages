@@ -2,6 +2,7 @@ require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_UI"
 require "NinjaLineages_Balance"
+require "NinjaLineages_HandSigns"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uzumaki = NinjaLineages.Uzumaki or {}
@@ -157,6 +158,8 @@ local function placeAlarmSeal(player, square)
     registerAlarmSeal(square, player)
     NinjaLineages.Utils.Inventory.consumeInventoryItem(player, seal)
     player:Say(getText("UI_NL_Ability_AlarmSeal_Cast"))
+    NinjaLineages.HandSigns.playSeal(player)
+    return true
 end
 
 local function discoverAlarmSealsNearPlayer(player)
@@ -262,8 +265,12 @@ local function sealBackpackInScroll(player, backpack, scroll)
         return
     end
     NinjaLineages.Chakra.spendChakra(player, cost)
-    NinjaLineages.Utils.Inventory.moveItemBetweenContainers(backpack, backpack:getContainer(), scrollInv)
+    if not NinjaLineages.Utils.Inventory.moveItemBetweenContainers(backpack, backpack:getContainer(), scrollInv) then
+        return false
+    end
     player:Say(getText("UI_NL_Ability_StorageSeal_Cast"))
+    NinjaLineages.HandSigns.playSeal(player)
+    return true
 end
 
 NLUnsealScrollAction = ISBaseTimedAction and ISBaseTimedAction:derive("NLUnsealScrollAction") or {}
@@ -298,12 +305,17 @@ local function unsealScroll(player, scroll)
         player:Say(getText("UI_NL_Error_LineageRequired", "Uzumaki lineage"))
         return
     end
+    local backpack = getContainedBackpack(scroll)
+    if not backpack then return end
     if ISTimedActionQueue and ISBaseTimedAction then
         ISTimedActionQueue.add(NLUnsealScrollAction:new(player, scroll))
+        NinjaLineages.HandSigns.playSeal(player)
     else
-        local backpack = getContainedBackpack(scroll)
-        if backpack then
-            NinjaLineages.Utils.Inventory.moveItemBetweenContainers(backpack, getScrollInventory(scroll), player:getInventory())
+        if NinjaLineages.Utils.Inventory.moveItemBetweenContainers(
+                backpack,
+                getScrollInventory(scroll),
+                player:getInventory()) then
+            NinjaLineages.HandSigns.playSeal(player)
         end
     end
 end
