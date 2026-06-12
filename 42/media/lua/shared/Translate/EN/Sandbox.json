@@ -13,5 +13,7 @@
     "Sandbox_NinjaLineages_NinjaXPGainMultiplier": "Ninja XP Gain (%)",
     "Sandbox_NinjaLineages_NinjaXPGainMultiplier_tooltip": "Scales all Ninja XP rewards and daily training budgets.",
     "Sandbox_NinjaLineages_NinjaXPCostMultiplier": "Jutsu Node Cost (%)",
-    "Sandbox_NinjaLineages_NinjaXPCostMultiplier_tooltip": "Scales the Ninja XP required to unlock jutsu-tree nodes."
+    "Sandbox_NinjaLineages_NinjaXPCostMultiplier_tooltip": "Scales the Ninja XP required to unlock jutsu-tree nodes.",
+    "Sandbox_NinjaLineages_DebugMode": "Debug Mode",
+    "Sandbox_NinjaLineages_DebugMode_tooltip": "Enables the debug menu options within Shinobi Training."
 }

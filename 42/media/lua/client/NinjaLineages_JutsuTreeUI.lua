@@ -1,10 +1,11 @@
+require "ISUI/ISCollapsableWindow"
 require "ISUI/ISPanelJoypad"
 require "ISUI/ISButton"
 require "NinjaLineages_TreeDefinitions"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Training"
 
-NLJutsuTreeUI = ISPanelJoypad:derive("NLJutsuTreeUI")
+NLJutsuTreeUI = ISCollapsableWindow:derive("NLJutsuTreeUI")
 NLJutsuTreeUI.instances = NLJutsuTreeUI.instances or {}
 
 local tierOrder = { GENIN = 1, CHUNIN = 2, JONIN = 3 }
@@ -14,16 +15,72 @@ local function text(key, ...)
 end
 
 function NLJutsuTreeUI:initialise()
-    ISPanelJoypad.initialise(self)
+    ISCollapsableWindow.initialise(self)
+    
+    local titleBarHeight = self.titleBarHeight and self:titleBarHeight() or 16
+    self.contentPanel = ISPanelJoypad:new(0, titleBarHeight, self.width, self.height - titleBarHeight)
+    self.contentPanel:initialise()
+    self.contentPanel:instantiate()
+    self.contentPanel.backgroundColor = { r = 0.05, g = 0.05, b = 0.07, a = 0.95 }
+    self:addChild(self.contentPanel)
+
+    if self.closeButton then
+        self.closeButton.onclick = function(btn)
+            self:close()
+        end
+    end
+    
+    self.contentPanel.prerender = function(panel)
+        ISPanelJoypad.prerender(panel)
+        
+        local w = panel.width
+        local h = panel.height
+        local margin = math.floor(w * 0.03)
+        local leftWidth = math.floor(w * 0.20)
+        local cardHeight = math.floor(h * 0.64)
+        local cardY = math.floor(h * 0.20)
+
+        if self.screen == "selection" then
+            -- Draw a beautiful container box on the left side of the selection screen
+            panel:drawRect(margin, cardY, leftWidth - margin, cardHeight, 0.92, 0.08, 0.08, 0.11)
+            panel:drawRectBorder(margin, cardY, leftWidth - margin, cardHeight, 1.0, 0.22, 0.22, 0.32)
+            
+            local boxX = margin + 15
+            local boxY = cardY + 20
+            panel:drawText("STATUS", boxX, boxY, 1, 1, 1, 1, UIFont.Medium)
+            panel:drawText("Rank: " .. text("UI_NL_Rank_" .. NinjaLineages.Progression.getNinjaRank(self.player)), boxX, boxY + 35, 0.85, 0.85, 0.9, 1, UIFont.Small)
+            panel:drawText("Ninja XP: " .. math.floor(NinjaLineages.Progression.getNinjaXP(self.player)), boxX, boxY + 60, 0.85, 0.85, 0.9, 1, UIFont.Small)
+        elseif self.screen == "discipline" and self.selectedDiscipline then
+            -- Draw XP next to Back button on the discipline screen
+            panel:drawText("Ninja XP: " .. math.floor(NinjaLineages.Progression.getNinjaXP(self.player)), margin + math.floor(w * 0.12), margin + 5, 0.85, 0.85, 0.9, 1, UIFont.Medium)
+
+            local discipline = NinjaLineages.TreeDefinitions.Disciplines[self.selectedDiscipline]
+            panel:drawTextCentre(text(discipline.name), w / 2, math.floor(h * 0.04), 1, 1, 1, 1, UIFont.Large)
+            
+            -- Draw icon next to centered title if available
+            local iconTex = getTexture(discipline.icon)
+            if iconTex then
+                panel:drawTextureScaled(iconTex, w / 2 - 120, math.floor(h * 0.04) - 2, 32, 32, 1, 1, 1, 1)
+            end
+
+            if self.selectedNode then
+                local node = NinjaLineages.TreeDefinitions.getNode(self.selectedNode)
+                panel:drawText(text(node.name), self.detailsX, math.floor(h * 0.18), 1, 1, 1, 1, UIFont.Medium)
+                panel:drawText(text(node.description), self.detailsX, math.floor(h * 0.24), 0.85, 0.85, 0.9, 1, UIFont.Small)
+            end
+        end
+    end
+    
     self:createSelectionScreen()
 end
 
 function NLJutsuTreeUI:clearControls()
-    local children = {}
-    for _, child in ipairs(self.children or {}) do table.insert(children, child) end
-    for _, child in ipairs(children) do
-        self:removeChild(child)
+    if not self.contentPanel or not self.contentPanel.children then return end
+    while #self.contentPanel.children > 0 do
+        local child = self.contentPanel.children[1]
+        self.contentPanel:removeChild(child)
     end
+    self.contentPanel.joypadButtons = {}
     self.joypadButtons = {}
 end
 
@@ -31,8 +88,8 @@ function NLJutsuTreeUI:addButton(x, y, width, height, title, target, callback)
     local button = ISButton:new(x, y, width, height, title, target, callback)
     button:initialise()
     button:instantiate()
-    self:addChild(button)
-    table.insert(self.joypadButtons, button)
+    self.contentPanel:addChild(button)
+    table.insert(self.contentPanel.joypadButtons, button)
     return button
 end
 
@@ -42,13 +99,15 @@ function NLJutsuTreeUI:createSelectionScreen()
     self.selectedDiscipline = nil
     self.selectedNode = nil
 
-    local margin = math.floor(self.width * 0.03)
-    local leftWidth = math.floor(self.width * 0.20)
-    local cardGap = math.floor(self.width * 0.008)
+    local w = self.contentPanel.width
+    local h = self.contentPanel.height
+    local margin = math.floor(w * 0.03)
+    local leftWidth = math.floor(w * 0.20)
+    local cardGap = math.floor(w * 0.008)
     local cardsX = margin + leftWidth
-    local cardWidth = math.floor((self.width - cardsX - margin - (cardGap * 6)) / 7)
-    local cardHeight = math.floor(self.height * 0.64)
-    local cardY = math.floor(self.height * 0.20)
+    local cardWidth = math.floor((w - cardsX - margin - (cardGap * 6)) / 7)
+    local cardHeight = math.floor(h * 0.64)
+    local cardY = math.floor(h * 0.20)
 
     for index, disciplineId in ipairs(NinjaLineages.TreeDefinitions.DisciplineOrder) do
         local definition = NinjaLineages.TreeDefinitions.Disciplines[disciplineId]
@@ -69,16 +128,6 @@ function NLJutsuTreeUI:createSelectionScreen()
         button.backgroundColor = { r = 0.10, g = 0.10, b = 0.14, a = 0.95 }
         button.backgroundColorMouseOver = { r = 0.20, g = 0.20, b = 0.28, a = 0.95 }
     end
-
-    self:addButton(
-        self.width - margin - math.floor(self.width * 0.10),
-        margin,
-        math.floor(self.width * 0.10),
-        math.floor(self.height * 0.05),
-        text("UI_NL_Tree_Close"),
-        self,
-        NLJutsuTreeUI.close
-    )
 end
 
 function NLJutsuTreeUI:onDiscipline(button)
@@ -95,13 +144,15 @@ function NLJutsuTreeUI:createDisciplineScreen(disciplineId)
     self.selectedNode = nil
     self.nodeButtons = {}
 
-    local margin = math.floor(self.width * 0.03)
-    local treeX = math.floor(self.width * 0.18)
-    local treeWidth = math.floor(self.width * 0.54)
+    local w = self.contentPanel.width
+    local h = self.contentPanel.height
+    local margin = math.floor(w * 0.03)
+    local treeX = math.floor(w * 0.18)
+    local treeWidth = math.floor(w * 0.54)
     local detailsX = treeX + treeWidth + margin
-    local rowHeight = math.floor(self.height * 0.22)
+    local rowHeight = math.floor(h * 0.22)
     local nodeWidth = math.floor(treeWidth * 0.22)
-    local nodeHeight = math.floor(self.height * 0.09)
+    local nodeHeight = math.floor(h * 0.09)
     local nodes = NinjaLineages.TreeDefinitions.getNodesForDiscipline(disciplineId)
     local grouped = { GENIN = {}, CHUNIN = {}, JONIN = {} }
 
@@ -110,7 +161,7 @@ function NLJutsuTreeUI:createDisciplineScreen(disciplineId)
     for tier, definitions in pairs(grouped) do
         table.sort(definitions, function(a, b) return a.id < b.id end)
         local row = tierOrder[tier]
-        local y = self.height - margin - (row * rowHeight)
+        local y = h - margin - (row * rowHeight)
         local gap = math.floor((treeWidth - (#definitions * nodeWidth)) / (#definitions + 1))
         for index, definition in ipairs(definitions) do
             local state = NinjaLineages.Progression.getNodeState(self.player, definition.id)
@@ -132,13 +183,13 @@ function NLJutsuTreeUI:createDisciplineScreen(disciplineId)
     end
 
     self.detailsX = detailsX
-    self:addButton(margin, margin, math.floor(self.width * 0.10), math.floor(self.height * 0.05),
+    self:addButton(margin, margin, math.floor(w * 0.10), math.floor(h * 0.05),
         text("UI_NL_Tree_Back"), self, NLJutsuTreeUI.createSelectionScreen)
     self.actionButton = self:addButton(
         detailsX,
-        self.height - margin - math.floor(self.height * 0.08),
-        self.width - detailsX - margin,
-        math.floor(self.height * 0.06),
+        h - margin - math.floor(h * 0.08),
+        w - detailsX - margin,
+        math.floor(h * 0.06),
         text("UI_NL_Tree_SelectNode"),
         self,
         NLJutsuTreeUI.onAction
@@ -197,28 +248,13 @@ function NLJutsuTreeUI:onAction()
 end
 
 function NLJutsuTreeUI:prerender()
-    ISPanelJoypad.prerender(self)
-    self:drawRect(0, 0, self.width, self.height, 0.96, 0.035, 0.035, 0.05)
-    self:drawTextCentre(text("UI_NL_Tree_Title"), self.width / 2, math.floor(self.height * 0.04), 1, 1, 1, 1, UIFont.Large)
-    self:drawText(text("UI_NL_Tree_NinjaLevel", text("UI_NL_Rank_" .. NinjaLineages.Progression.getNinjaRank(self.player))),
-        math.floor(self.width * 0.03), math.floor(self.height * 0.08), 1, 1, 1, 1, UIFont.Medium)
-    self:drawText(text("UI_NL_Tree_XP", math.floor(NinjaLineages.Progression.getNinjaXP(self.player))),
-        math.floor(self.width * 0.03), math.floor(self.height * 0.12), 1, 1, 1, 1, UIFont.Medium)
-
-    if self.screen == "discipline" and self.selectedDiscipline then
-        local discipline = NinjaLineages.TreeDefinitions.Disciplines[self.selectedDiscipline]
-        self:drawTextCentre(text(discipline.name), self.width / 2, math.floor(self.height * 0.10), 1, 1, 1, 1, UIFont.Large)
-        if self.selectedNode then
-            local node = NinjaLineages.TreeDefinitions.getNode(self.selectedNode)
-            self:drawText(text(node.name), self.detailsX, math.floor(self.height * 0.20), 1, 1, 1, 1, UIFont.Medium)
-            self:drawText(text(node.description), self.detailsX, math.floor(self.height * 0.26), 0.85, 0.85, 0.9, 1, UIFont.Small)
-        end
-    end
+    ISCollapsableWindow.prerender(self)
 end
 
 function NLJutsuTreeUI:onGainJoypadFocus(joypadData)
-    ISPanelJoypad.onGainJoypadFocus(self, joypadData)
-    if self.joypadButtons[1] then joypadData.focus = self.joypadButtons[1] end
+    if self.contentPanel then
+        self.contentPanel:onGainJoypadFocus(joypadData)
+    end
 end
 
 function NLJutsuTreeUI:close()
@@ -229,15 +265,22 @@ end
 
 function NLJutsuTreeUI:new(player)
     local playerNum = player:getPlayerNum()
-    local width = getPlayerScreenWidth(playerNum)
-    local height = getPlayerScreenHeight(playerNum)
-    local x = getPlayerScreenLeft(playerNum)
-    local y = getPlayerScreenTop(playerNum)
-    local o = ISPanelJoypad.new(self, x, y, width, height)
+    local screenWidth = getPlayerScreenWidth(playerNum)
+    local screenHeight = getPlayerScreenHeight(playerNum)
+    local width = math.floor(screenWidth * 0.85)
+    local height = math.floor(screenHeight * 0.85)
+    local x = getPlayerScreenLeft(playerNum) + (screenWidth - width) / 2
+    local y = getPlayerScreenTop(playerNum) + (screenHeight - height) / 2
+    
+    local o = ISCollapsableWindow.new(self, x, y, width, height)
+    setmetatable(o, self)
+    self.__index = self
+    
     o.player = player
     o.playerNum = playerNum
-    o.backgroundColor = { r = 0, g = 0, b = 0, a = 1 }
-    o.moveWithMouse = false
+    o.resizable = false
+    o:setTitle(text("UI_NL_Tree_Title") or "Jutsu Unlock Trees")
+    o.clearFrame = true
     o.joypadButtons = {}
     return o
 end

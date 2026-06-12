@@ -98,6 +98,45 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         ISTimedActionQueue.add(NLMeditationAction:new(p))
     end)
     subMenu:addOption(getText("UI_NL_OpenJutsuTree"), player, NLJutsuTreeUI.open)
+
+    -- Debug Menu
+    if SandboxVars and SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.DebugMode == true then
+        local debugOption = subMenu:addOption(getText("UI_NL_DebugMenu"))
+        local debugSubMenu = ISContextMenu:getNew(subMenu)
+        subMenu:addSubMenu(debugOption, debugSubMenu)
+
+        -- 1. Max Chakra Control
+        debugSubMenu:addOption(getText("UI_NL_Debug_MaxChakraControl"), player, function(p)
+            local perk = Perks.FromString("ChakraControl")
+            if perk then
+                p:getXp():setXPToLevel(perk, 10)
+                p:Say("Chakra Control Maxed!")
+            end
+        end)
+
+        -- 2. Max Jutsu Prowess
+        debugSubMenu:addOption(getText("UI_NL_Debug_MaxJutsuProwess"), player, function(p)
+            local perk = Perks.FromString("JutsuProwess")
+            if perk then
+                p:getXp():setXPToLevel(perk, 10)
+                p:Say("Jutsu Prowess Maxed!")
+            end
+        end)
+
+        -- 3. Add 1000 Ninja XP
+        debugSubMenu:addOption(getText("UI_NL_Debug_AddXP"), player, function(p)
+            if NinjaLineages.Progression and NinjaLineages.Progression.setNinjaXP then
+                local current = NinjaLineages.Progression.getNinjaXP(p)
+                NinjaLineages.Progression.setNinjaXP(p, current + 1000)
+                p:Say("Added 1000 Ninja XP!")
+            end
+        end)
+
+        -- 4. Unlock Mangekyo (moved from Uchiha)
+        if NinjaLineages.Uchiha and NinjaLineages.Uchiha.canUseKamuiTestUnlock and NinjaLineages.Uchiha.canUseKamuiTestUnlock(player) then
+            debugSubMenu:addOption(getText("UI_NL_Ability_Kamui_TestUnlock"), player, NinjaLineages.Uchiha.unlockKamuiForSinglePlayerTest)
+        end
+    end
 end
 
 local function showAbilityRadial(player)

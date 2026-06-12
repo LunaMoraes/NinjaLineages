@@ -347,15 +347,15 @@ local function isSinglePlayerGame()
     return true
 end
 
-local function canUseKamuiTestUnlock(player)
+function NinjaLineages.Uchiha.canUseKamuiTestUnlock(player)
     if not isSinglePlayerGame() then return false end
     if not NinjaLineages.hasSharingan(player) then return false end
     if NinjaLineages.getSharinganStage(player) < 3 then return false end
     return NinjaLineages.getNLData(player).mangekyoUnlocked ~= true
 end
 
-local function unlockKamuiForSinglePlayerTest(player)
-    if not canUseKamuiTestUnlock(player) then
+function NinjaLineages.Uchiha.unlockKamuiForSinglePlayerTest(player)
+    if not NinjaLineages.Uchiha.canUseKamuiTestUnlock(player) then
         player:Say(getText("UI_NL_Error_ThirdTomoeRequired"))
         return
     end
@@ -439,21 +439,7 @@ NinjaLineages.registerCreatePlayer("uchiha.init", function(player)
     updateSharinganMoodle(player)
 end)
 
--- Hook for test unlock Mangekyo context option
-if Events.OnFillWorldObjectContextMenu then
-    Events.OnFillWorldObjectContextMenu.Add(function(playerNum, context, worldObjects, test)
-        local player = getSpecificPlayer(playerNum)
-        if not player or player:isDead() then return end
-        if test then return true end
 
-        if canUseKamuiTestUnlock(player) then
-            local subMenu = NinjaLineages.UI.getOrCreateWorldSubMenu(context)
-            if subMenu then
-                subMenu:addOption(getText("UI_NL_Ability_Kamui_TestUnlock"), player, unlockKamuiForSinglePlayerTest)
-            end
-        end
-    end)
-end
 
 if Events.OnCharacterDeath then
     Events.OnCharacterDeath.Add(unlockMangekyoIfEligible)

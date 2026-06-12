@@ -58,3 +58,12 @@ option NinjaLineages.NinjaXPCostMultiplier
     page = NinjaLineages,
     translation = NinjaLineages_NinjaXPCostMultiplier,
 }
+
+option NinjaLineages.DebugMode
+{
+    type = boolean,
+    default = false,
+    page = NinjaLineages,
+    translation = NinjaLineages_DebugMode,
+}
+

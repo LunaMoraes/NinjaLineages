@@ -247,5 +247,9 @@
     "UI_NL_Node_alarm_seal_Name": "Alarm Seal",
     "UI_NL_Node_alarm_seal_Desc": "Prepare one-shot seals that warn their owner when zombies enter the area.",
     "UI_NL_Node_storage_seal_Name": "Storage Seal",
-    "UI_NL_Node_storage_seal_Desc": "Seal one container and its contents into a prepared scroll."
+    "UI_NL_Node_storage_seal_Desc": "Seal one container and its contents into a prepared scroll.",
+    "UI_NL_DebugMenu": "Debug",
+    "UI_NL_Debug_MaxChakraControl": "Max Chakra Control",
+    "UI_NL_Debug_MaxJutsuProwess": "Max Jutsu Prowess",
+    "UI_NL_Debug_AddXP": "Add 1000 Ninja XP"
 }
