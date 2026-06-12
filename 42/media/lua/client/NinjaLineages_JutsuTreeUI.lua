@@ -35,12 +35,21 @@ function NLJutsuTreeUI:initialise()
         
         local w = panel.width
         local h = panel.height
-        local margin = math.floor(w * 0.03)
-        local leftWidth = math.floor(w * 0.20)
-        local cardHeight = math.floor(h * 0.64)
-        local cardY = math.floor(h * 0.20)
+        local margin = math.floor(w * 0.02)
 
         if self.screen == "selection" then
+            local leftWidth = math.floor(w * 0.12)
+            local cardGap = math.floor(w * 0.008)
+            local cardsX = margin + leftWidth
+            local cardWidth = math.floor((w - cardsX - margin - (cardGap * 6)) / 7)
+            local cardHeight = cardWidth * 2
+            local maxHeight = math.floor(h * 0.72)
+            if cardHeight > maxHeight then
+                cardHeight = maxHeight
+                cardWidth = math.floor(cardHeight / 2)
+            end
+            local cardY = math.floor((h - cardHeight) / 2)
+
             -- Draw Selection Title Centered at the top
             panel:drawTextCentre(text("UI_NL_Tree_SelectionTitle") or "Shinobi Disciplines", w / 2, math.floor(h * 0.06), 1, 1, 1, 1, UIFont.Large)
 
@@ -147,13 +156,18 @@ function NLJutsuTreeUI:createSelectionScreen()
 
     local w = self.contentPanel.width
     local h = self.contentPanel.height
-    local margin = math.floor(w * 0.03)
-    local leftWidth = math.floor(w * 0.20)
+    local margin = math.floor(w * 0.02)
+    local leftWidth = math.floor(w * 0.12)
     local cardGap = math.floor(w * 0.008)
     local cardsX = margin + leftWidth
     local cardWidth = math.floor((w - cardsX - margin - (cardGap * 6)) / 7)
-    local cardHeight = math.floor(h * 0.64)
-    local cardY = math.floor(h * 0.20)
+    local cardHeight = cardWidth * 2
+    local maxHeight = math.floor(h * 0.72)
+    if cardHeight > maxHeight then
+        cardHeight = maxHeight
+        cardWidth = math.floor(cardHeight / 2)
+    end
+    local cardY = math.floor((h - cardHeight) / 2)
 
     for index, disciplineId in ipairs(NinjaLineages.TreeDefinitions.DisciplineOrder) do
         local definition = NinjaLineages.TreeDefinitions.Disciplines[disciplineId]
@@ -170,12 +184,27 @@ function NLJutsuTreeUI:createSelectionScreen()
         )
         button.internal = disciplineId
         button.enable = definition.locked ~= true
-        button:setImage(getTexture(definition.card))
         button.backgroundColor = { r = 0.10, g = 0.10, b = 0.14, a = 0.95 }
         button.backgroundColorMouseOver = { r = 0.20, g = 0.20, b = 0.28, a = 0.95 }
         button.tooltip = text(definition.description)
-        button.prerender = function(btn)
-            ISButton.prerender(btn)
+        button.render = function(btn)
+            -- 1. Draw card texture scaled to fill the entire button
+            local cardTex = getTexture(definition.card)
+            if cardTex then
+                btn:drawTextureScaled(cardTex, 0, 0, btn.width, btn.height, btn.textureColor.a, btn.textureColor.r, btn.textureColor.g, btn.textureColor.b)
+            end
+
+            -- 2. Draw hover overlay if hovered/focused
+            if btn:isMouseOver() or btn.joypadFocused then
+                btn:drawRect(0, 0, btn.width, btn.height, 0.15, 1.0, 1.0, 1.0)
+            end
+
+            -- 3. Draw border on top of the card image
+            if btn:shouldDrawBorder() then
+                btn:drawRectBorder(0, 0, btn.width, btn.height, btn.borderColor.a, btn.borderColor.r, btn.borderColor.g, btn.borderColor.b)
+            end
+
+            -- 4. Draw discipline icon on top
             local iconTex = getTexture(definition.icon)
             if iconTex then
                 local iconSize = 96
@@ -184,8 +213,11 @@ function NLJutsuTreeUI:createSelectionScreen()
                 end
                 local iconX = (btn.width - iconSize) / 2
                 local iconY = 30
-                btn:drawTextureScaled(iconTex, iconX, iconY, iconSize, iconSize, 1, 1, 1, 1)
+                btn:drawTextureScaled(iconTex, iconX, iconY, iconSize, iconSize, btn.textureColor.a, btn.textureColor.r, btn.textureColor.g, btn.textureColor.b)
             end
+
+            -- 5. Call ISButton.render(btn) to draw the text label on top
+            ISButton.render(btn)
         end
         button.updateTooltip = function(btn)
             if (btn:isMouseOver() or btn.joypadFocused) and btn.tooltip then
@@ -366,8 +398,8 @@ function NLJutsuTreeUI:new(player)
     local playerNum = player:getPlayerNum()
     local screenWidth = getPlayerScreenWidth(playerNum)
     local screenHeight = getPlayerScreenHeight(playerNum)
-    local width = math.floor(screenWidth * 0.85)
-    local height = math.floor(screenHeight * 0.85)
+    local width = math.floor(screenWidth * 0.70)
+    local height = math.floor(screenHeight * 0.60)
     local x = getPlayerScreenLeft(playerNum) + (screenWidth - width) / 2
     local y = getPlayerScreenTop(playerNum) + (screenHeight - height) / 2
     
