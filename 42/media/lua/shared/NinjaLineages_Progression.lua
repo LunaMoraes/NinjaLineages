@@ -151,7 +151,7 @@ function Progression.getOrCreateTrainingItem(player, nodeId)
     local inventory = player:getInventory()
     local item = inventory:FindAndReturn(definition.trainingItem)
     if not item then
-        item = InventoryItemFactory.CreateItem(definition.trainingItem)
+        item = instanceItem(definition.trainingItem)
         if not item then return nil end
         inventory:AddItem(item)
     end

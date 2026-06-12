@@ -137,6 +137,7 @@
     "UI_NL_Error_JutsuNotLearned": "You have not completed training for this technique.",
     "UI_NL_Error_NoFacingTarget": "No valid target is in front of you.",
     "UI_NL_Tree_Title": "Shinobi Training",
+    "UI_NL_Tree_SelectionTitle": "Shinobi Disciplines",
     "UI_NL_Tree_Close": "Close",
     "UI_NL_Tree_Back": "Back",
     "UI_NL_Tree_Locked": "Locked",

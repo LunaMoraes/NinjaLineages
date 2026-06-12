@@ -41,6 +41,9 @@ function NLJutsuTreeUI:initialise()
         local cardY = math.floor(h * 0.20)
 
         if self.screen == "selection" then
+            -- Draw Selection Title Centered at the top
+            panel:drawTextCentre(text("UI_NL_Tree_SelectionTitle") or "Shinobi Disciplines", w / 2, math.floor(h * 0.06), 1, 1, 1, 1, UIFont.Large)
+
             -- Draw a beautiful container box on the left side of the selection screen
             panel:drawRect(margin, cardY, leftWidth - margin, cardHeight, 0.92, 0.08, 0.08, 0.11)
             panel:drawRectBorder(margin, cardY, leftWidth - margin, cardHeight, 1.0, 0.22, 0.22, 0.32)
@@ -63,6 +66,46 @@ function NLJutsuTreeUI:initialise()
                 panel:drawTextureScaled(iconTex, w / 2 - 120, math.floor(h * 0.04) - 2, 32, 32, 1, 1, 1, 1)
             end
 
+            -- Draw vertical separator line
+            local detailsX = self.detailsX or (math.floor(w * 0.18) + math.floor(w * 0.54) + margin)
+            local lineX = detailsX - math.floor(margin / 2)
+            panel:drawLine(nil, lineX, math.floor(h * 0.05), lineX, h - margin, 1, 0.5, 0.22, 0.22, 0.32)
+
+            -- Draw Genin / Chunin / Jonin labels on the left
+            local treeX = self.treeX or math.floor(w * 0.18)
+            local rowHeight = self.rowHeight or math.floor(h * 0.22)
+            local nodeHeight = self.nodeHeight or math.floor(h * 0.09)
+            local geninY = h - margin - (1 * rowHeight) + (nodeHeight / 2) - 8
+            local chuninY = h - margin - (2 * rowHeight) + (nodeHeight / 2) - 8
+            local joninY = h - margin - (3 * rowHeight) + (nodeHeight / 2) - 8
+
+            panel:drawTextRight("GENIN", treeX - 20, geninY, 0.6, 0.6, 0.7, 1, UIFont.Medium)
+            panel:drawTextRight("CHUNIN", treeX - 20, chuninY, 0.6, 0.6, 0.7, 1, UIFont.Medium)
+            panel:drawTextRight("JONIN", treeX - 20, joninY, 0.6, 0.6, 0.7, 1, UIFont.Medium)
+
+            -- Draw lines from child nodes to their prerequisites
+            if self.nodeButtons then
+                local nodes = NinjaLineages.TreeDefinitions.getNodesForDiscipline(self.selectedDiscipline)
+                for _, definition in ipairs(nodes) do
+                    local childBtn = self.nodeButtons[definition.id]
+                    if childBtn and definition.prerequisites then
+                        for _, reqId in ipairs(definition.prerequisites) do
+                            local reqBtn = self.nodeButtons[reqId]
+                            if reqBtn then
+                                -- Start point: top center of the prerequisite node
+                                local startX = reqBtn.x + reqBtn.width / 2
+                                local startY = reqBtn.y
+                                -- End point: bottom center of the child node
+                                local endX = childBtn.x + childBtn.width / 2
+                                local endY = childBtn.y + childBtn.height
+                                
+                                panel:drawLine(nil, startX, startY, endX, endY, 2, 0.4, 0.45, 0.45, 0.55)
+                            end
+                        end
+                    end
+                end
+            end
+
             if self.selectedNode then
                 local node = NinjaLineages.TreeDefinitions.getNode(self.selectedNode)
                 panel:drawText(text(node.name), self.detailsX, math.floor(h * 0.18), 1, 1, 1, 1, UIFont.Medium)
@@ -70,7 +113,6 @@ function NLJutsuTreeUI:initialise()
             end
         end
     end
-    
     self:createSelectionScreen()
 end
 
@@ -232,6 +274,10 @@ function NLJutsuTreeUI:createDisciplineScreen(disciplineId)
     end
 
     self.detailsX = detailsX
+    self.treeX = treeX
+    self.treeWidth = treeWidth
+    self.rowHeight = rowHeight
+    self.nodeHeight = nodeHeight
     self:addButton(margin, margin, math.floor(w * 0.10), math.floor(h * 0.05),
         text("UI_NL_Tree_Back"), self, NLJutsuTreeUI.createSelectionScreen)
     self.actionButton = self:addButton(
