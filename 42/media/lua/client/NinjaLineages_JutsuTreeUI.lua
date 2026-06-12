@@ -76,10 +76,14 @@ end
 
 function NLJutsuTreeUI:clearControls()
     if not self.contentPanel or not self.contentPanel.children then return end
-    while #self.contentPanel.children > 0 do
-        local child = self.contentPanel.children[1]
-        self.contentPanel:removeChild(child)
+    for id, child in pairs(self.contentPanel.children) do
+        child:setVisible(false)
+        if child.tooltipUI and child.tooltipUI:getIsVisible() then
+            child.tooltipUI:setVisible(false)
+            child.tooltipUI:removeFromUIManager()
+        end
     end
+    self.contentPanel:clearChildren()
     self.contentPanel.joypadButtons = {}
     self.joypadButtons = {}
 end
@@ -127,6 +131,51 @@ function NLJutsuTreeUI:createSelectionScreen()
         button:setImage(getTexture(definition.card))
         button.backgroundColor = { r = 0.10, g = 0.10, b = 0.14, a = 0.95 }
         button.backgroundColorMouseOver = { r = 0.20, g = 0.20, b = 0.28, a = 0.95 }
+        button.tooltip = text(definition.description)
+        button.prerender = function(btn)
+            ISButton.prerender(btn)
+            local iconTex = getTexture(definition.icon)
+            if iconTex then
+                local iconSize = 96
+                if btn.width < iconSize + 16 then
+                    iconSize = math.max(32, btn.width - 16)
+                end
+                local iconX = (btn.width - iconSize) / 2
+                local iconY = 30
+                btn:drawTextureScaled(iconTex, iconX, iconY, iconSize, iconSize, 1, 1, 1, 1)
+            end
+        end
+        button.updateTooltip = function(btn)
+            if (btn:isMouseOver() or btn.joypadFocused) and btn.tooltip then
+                local text = btn.tooltip
+                if not btn.tooltipUI then
+                    btn.tooltipUI = ISToolTip:new()
+                    btn.tooltipUI:setOwner(btn)
+                    btn.tooltipUI:setVisible(false)
+                    btn.tooltipUI:setAlwaysOnTop(true)
+                end
+                if not btn.tooltipUI:getIsVisible() then
+                    if string.contains(btn.tooltip, "\n") then
+                        btn.tooltipUI.maxLineWidth = 1000
+                    else
+                        btn.tooltipUI.maxLineWidth = 300
+                    end
+                    btn.tooltipUI:addToUIManager()
+                    btn.tooltipUI:setVisible(true)
+                end
+                btn.tooltipUI.description = text
+                if btn:isMouseOver() then
+                    btn.tooltipUI:setDesiredPosition(getMouseX(), getMouseY() + 8)
+                else
+                    btn.tooltipUI:setDesiredPosition(btn:getAbsoluteX(), btn:getAbsoluteY() + btn:getHeight() + 8)
+                end
+            else
+                if btn.tooltipUI and btn.tooltipUI:getIsVisible() then
+                    btn.tooltipUI:setVisible(false)
+                    btn.tooltipUI:removeFromUIManager()
+                end
+            end
+        end
     end
 end
 
