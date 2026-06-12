@@ -1,4 +1,5 @@
 require "NinjaLineages_Traits"
+require "NinjaLineages_Items"
 require "NinjaLineages_RinneganMechanics"
 
 local function unlockMangekyoIfEligible(victim)

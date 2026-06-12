@@ -11,6 +11,16 @@ local senjuLastRecoveryAt = {}
 local boundZombies = {}
 local creationRebirthState = {}
 
+local function updateCreationRebirthUnlock(player)
+    if not NinjaLineages.hasSenju(player) then return end
+    if NinjaLineages.CreationRebirth.isUnlocked(player) then return end
+
+    local requiredLevel = consts.Senju.CreationRebirth.SENJU_UNLOCK_LEVEL
+    if NinjaLineages.Skills.getChakraControlLevel(player) >= requiredLevel then
+        NinjaLineages.CreationRebirth.unlock(player, "UI_NL_Unlock_CreationRebirth")
+    end
+end
+
 local function applySenjuEndurance(player)
     if not player then return end
 
@@ -128,8 +138,8 @@ local function updateCreationRebirth(player)
 end
 
 local function useCreationRebirth(player)
-    if not NinjaLineages.hasSenju(player) then
-        player:Say(getText("UI_NL_Error_LineageRequired", "Senju lineage"))
+    if not NinjaLineages.CreationRebirth.isUnlocked(player) then
+        player:Say(getText("UI_NL_Error_CreationRebirthLocked"))
         return false
     end
     if NinjaLineages.Chakra.getChakra(player) <= 0 then
@@ -178,7 +188,7 @@ NinjaLineages.registerAbility({
     name = "UI_NL_Ability_CreationRebirth_Name",
     descriptionKey = "UI_NL_Ability_CreationRebirth_Desc",
     texture = "media/ui/Traits/trait_senju.png",
-    condition = function(player) return NinjaLineages.hasSenju(player) end,
+    condition = function(player) return NinjaLineages.CreationRebirth.isUnlocked(player) end,
     costStepTier = "HARSH",
     durationTier = "SHORT_MS",
     action = useCreationRebirth
@@ -191,7 +201,17 @@ end)
 
 NinjaLineages.registerZombieUpdate("senju.zombieUpdate", enforceBindingRoots)
 
-NinjaLineages.registerCreatePlayer("senju.init", applySenjuEndurance)
+NinjaLineages.registerCreatePlayer("senju.init", function(player)
+    applySenjuEndurance(player)
+    updateCreationRebirthUnlock(player)
+end)
+
+Events.LevelPerk.Add(function(player, perk)
+    local chakraControl = Perks.FromString("ChakraControl")
+    if perk == chakraControl then
+        updateCreationRebirthUnlock(player)
+    end
+end)
 
 NinjaLineages.registerEveryMinute("senju.passive", function(player)
     if NinjaLineages.hasSenju(player) then

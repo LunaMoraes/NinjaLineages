@@ -210,6 +210,15 @@ local function getBodyPartValue(bodypart, valueName)
     return nil
 end
 
+local function getBodyPartFlag(bodypart, flagName)
+    local ok, value = pcall(function()
+        if flagName == "glass" then return bodypart:haveGlass() end
+        if flagName == "bullet" then return bodypart:haveBullet() end
+        return false
+    end)
+    return ok and value == true
+end
+
 local function clearResolvedWound(bodypart, woundName)
     return pcall(function()
         if woundName == "bleeding" then
@@ -265,6 +274,9 @@ function NinjaLineages.Utils.Healing.getPartSeverity(bodypart)
     for _, woundName in ipairs(woundNames) do
         severity = math.max(severity, getBodyPartValue(bodypart, woundName) or 0)
     end
+    if getBodyPartFlag(bodypart, "glass") or getBodyPartFlag(bodypart, "bullet") then
+        severity = math.max(severity, 1)
+    end
     return severity
 end
 
@@ -301,6 +313,28 @@ function NinjaLineages.Utils.Healing.healPart(bodyDamage, bodypart, options)
             options[woundName],
             clearAtFullHealth
         ) or changed
+    end
+
+    currentHealth = getBodyPartValue(bodypart, "health")
+    if currentHealth and currentHealth >= 100 then
+        local removedForeignObject = false
+        if getBodyPartFlag(bodypart, "glass") then
+            removedForeignObject = pcall(function() bodypart:setHaveGlass(false) end) or removedForeignObject
+        end
+        if getBodyPartFlag(bodypart, "bullet") then
+            removedForeignObject = pcall(function() bodypart:setHaveBullet(false, 0) end) or removedForeignObject
+        end
+        if removedForeignObject then
+            changed = true
+            pcall(function() bodypart:setAdditionalPain(0) end)
+            pcall(function() bodypart:setDeepWoundTime(0) end)
+            pcall(function() bodypart:setDeepWounded(false) end)
+            pcall(function() bodypart:setBleedingTime(0) end)
+            pcall(function() bodypart:setBleeding(false) end)
+            if syncBodyPart then
+                pcall(function() syncBodyPart(bodypart, 0x404e0108) end)
+            end
+        end
     end
 
     pcall(function() bodyDamage:calculateOverallHealth() end)

@@ -91,6 +91,9 @@ NinjaLineages.Constants.Senju = {
     },
     CreationRebirth = {
         TICK_MS = 250,
+        SENJU_UNLOCK_LEVEL = 7,
+        SCROLL_MIN_MAX_CHAKRA = 500,
+        SCROLL_GUARANTEED_MAX_CHAKRA = 900,
     },
     Passive = {
         ENDURANCE_PER_MINUTE = 0.15,

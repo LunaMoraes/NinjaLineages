@@ -1,6 +1,7 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Items"
+require "NinjaLineages_CreationRebirthScroll"
 require "NinjaLineages_Chakra"
 require "NinjaLineages_Skills"
 require "NinjaLineages_Moodles"
