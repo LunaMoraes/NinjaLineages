@@ -2,6 +2,7 @@ require "NinjaLineages_Chakra"
 require "NinjaLineages_Skills"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Balance"
+require "NinjaLineages_Progression"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.CommonJutsu = NinjaLineages.CommonJutsu or {}
@@ -26,6 +27,20 @@ local function checkCostAndCooldown(player, id, costTier, cooldownNameKey, showF
 end
 
 function NinjaLineages.CommonJutsu.canCast(player, id, showFeedback)
+    local nodeByAbility = {
+        healing = "minor_healing",
+        reinforcement = "physical_reinforcement",
+        quietstep = "quiet_step",
+        focus = "chakra_focus",
+        grip = "chakra_grip",
+        bodyflicker = "body_flicker",
+    }
+    local nodeId = nodeByAbility[id]
+    if nodeId and not NinjaLineages.Progression.isCompleted(player, nodeId) then
+        if showFeedback then player:Say(getText("UI_NL_Error_JutsuNotLearned")) end
+        return false
+    end
+
     if id == "healing" then
         if not checkCostAndCooldown(player, id, "STANDARD", "UI_NL_Ability_Healing_Name", showFeedback) then
             return false
@@ -97,8 +112,9 @@ function NinjaLineages.CommonJutsu.castHealing(player)
         return
     end
 
-    local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
-    local healAmount = consts.CommonJutsu.Healing.HEAL_BASE + (prowess * consts.CommonJutsu.Healing.HEAL_PER_PROWESS)
+    local healing = NinjaLineages.Balance.getHealing(
+        NinjaLineages.Balance.getJutsu("MINOR_HEALING").healing
+    )
 
     local bodyDamage = player:getBodyDamage()
     if not bodyDamage then
@@ -128,11 +144,10 @@ function NinjaLineages.CommonJutsu.castHealing(player)
         return
     end
 
-    local timerReduction = 10.0 + prowess * 2.0
     local changed = NinjaLineages.Utils.Healing.healPart(bodyDamage, mostDamagedPart, {
-        health = healAmount,
-        scratch = timerReduction,
-        cut = timerReduction,
+        health = healing.health,
+        scratch = healing.wound,
+        cut = healing.wound,
     })
 
     if not changed then
@@ -165,7 +180,9 @@ function NinjaLineages.CommonJutsu.castReinforcement(player)
     NinjaLineages.CommonJutsu.setCooldown(player, "reinforcement", NinjaLineages.Balance.getCooldown("LONG"))
 
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
-    local duration = (10 + prowess) * 1000 -- in ms
+    local config = NinjaLineages.Balance.getJutsu("PHYSICAL_REINFORCEMENT")
+    local duration = NinjaLineages.Balance.getDuration(config.duration)
+        * NinjaLineages.Skills.getJutsuDuration(prowess)
 
     local data = NinjaLineages.getNLData(player)
     data.reinforcementEndTime = NinjaLineages.Utils.Time.nowGameMs(player) + duration
@@ -193,7 +210,9 @@ function NinjaLineages.CommonJutsu.castQuietStep(player)
     NinjaLineages.CommonJutsu.setCooldown(player, "quietstep", NinjaLineages.Balance.getCooldown("STANDARD"))
 
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
-    local duration = (15 + prowess * 1.5) * 1000 -- in ms
+    local config = NinjaLineages.Balance.getJutsu("QUIET_STEP")
+    local duration = NinjaLineages.Balance.getDuration(config.duration)
+        * NinjaLineages.Skills.getJutsuDuration(prowess)
 
     local data = NinjaLineages.getNLData(player)
     data.quietStepEndTime = NinjaLineages.Utils.Time.nowGameMs(player) + duration
@@ -223,8 +242,12 @@ function NinjaLineages.CommonJutsu.castChakraFocus(player)
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
     local stats = player:getStats()
 
-    local panicReduction = 40.0 + (prowess * 5.0)
-    local stressReduction = 0.20 + (prowess * 0.03)
+    local config = NinjaLineages.Balance.getJutsu("CHAKRA_FOCUS")
+    local effectiveness = NinjaLineages.Skills.getJutsuEffectiveness(prowess)
+    local mastery = NinjaLineages.Balance.getMastery(config.mastery)
+    local panicReduction = mastery
+        * effectiveness * NinjaLineages.Balance.Progression.PercentScale
+    local stressReduction = mastery * effectiveness
 
     stats:set(CharacterStat.PANIC, math.max(0.0, stats:get(CharacterStat.PANIC) - panicReduction))
     stats:set(CharacterStat.STRESS, math.max(0.0, stats:get(CharacterStat.STRESS) - stressReduction))
@@ -251,7 +274,9 @@ function NinjaLineages.CommonJutsu.castChakraGrip(player)
     NinjaLineages.CommonJutsu.setCooldown(player, "grip", NinjaLineages.Balance.getCooldown("SHORT"))
 
     local prowess = NinjaLineages.Skills.getJutsuProwessLevel(player)
-    local duration = (12 + prowess) * 1000 -- in ms
+    local config = NinjaLineages.Balance.getJutsu("CHAKRA_GRIP")
+    local duration = NinjaLineages.Balance.getDuration(config.duration)
+        * NinjaLineages.Skills.getJutsuDuration(prowess)
 
     local data = NinjaLineages.getNLData(player)
     data.chakraGripEndTime = NinjaLineages.Utils.Time.nowGameMs(player) + duration
@@ -310,8 +335,17 @@ function NinjaLineages.CommonJutsu.update(player)
     -- 2. Physical Reinforcement
     if data.reinforcementEndTime and current < data.reinforcementEndTime then
         local stats = player:getStats()
-        stats:set(CharacterStat.FATIGUE, math.max(0.0, stats:get(CharacterStat.FATIGUE) - 0.0005))
-        stats:set(CharacterStat.ENDURANCE, math.min(1.0, stats:get(CharacterStat.ENDURANCE) + 0.005))
+        local config = NinjaLineages.Balance.getJutsu("PHYSICAL_REINFORCEMENT")
+        local recovery = NinjaLineages.Balance.getMastery(config.recovery)
+            * NinjaLineages.Constants.Chakra.BASE_REGEN_PCT_PER_MINUTE
+        stats:set(CharacterStat.FATIGUE, math.max(
+            0.0,
+            stats:get(CharacterStat.FATIGUE) - recovery
+        ))
+        stats:set(CharacterStat.ENDURANCE, math.min(
+            NinjaLineages.Balance.Progression.NormalizedMaximum,
+            stats:get(CharacterStat.ENDURANCE) + recovery
+        ))
     else
         if data.reinforcementEndTime then
             player:Say(getText("UI_NL_ReinforcementExpired"))
@@ -342,7 +376,9 @@ function NinjaLineages.CommonJutsu.update(player)
             local dy = fwd:getY()
             
             -- Apply a massive boost forward
-            local boostMultiplier = consts.CommonJutsu.BodyFlicker.BOOST_MULTIPLIER
+            local boostMultiplier = NinjaLineages.Balance.getRadius(
+                NinjaLineages.Balance.getJutsu("BODY_FLICKER").distance
+            )
             local nextX = player:getX() + dx * boostMultiplier
             local nextY = player:getY() + dy * boostMultiplier
             
@@ -372,7 +408,8 @@ NinjaLineages.registerAbility({
     preCast = function(player, showFeedback)
         return NinjaLineages.CommonJutsu.canCast(player, "healing", showFeedback)
     end,
-    action = NinjaLineages.CommonJutsu.castHealing
+    action = NinjaLineages.CommonJutsu.castHealing,
+    nodeId = "minor_healing"
 })
 
 NinjaLineages.registerAbility({
@@ -387,7 +424,8 @@ NinjaLineages.registerAbility({
     preCast = function(player, showFeedback)
         return NinjaLineages.CommonJutsu.canCast(player, "reinforcement", showFeedback)
     end,
-    action = NinjaLineages.CommonJutsu.castReinforcement
+    action = NinjaLineages.CommonJutsu.castReinforcement,
+    nodeId = "physical_reinforcement"
 })
 
 NinjaLineages.registerAbility({
@@ -402,7 +440,8 @@ NinjaLineages.registerAbility({
     preCast = function(player, showFeedback)
         return NinjaLineages.CommonJutsu.canCast(player, "quietstep", showFeedback)
     end,
-    action = NinjaLineages.CommonJutsu.castQuietStep
+    action = NinjaLineages.CommonJutsu.castQuietStep,
+    nodeId = "quiet_step"
 })
 
 NinjaLineages.registerAbility({
@@ -417,7 +456,8 @@ NinjaLineages.registerAbility({
     preCast = function(player, showFeedback)
         return NinjaLineages.CommonJutsu.canCast(player, "focus", showFeedback)
     end,
-    action = NinjaLineages.CommonJutsu.castChakraFocus
+    action = NinjaLineages.CommonJutsu.castChakraFocus,
+    nodeId = "chakra_focus"
 })
 
 NinjaLineages.registerAbility({
@@ -432,7 +472,8 @@ NinjaLineages.registerAbility({
     preCast = function(player, showFeedback)
         return NinjaLineages.CommonJutsu.canCast(player, "grip", showFeedback)
     end,
-    action = NinjaLineages.CommonJutsu.castChakraGrip
+    action = NinjaLineages.CommonJutsu.castChakraGrip,
+    nodeId = "chakra_grip"
 })
 
 NinjaLineages.registerAbility({
@@ -448,5 +489,6 @@ NinjaLineages.registerAbility({
     preCast = function(player, showFeedback)
         return NinjaLineages.CommonJutsu.canCast(player, "bodyflicker", showFeedback)
     end,
-    action = NinjaLineages.CommonJutsu.castBodyFlicker
+    action = NinjaLineages.CommonJutsu.castBodyFlicker,
+    nodeId = "body_flicker"
 })

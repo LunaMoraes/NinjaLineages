@@ -1,6 +1,7 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Items"
 require "NinjaLineages_RinneganMechanics"
+require "NinjaLineages_ProgressionServer"
 
 local function unlockMangekyoIfEligible(victim)
     if not victim or not instanceof(victim, "IsoPlayer") then return end

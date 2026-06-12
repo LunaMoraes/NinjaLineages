@@ -1,5 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
+require "NinjaLineages_Progression"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.HandSigns = NinjaLineages.HandSigns or {}
@@ -46,7 +47,11 @@ function HandSigns.isClassic()
 end
 
 function HandSigns.isAvailable(player, ability)
-    return ability and (not ability.condition or ability.condition(player))
+    if not ability then return false end
+    if ability.nodeId and not NinjaLineages.Progression.isCompleted(player, ability.nodeId) then
+        return false
+    end
+    return not ability.condition or ability.condition(player)
 end
 
 function HandSigns.getAvailableAbilities(player)

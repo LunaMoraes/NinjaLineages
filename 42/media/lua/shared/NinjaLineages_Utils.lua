@@ -152,6 +152,34 @@ function NinjaLineages.Utils.Zombies.collectInRadius(player, radius)
     return targets
 end
 
+function NinjaLineages.Utils.Zombies.collectInFacingCone(player, targetingTier)
+    local config = NinjaLineages.Balance.getTargeting(targetingTier)
+    local targets = {}
+    if not player or not config then return targets end
+    local forward = player:getForwardDirection()
+    if not forward then return targets end
+
+    for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, config.range)) do
+        local zombie = entry.zombie
+        local dx = zombie:getX() - player:getX()
+        local dy = zombie:getY() - player:getY()
+        local length = math.sqrt((dx * dx) + (dy * dy))
+        if length > 0 then
+            local dot = ((dx / length) * forward:getX()) + ((dy / length) * forward:getY())
+            if dot >= config.minDot then table.insert(targets, entry) end
+        end
+    end
+
+    table.sort(targets, function(a, b) return a.distance < b.distance end)
+    while #targets > config.maxTargets do table.remove(targets) end
+    return targets
+end
+
+function NinjaLineages.Utils.Zombies.getFacingTarget(player, targetingTier)
+    local targets = NinjaLineages.Utils.Zombies.collectInFacingCone(player, targetingTier)
+    return targets[1] and targets[1].zombie or nil
+end
+
 function NinjaLineages.Utils.Combat.randomDamage(minDamage, maxDamage)
     local damageRoll = ZombRand(0, 1001) / 1000
     return minDamage + (damageRoll * (maxDamage - minDamage))
@@ -185,8 +213,14 @@ function NinjaLineages.Utils.Combat.staggerZombie(zombie, opts)
     end
     pcall(function() zombie:setHitReaction("") end)
     pcall(function() zombie:setPlayerAttackPosition(opts and opts.position or "FRONT") end)
-    pcall(function() zombie:setHitForce(opts and opts.force or 2.0) end)
     pcall(function() zombie:reportEvent("wasHit") end)
+end
+
+function NinjaLineages.Utils.Combat.applyControlTier(zombie, tier)
+    if NinjaLineages.Balance.getMastery(tier) <= 0 then return end
+    NinjaLineages.Utils.Combat.staggerZombie(zombie, {
+        knockdown = tier == "JONIN",
+    })
 end
 
 

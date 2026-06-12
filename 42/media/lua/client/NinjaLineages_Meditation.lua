@@ -1,6 +1,8 @@
 require "TimedActions/ISBaseTimedAction"
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
+require "NinjaLineages_Balance"
+require "NinjaLineages_Progression"
 
 NLMeditationAction = ISBaseTimedAction:derive("NLMeditationAction")
 
@@ -18,16 +20,29 @@ function NLMeditationAction:start()
         self.character:reportEvent("EventSitOnGround")
     end
     self.lastXpTick = NinjaLineages.Utils.Time.nowGameMs(self.character)
+    self.lastNinjaXpTick = self.lastXpTick
     self.character:Say(getText("UI_NL_Meditating"))
 end
 
 function NLMeditationAction:update()
     local current = NinjaLineages.Utils.Time.nowGameMs(self.character)
     if not self.lastXpTick then self.lastXpTick = current end
-    if current - self.lastXpTick >= 5000 then
+    if current - self.lastXpTick >= NinjaLineages.Balance.Meditation.CHAKRA_CONTROL_TICK_MS then
         self.lastXpTick = current
         require "NinjaLineages_Skills"
-        NinjaLineages.Skills.addChakraControlXP(self.character, 1.5)
+        NinjaLineages.Skills.addChakraControlXP(
+            self.character,
+            NinjaLineages.Balance.Meditation.CHAKRA_CONTROL_TICK_XP
+        )
+    end
+    local interval = NinjaLineages.Balance.Progression.NinjaXP.MEDITATION_INTERVAL_SECONDS * 1000
+    if current - self.lastNinjaXpTick >= interval then
+        self.lastNinjaXpTick = current
+        NinjaLineages.Progression.awardXP(
+            self.character,
+            "meditation",
+            NinjaLineages.Balance.Progression.NinjaXP.MEDITATION_REWARD
+        )
     end
 end
 
@@ -48,7 +63,10 @@ function NLMeditationAction:perform()
     end
     self.character:Say(getText("UI_NL_MeditationComplete"))
     require "NinjaLineages_Skills"
-    NinjaLineages.Skills.addChakraControlXP(self.character, 10.0)
+    NinjaLineages.Skills.addChakraControlXP(
+        self.character,
+        NinjaLineages.Balance.Meditation.CHAKRA_CONTROL_COMPLETION_XP
+    )
     ISBaseTimedAction.perform(self)
 end
 
@@ -59,6 +77,6 @@ function NLMeditationAction:new(character)
     o.character = character
     o.stopOnWalk = true
     o.stopOnRun = true
-    o.maxTime = 3000 -- ~50 seconds in real life
+    o.maxTime = NinjaLineages.Balance.Meditation.ACTION_TICKS
     return o
 end

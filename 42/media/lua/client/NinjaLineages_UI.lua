@@ -5,7 +5,7 @@ function NinjaLineages.UI.getOrCreateWorldSubMenu(context)
     if not context then return nil end
     local option = nil
     for i = 1, #context.options do
-        if context.options[i].name == getText("UI_NL_NinjaLineagesMenu") then
+        if context.options[i].name == getText("UI_NL_ShinobiTrainingMenu") then
             option = context.options[i]
             break
         end
@@ -15,7 +15,7 @@ function NinjaLineages.UI.getOrCreateWorldSubMenu(context)
     if option then
         subMenu = context:getSubMenu(option)
     else
-        option = context:addOption(getText("UI_NL_NinjaLineagesMenu"))
+        option = context:addOption(getText("UI_NL_ShinobiTrainingMenu"))
         subMenu = ISContextMenu:getNew(context)
         context:addSubMenu(option, subMenu)
     end

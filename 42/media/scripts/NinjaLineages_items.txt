@@ -82,4 +82,58 @@ module Base
         ReadType = book,
         Tags = base:isfirefuel;base:isfiretinder,
     }
+
+    item NL_Training_quiet_step { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_quiet_step_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_false_sound { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_false_sound_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_veil_presence { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_veil_presence_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_killing_intent { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_killing_intent_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_physical_reinforcement { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_physical_reinforcement_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_chakra_focus { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_chakra_focus_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_chakra_grip { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_chakra_grip_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_chakra_burst { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_chakra_burst_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_pressure_point_pulse { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_pressure_point_pulse_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_shadow_close { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_shadow_close_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_body_flicker { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_body_flicker_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_strength_genin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_strength_genin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_strength_chunin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_strength_chunin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_strength_jonin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_strength_jonin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_fitness_genin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_fitness_genin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_fitness_chunin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_fitness_chunin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_fitness_jonin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_fitness_jonin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_combat_body_genin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_combat_body_genin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_combat_body_chunin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_combat_body_chunin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_combat_body_jonin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_combat_body_jonin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_blade_genin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_blade_genin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_blade_chunin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_blade_chunin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_blade_jonin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_blade_jonin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_blunt_genin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_blunt_genin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_blunt_chunin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_blunt_chunin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_blunt_jonin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_blunt_jonin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_polearm_genin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_polearm_genin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_polearm_chunin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_polearm_chunin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_polearm_jonin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_polearm_jonin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_maintenance_genin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_maintenance_genin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_maintenance_chunin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_maintenance_chunin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_maintenance_jonin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_maintenance_jonin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_minor_healing { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_minor_healing_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_chakra_needle { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_chakra_needle_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_cell_stimulation { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_cell_stimulation_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_nervous_system_shock { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_nervous_system_shock_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_field_surgery { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_field_surgery_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_bleeding_suppression { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_bleeding_suppression_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_alarm_seal { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_alarm_seal_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_storage_seal { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_storage_seal_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+
+    item NL_ChakraBandage
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        DisplayName = UI_item_NL_ChakraBandage,
+        Weight = 0.0,
+        Icon = Bandage,
+        BandagePower = 10,
+        CanBandage = true,
+        Alcoholic = true,
+        Hidden = true,
+    }
 }

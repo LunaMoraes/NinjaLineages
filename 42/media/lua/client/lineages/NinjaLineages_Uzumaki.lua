@@ -3,6 +3,7 @@ require "NinjaLineages_Utils"
 require "NinjaLineages_UI"
 require "NinjaLineages_Balance"
 require "NinjaLineages_HandSigns"
+require "NinjaLineages_Progression"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uzumaki = NinjaLineages.Uzumaki or {}
@@ -139,8 +140,8 @@ local function removeAlarmSeal(square)
 end
 
 local function placeAlarmSeal(player, square)
-    if not NinjaLineages.hasUzumaki(player) then
-        player:Say(getText("UI_NL_Error_LineageRequired", "Uzumaki lineage"))
+    if not NinjaLineages.Progression.isCompleted(player, "alarm_seal") then
+        player:Say(getText("UI_NL_Error_JutsuNotLearned"))
         return
     end
     local cost = NinjaLineages.Balance.getCost("BASIC")
@@ -182,6 +183,11 @@ local function discoverAlarmSealsNearPlayer(player)
 end
 
 local function triggerAlarmSeal(player, square)
+    local alarmData = square:getModData().NinjaLineages
+        and square:getModData().NinjaLineages.alarmSeal
+    local username = ""
+    pcall(function() username = player:getUsername() or "" end)
+    if alarmData and alarmData.owner ~= "" and alarmData.owner ~= username then return end
     removeAlarmSeal(square)
     if player and not player:isDead() then
         player:Say(getText("UI_NL_Ability_AlarmSeal_Triggered"))
@@ -249,8 +255,8 @@ local function getContainedBackpack(scroll)
 end
 
 local function sealBackpackInScroll(player, backpack, scroll)
-    if not NinjaLineages.hasUzumaki(player) then
-        player:Say(getText("UI_NL_Error_LineageRequired", "Uzumaki lineage"))
+    if not NinjaLineages.Progression.isCompleted(player, "storage_seal") then
+        player:Say(getText("UI_NL_Error_JutsuNotLearned"))
         return
     end
     local cost = NinjaLineages.Balance.getCost("BASIC")
@@ -301,8 +307,8 @@ function NLUnsealScrollAction:new(character, scroll)
 end
 
 local function unsealScroll(player, scroll)
-    if not NinjaLineages.hasUzumaki(player) then
-        player:Say(getText("UI_NL_Error_LineageRequired", "Uzumaki lineage"))
+    if not NinjaLineages.Progression.isCompleted(player, "storage_seal") then
+        player:Say(getText("UI_NL_Error_JutsuNotLearned"))
         return
     end
     local backpack = getContainedBackpack(scroll)
@@ -340,7 +346,7 @@ end
 local function addStorageSealContextMenu(playerNum, context, items)
     local player = getSpecificPlayer(playerNum)
     if not player or player:isDead() then return end
-    if not NinjaLineages.hasUzumaki(player) then return end
+    if not NinjaLineages.Progression.isCompleted(player, "storage_seal") then return end
 
     local selected = nil
     if items then
@@ -389,6 +395,7 @@ if Events.OnFillWorldObjectContextMenu then
         if test then return true end
 
         local alarmSeal = NinjaLineages.Utils.Inventory.getFirstInventoryItem(player, "Base.NL_AlarmSeal")
+        if not NinjaLineages.Progression.isCompleted(player, "alarm_seal") then return end
         if alarmSeal then
             local subMenu = NinjaLineages.UI.getOrCreateWorldSubMenu(context)
             if subMenu then

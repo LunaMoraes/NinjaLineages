@@ -1,6 +1,7 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Chakra"
+require "NinjaLineages_Progression"
 require "TimedActions/ISReadABook"
 
 NinjaLineages = NinjaLineages or {}
@@ -20,7 +21,12 @@ function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(item, result)
             if getSpecificPlayer then player = getSpecificPlayer(0) end
         end)
     end
-    return NinjaLineages.hasUzumaki(player)
+    if not player then return false end
+    local resultType = result and result:getFullType() or ""
+    if resultType == "Base.NL_AlarmSeal" then
+        return NinjaLineages.Progression.isCompleted(player, "alarm_seal")
+    end
+    return NinjaLineages.Progression.isCompleted(player, "storage_seal")
 end
 
 local function isSealedScroll(item)

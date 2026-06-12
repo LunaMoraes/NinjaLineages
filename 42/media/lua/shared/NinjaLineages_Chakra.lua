@@ -1,5 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Skills"
+require "NinjaLineages_Progression"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Chakra = NinjaLineages.Chakra or {}
@@ -46,8 +47,10 @@ function NinjaLineages.Chakra.spendChakra(player, amount, opts)
 
     opts = opts or {}
     if opts.awardXP ~= false then
-        local ratio = opts.xpRatio or 0.1
+        local ratio = opts.xpRatio or NinjaLineages.Balance.SkillXP.CHAKRA_SPEND_RATIO
         NinjaLineages.Skills.addJutsuProwessXP(player, amount * ratio)
+        local ninjaRatio = NinjaLineages.Balance.Progression.NinjaXP.CHAKRA_RATIO
+        NinjaLineages.Progression.awardXP(player, "chakra", math.floor(amount * ninjaRatio))
     end
 
     return true

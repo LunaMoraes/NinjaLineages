@@ -38,3 +38,23 @@ option NinjaLineages.SharinganThirdTomoeKills
     page = NinjaLineages,
     translation = NinjaLineages_SharinganThirdTomoeKills,
 }
+
+option NinjaLineages.NinjaXPGainMultiplier
+{
+    type = integer,
+    min = 0,
+    max = 500,
+    default = 100,
+    page = NinjaLineages,
+    translation = NinjaLineages_NinjaXPGainMultiplier,
+}
+
+option NinjaLineages.NinjaXPCostMultiplier
+{
+    type = integer,
+    min = 0,
+    max = 500,
+    default = 100,
+    page = NinjaLineages,
+    translation = NinjaLineages_NinjaXPCostMultiplier,
+}

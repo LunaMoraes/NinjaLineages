@@ -9,5 +9,9 @@
     "Sandbox_NinjaLineages_SharinganSecondTomoeKills": "Sharingan: Second Tomoe Kills",
     "Sandbox_NinjaLineages_SharinganSecondTomoeKills_tooltip": "Zombie kills required to awaken the Sharingan's second Tomoe. Values below the first threshold are raised to match it.",
     "Sandbox_NinjaLineages_SharinganThirdTomoeKills": "Sharingan: Third Tomoe Kills",
-    "Sandbox_NinjaLineages_SharinganThirdTomoeKills_tooltip": "Zombie kills required to awaken the Sharingan's third Tomoe. Values below the second threshold are raised to match it."
+    "Sandbox_NinjaLineages_SharinganThirdTomoeKills_tooltip": "Zombie kills required to awaken the Sharingan's third Tomoe. Values below the second threshold are raised to match it.",
+    "Sandbox_NinjaLineages_NinjaXPGainMultiplier": "Ninja XP Gain (%)",
+    "Sandbox_NinjaLineages_NinjaXPGainMultiplier_tooltip": "Scales all Ninja XP rewards and daily training budgets.",
+    "Sandbox_NinjaLineages_NinjaXPCostMultiplier": "Jutsu Node Cost (%)",
+    "Sandbox_NinjaLineages_NinjaXPCostMultiplier_tooltip": "Scales the Ninja XP required to unlock jutsu-tree nodes."
 }

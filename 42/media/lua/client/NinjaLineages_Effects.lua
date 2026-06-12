@@ -9,6 +9,11 @@ require "NinjaLineages_UI"
 require "NinjaLineages_CommonJutsu"
 require "NinjaLineages_HandSigns"
 require "NinjaLineages_Meditation"
+require "NinjaLineages_Training"
+require "NinjaLineages_TreeAbilities"
+require "NinjaLineages_TreePassives"
+require "NinjaLineages_ChakraBandage"
+require "NinjaLineages_JutsuTreeUI"
 
 -- Load modular lineages (dynamic registries)
 require "client/lineages/NinjaLineages_Uchiha"
@@ -92,6 +97,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
     subMenu:addOption(getText("UI_NL_MeditateOption"), player, function(p)
         ISTimedActionQueue.add(NLMeditationAction:new(p))
     end)
+    subMenu:addOption(getText("UI_NL_OpenJutsuTree"), player, NLJutsuTreeUI.open)
 end
 
 local function showAbilityRadial(player)
