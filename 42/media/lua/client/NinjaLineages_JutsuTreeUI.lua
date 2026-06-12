@@ -96,12 +96,6 @@ function NLJutsuTreeUI:initialise()
 
             local discipline = NinjaLineages.TreeDefinitions.Disciplines[self.selectedDiscipline]
             panel:drawTextCentre(text(discipline.name), w / 2, math.floor(h * 0.04), 1, 1, 1, 1, UIFont.Large)
-            
-            -- Draw icon next to centered title if available
-            local iconTex = getTexture(discipline.icon)
-            if iconTex then
-                panel:drawTextureScaled(iconTex, w / 2 - 120, math.floor(h * 0.04) - 2, 32, 32, 1, 1, 1, 1)
-            end
 
             -- Draw vertical separator line
             local detailsX = self.detailsX or (math.floor(w * 0.18) + math.floor(w * 0.54) + margin)
@@ -236,18 +230,6 @@ function NLJutsuTreeUI:createSelectionScreen()
             -- 3. Draw border on top of the card image
             if btn:shouldDrawBorder() then
                 btn:drawRectBorder(0, 0, btn.width, btn.height, btn.borderColor.a, btn.borderColor.r, btn.borderColor.g, btn.borderColor.b)
-            end
-
-            -- 4. Draw discipline icon on top
-            local iconTex = getTexture(definition.icon)
-            if iconTex then
-                local iconSize = 96
-                if btn.width < iconSize + 16 then
-                    iconSize = math.max(32, btn.width - 16)
-                end
-                local iconX = (btn.width - iconSize) / 2
-                local iconY = 30
-                btn:drawTextureScaled(iconTex, iconX, iconY, iconSize, iconSize, btn.textureColor.a, btn.textureColor.r, btn.textureColor.g, btn.textureColor.b)
             end
 
             -- 5. Call ISButton.render(btn) to handle standard rendering

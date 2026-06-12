@@ -10,44 +10,37 @@ Trees.Disciplines = {
         name = "UI_NL_Discipline_Genjutsu",
         description = "UI_NL_Discipline_Genjutsu_Desc",
         card = "media/ui/jutsuTree/cards/genjutsu.png",
-        icon = "media/ui/jutsuTree/disciplines/genjutsu.png",
     },
     ninjutsu = {
         name = "UI_NL_Discipline_Ninjutsu",
         description = "UI_NL_Discipline_Ninjutsu_Desc",
         card = "media/ui/jutsuTree/cards/ninjutsu.png",
-        icon = "media/ui/jutsuTree/disciplines/ninjutsu.png",
     },
     taijutsu = {
         name = "UI_NL_Discipline_Taijutsu",
         description = "UI_NL_Discipline_Taijutsu_Desc",
         card = "media/ui/jutsuTree/cards/taijutsu.png",
-        icon = "media/ui/jutsuTree/disciplines/taijutsu.png",
     },
     kenjutsu = {
         name = "UI_NL_Discipline_Kenjutsu",
         description = "UI_NL_Discipline_Kenjutsu_Desc",
         card = "media/ui/jutsuTree/cards/kenjutsu.png",
-        icon = "media/ui/jutsuTree/disciplines/kenjutsu.png",
     },
     medical = {
         name = "UI_NL_Discipline_Medical",
         description = "UI_NL_Discipline_Medical_Desc",
         card = "media/ui/jutsuTree/cards/medical.png",
-        icon = "media/ui/jutsuTree/disciplines/medical.png",
     },
     fuinjutsu = {
         name = "UI_NL_Discipline_Fuinjutsu",
         description = "UI_NL_Discipline_Fuinjutsu_Desc",
         card = "media/ui/jutsuTree/cards/fuinjutsu.png",
-        icon = "media/ui/jutsuTree/disciplines/fuinjutsu.png",
     },
     chakra_transformation = {
         name = "UI_NL_Discipline_ChakraTransformation",
         description = "UI_NL_Discipline_ChakraTransformation_Desc",
         locked = true,
         card = "media/ui/jutsuTree/cards/chakra_transformation.png",
-        icon = "media/ui/jutsuTree/disciplines/chakra_transformation.png",
     },
 }
 
