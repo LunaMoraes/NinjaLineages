@@ -38,9 +38,9 @@ function NLJutsuTreeUI:initialise()
         local margin = math.floor(w * 0.03)
 
         if self.screen == "selection" then
-            local leftWidth = math.floor(w * 0.12)
+            local leftWidth = math.floor(w * 0.15)
             local cardGap = math.floor(w * 0.008)
-            local cardsX = margin + leftWidth
+            local cardsX = leftWidth + math.floor(w * 0.01)
             local cardHeight = math.floor(h * 0.76)
             local cardWidth = math.floor(cardHeight / 2)
             local cardY = math.floor((h - cardHeight) / 2)
@@ -194,9 +194,9 @@ function NLJutsuTreeUI:createSelectionScreen()
     local w = self.contentPanel.width
     local h = self.contentPanel.height
     local margin = math.floor(w * 0.03)
-    local leftWidth = math.floor(w * 0.12)
+    local leftWidth = math.floor(w * 0.15)
     local cardGap = math.floor(w * 0.008)
-    local cardsX = margin + leftWidth
+    local cardsX = leftWidth + math.floor(w * 0.01)
     local cardHeight = math.floor(h * 0.76)
     local cardWidth = math.floor(cardHeight / 2)
     local cardY = math.floor((h - cardHeight) / 2)
@@ -211,10 +211,11 @@ function NLJutsuTreeUI:createSelectionScreen()
             cardY,
             cardWidth,
             cardHeight,
-            title,
+            "", -- Empty title so ISButton.render doesn't draw it in the middle
             self,
             NLJutsuTreeUI.onDiscipline
         )
+        button.disciplineTitle = title
         button.internal = disciplineId
         button.enable = definition.locked ~= true
         button.backgroundColor = { r = 0.10, g = 0.10, b = 0.14, a = 0.95 }
@@ -249,8 +250,38 @@ function NLJutsuTreeUI:createSelectionScreen()
                 btn:drawTextureScaled(iconTex, iconX, iconY, iconSize, iconSize, btn.textureColor.a, btn.textureColor.r, btn.textureColor.g, btn.textureColor.b)
             end
 
-            -- 5. Call ISButton.render(btn) to draw the text label on top
+            -- 5. Call ISButton.render(btn) to handle standard rendering
             ISButton.render(btn)
+
+            -- 6. Draw the title text centered horizontally right below the icon
+            if btn.disciplineTitle and btn.disciplineTitle ~= "" then
+                local iconSize = 96
+                if btn.width < iconSize + 16 then
+                    iconSize = math.max(32, btn.width - 16)
+                end
+                local textY = 30 + iconSize + 10 -- 10px below the icon
+                local font = btn.font or UIFont.Small
+                
+                local lines = {}
+                local nlIndex = string.find(btn.disciplineTitle, "\n")
+                if nlIndex then
+                    table.insert(lines, string.sub(btn.disciplineTitle, 1, nlIndex - 1))
+                    table.insert(lines, string.sub(btn.disciplineTitle, nlIndex + 1))
+                else
+                    table.insert(lines, btn.disciplineTitle)
+                end
+                
+                local lineHeight = getTextManager():MeasureStringY(font, "A")
+                for i, line in ipairs(lines) do
+                    local lineW = getTextManager():MeasureStringX(font, line)
+                    local lineX = (btn.width - lineW) / 2
+                    if btn.enable then
+                        btn:drawText(line, lineX, textY + (i - 1) * (lineHeight + 2), btn.textColor.r, btn.textColor.g, btn.textColor.b, btn.textColor.a, font)
+                    else
+                        btn:drawText(line, lineX, textY + (i - 1) * (lineHeight + 2), 0.3, 0.3, 0.3, 1.0, font)
+                    end
+                end
+            end
         end
         button.updateTooltip = function(btn)
             if (btn:isMouseOver() or btn.joypadFocused) and btn.tooltip then
@@ -333,9 +364,9 @@ function NLJutsuTreeUI:repositionCardButtons()
     
     local w = self.contentPanel.width
     local margin = math.floor(w * 0.03)
-    local leftWidth = math.floor(w * 0.12)
+    local leftWidth = math.floor(w * 0.15)
     local cardGap = math.floor(w * 0.008)
-    local cardsX = margin + leftWidth
+    local cardsX = leftWidth + math.floor(w * 0.01)
     local cardHeight = math.floor(self.contentPanel.height * 0.76)
     local cardWidth = math.floor(cardHeight / 2)
     
