@@ -83,6 +83,10 @@ function NinjaLineages.Utils.Time.worldAgeHours()
     return 0
 end
 
+function NinjaLineages.Utils.Time.cooldownNowMs()
+    return math.floor(NinjaLineages.Utils.Time.worldAgeHours() * 60 * 60 * 1000)
+end
+
 function NinjaLineages.Utils.Time.advanceGameplayClock(player)
     local nowWallMs = NinjaLineages.Utils.Time.nowMs()
     local lastWallMs = NinjaLineages.Utils.Time.lastWallMs
@@ -190,11 +194,7 @@ end
 function NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
     if not zombie or zombie:isDead() then return end
     if isClient and isClient() then
-        sendClientCommand(player, "NinjaLineages", "damageZombie", {
-            zombieOnlineId = zombie:getOnlineID(),
-            damage = damage,
-        })
-        return
+        return false
     end
 
     pcall(function() zombie:setAttackedBy(player) end)
@@ -210,14 +210,7 @@ end
 
 function NinjaLineages.Utils.Combat.addWorldSound(player, x, y, z, radius, volume)
     if isClient and isClient() then
-        sendClientCommand(player, "NinjaLineages", "addWorldSound", {
-            x = x,
-            y = y,
-            z = z,
-            radius = radius,
-            volume = volume,
-        })
-        return
+        return false
     end
     addSound(player, x, y, z, radius, volume)
 end
@@ -405,8 +398,13 @@ NinjaLineages.Cooldowns = NinjaLineages.Cooldowns or {}
 
 function NinjaLineages.Cooldowns.isOnCooldown(player, key)
     local data = NinjaLineages.getNLData(player)
+    if data.cooldownSchema ~= 2 then
+        data.cooldowns = {}
+        data.cooldownSchema = 2
+        NinjaLineages.transmitPlayerData(player)
+    end
     local cooldowns = data.cooldowns or {}
-    local current = NinjaLineages.Utils.Time.nowGameMs(player)
+    local current = NinjaLineages.Utils.Time.cooldownNowMs()
     if cooldowns[key] and current < cooldowns[key] then
         return true, math.ceil((cooldowns[key] - current) / 1000)
     end
@@ -415,7 +413,11 @@ end
 
 function NinjaLineages.Cooldowns.set(player, key, durationSeconds)
     local data = NinjaLineages.getNLData(player)
+    if data.cooldownSchema ~= 2 then
+        data.cooldowns = {}
+        data.cooldownSchema = 2
+    end
     data.cooldowns = data.cooldowns or {}
-    data.cooldowns[key] = NinjaLineages.Utils.Time.nowGameMs(player) + (durationSeconds * 1000)
+    data.cooldowns[key] = NinjaLineages.Utils.Time.cooldownNowMs() + (durationSeconds * 1000)
     NinjaLineages.transmitPlayerData(player)
 end

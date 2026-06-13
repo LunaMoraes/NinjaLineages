@@ -2,6 +2,7 @@ require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Balance"
 require "NinjaLineages_RinneganMechanics"
+require "NinjaLineages_AbilityAuthority"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Rinnegan = NinjaLineages.Rinnegan or {}
@@ -18,6 +19,7 @@ local function addPulse(x, y, z)
         startedAt = NinjaLineages.Utils.Time.nowMs(),
     })
 end
+NinjaLineages.Rinnegan.addPulse = addPulse
 
 local function sayCastError(player, reason, remaining)
     if reason == "lineage" then
@@ -70,45 +72,7 @@ local function finishLocalCast(player)
 end
 
 local function useShinraTensei(player)
-    local targets = mechanics.collectTargets(player)
-    local valid, reason, remaining = mechanics.validateCast(player, targets)
-    if not valid then
-        sayCastError(player, reason, remaining)
-        return false
-    end
-
-    if isClient and isClient() then
-        sendClientCommand(player, "NinjaLineages", "shinraTensei", {})
-        return true
-    end
-
-    local executed, executeReason, executeRemaining = mechanics.execute(player)
-    if not executed then
-        sayCastError(player, executeReason, executeRemaining)
-        return false
-    end
-    finishLocalCast(player)
-    return true
-end
-
-local function onServerCommand(module, command, args)
-    if module ~= "NinjaLineages" then return end
-
-    if command == "shinraTenseiPulse" then
-        addPulse(args.x, args.y, args.z)
-        local player = getSpecificPlayer(0)
-        if player and args.casterOnlineId == player:getOnlineID() then
-            pcall(function()
-                player:playerVoiceSound(consts.Rinnegan.ShinraTensei.ACTIVATION_VOICE)
-            end)
-            player:Say(getText("UI_NL_Ability_ShinraTensei_Cast"))
-        end
-    elseif command == "shinraTenseiRejected" then
-        local player = getSpecificPlayer(0)
-        if player then
-            sayCastError(player, args.reason, args.remaining)
-        end
-    end
+    return NinjaLineages.AbilityAuthority.request(player, "shinra_tensei", {})
 end
 
 NinjaLineages.registerAbility({
@@ -132,4 +96,3 @@ NinjaLineages.registerPlayerUpdate("rinnegan.shinraTenseiPush", function()
 end)
 
 Events.OnPostRender.Add(renderPulses)
-Events.OnServerCommand.Add(onServerCommand)

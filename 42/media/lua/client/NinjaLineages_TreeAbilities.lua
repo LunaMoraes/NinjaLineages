@@ -382,5 +382,3 @@ register({
     preCast = function(player, feedback) return canUse(player, "bleeding_suppression", "MAJOR", feedback) end,
     action = castBleedingSuppression,
 })
-
-NinjaLineages.registerPlayerUpdate("treeAbilities.update", updateEffects)

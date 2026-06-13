@@ -8,6 +8,7 @@ require "NinjaLineages_Moodles"
 require "NinjaLineages_UI"
 require "NinjaLineages_CommonJutsu"
 require "NinjaLineages_HandSigns"
+require "NinjaLineages_AbilityExecution"
 require "NinjaLineages_Meditation"
 require "NinjaLineages_Training"
 require "NinjaLineages_TreeAbilities"
@@ -289,7 +290,11 @@ local function onPlayerUpdate(player)
     runListeners(NinjaLineages.PlayerUpdates, "PlayerUpdate", player)
 
     NinjaLineages.HandSigns.update(player)
-    NinjaLineages.CommonJutsu.update(player)
+    NinjaLineages.AbilityAuthority.updatePending()
+    if not (isClient and isClient()) then
+        NinjaLineages.AbilityAuthority.updatePlayer(player)
+        if player:getPlayerNum() == 0 then NinjaLineages.AbilityAuthority.updateWorld() end
+    end
 end
 
 local function onZombieUpdate(zombie)
@@ -311,64 +316,13 @@ local function everyOneMinute()
     local player = getPlayer()
     if not player or player:isDead() then return end
 
-    local data = NinjaLineages.getNLData(player)
     local maxChakra = NinjaLineages.Chakra.getMaxChakra(player)
     local currentChakra = NinjaLineages.Chakra.getChakra(player)
-
-    -- 1. Chakra regeneration (2.0% of max chakra base per minute)
-    local baseRegenPct = consts.Chakra.BASE_REGEN_PCT_PER_MINUTE
-    local regenRate = maxChakra * baseRegenPct
-    if data.isMeditating then
-        regenRate = regenRate * consts.Chakra.MEDITATION_REGEN_MULTIPLIER
+    if not (isClient and isClient()) then
+        NinjaLineages.AbilityAuthority.everyMinute(player)
+        currentChakra = NinjaLineages.Chakra.getChakra(player)
     end
-
-    local skillLevel = NinjaLineages.Skills.getChakraControlLevel(player)
-    local skillMult = NinjaLineages.Skills.getRegenMultiplier(skillLevel)
-    regenRate = regenRate * skillMult
-
-    local newChakra = math.min(maxChakra, currentChakra + regenRate)
-
-    -- 2. Sustained eye power chakra drains (dynamically routed)
-    if data.eyePowerActive then
-        local drainRate = 0.0
-        if NinjaLineages.Uchiha and NinjaLineages.Uchiha.getEyePowerDrain then
-            drainRate = drainRate + NinjaLineages.Uchiha.getEyePowerDrain(player, data)
-        end
-        if NinjaLineages.Hyuga and NinjaLineages.Hyuga.getEyePowerDrain then
-            drainRate = drainRate + NinjaLineages.Hyuga.getEyePowerDrain(player, data)
-        end
-
-        local drainReduction = NinjaLineages.Skills.getDrainReduction(skillLevel)
-        drainRate = drainRate * drainReduction
-
-        if data.isMeditating then
-            drainRate = drainRate * consts.Chakra.MEDITATION_DRAIN_MULTIPLIER
-        end
-
-        if isEyeCovered(player) then
-            drainRate = drainRate * consts.Chakra.COVERED_EYE_DRAIN_MULTIPLIER
-        end
-
-        newChakra = math.max(0.0, newChakra - drainRate)
-
-        if newChakra <= 0.0 then
-            newChakra = 0.0
-            data.eyePowerActive = false
-            player:Say(getText("UI_NL_EyePowerDeactivated"))
-            if NinjaLineages.Uchiha and NinjaLineages.Uchiha.onEyePowerDeactivated then
-                pcall(NinjaLineages.Uchiha.onEyePowerDeactivated, player)
-            end
-            if NinjaLineages.Hyuga and NinjaLineages.Hyuga.onEyePowerDeactivated then
-                pcall(NinjaLineages.Hyuga.onEyePowerDeactivated, player)
-            end
-        end
-    end
-
-    -- Save chakra
-    NinjaLineages.Chakra.setChakra(player, newChakra)
-
-    -- 3. Moodle updates
-    local pct = newChakra / maxChakra
+    local pct = currentChakra / maxChakra
     if pct < consts.Chakra.CRITICAL_THRESHOLD then
         NinjaLineages.Moodles.setValue("NLChakra", player, 0.3) -- Bad lvl 2 (Very Low)
     elseif pct < consts.Chakra.LOW_THRESHOLD then
@@ -377,7 +331,6 @@ local function everyOneMinute()
         NinjaLineages.Moodles.setValue("NLChakra", player, 0.5) -- Hidden
     end
 
-    -- 4. Invoke lineage EveryMinute listeners
     runListeners(NinjaLineages.EveryMinuteListeners, "EveryMinute", player)
 end
 

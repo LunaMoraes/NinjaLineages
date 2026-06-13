@@ -1,6 +1,7 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Progression"
+require "NinjaLineages_AbilityAuthority"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.HandSigns = NinjaLineages.HandSigns or {}
@@ -97,10 +98,7 @@ function HandSigns.activateAbility(player, ability)
         return false
     end
     if ability.preCast and not ability.preCast(player, true) then return false end
-    local succeeded = ability.action(player)
-    if succeeded ~= true then return false end
-    HandSigns.playSeal(player)
-    return true
+    return NinjaLineages.AbilityAuthority.request(player, ability.id, {})
 end
 
 local function sequenceEquals(a, b)
@@ -160,7 +158,7 @@ function HandSigns.handleClassicSign(player, signId)
             state.signs = {}
             classicInputs[player] = state
             if ability.preCast and not ability.preCast(player, true) then return true end
-            ability.action(player)
+            NinjaLineages.AbilityAuthority.request(player, ability.id, {})
             return true
         end
     end

@@ -4,6 +4,7 @@ require "NinjaLineages_UI"
 require "NinjaLineages_Balance"
 require "NinjaLineages_HandSigns"
 require "NinjaLineages_Progression"
+require "NinjaLineages_AbilityAuthority"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uzumaki = NinjaLineages.Uzumaki or {}
@@ -140,27 +141,13 @@ local function removeAlarmSeal(square)
 end
 
 local function placeAlarmSeal(player, square)
-    if not NinjaLineages.Progression.isCompleted(player, "alarm_seal") then
-        player:Say(getText("UI_NL_Error_JutsuNotLearned"))
-        return
-    end
-    local cost = NinjaLineages.Balance.getCost("BASIC")
-    if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
-        player:Say(getText("UI_NL_Error_NotEnoughChakra_PlaceAlarmSeal"))
-        return
-    end
-    local seal = NinjaLineages.Utils.Inventory.getFirstInventoryItem(player, "Base.NL_AlarmSeal")
-    if not seal then
-        player:Say(getText("UI_NL_Error_NoAlarmSealItem"))
-        return
-    end
     if not square then square = player:getSquare() end
-    NinjaLineages.Chakra.spendChakra(player, cost)
-    registerAlarmSeal(square, player)
-    NinjaLineages.Utils.Inventory.consumeInventoryItem(player, seal)
-    player:Say(getText("UI_NL_Ability_AlarmSeal_Cast"))
-    NinjaLineages.HandSigns.playSeal(player)
-    return true
+    if not square then return false end
+    return NinjaLineages.AbilityAuthority.request(player, "alarm_seal", {
+        x = square:getX(),
+        y = square:getY(),
+        z = square:getZ(),
+    })
 end
 
 local function discoverAlarmSealsNearPlayer(player)
@@ -255,28 +242,11 @@ local function getContainedBackpack(scroll)
 end
 
 local function sealBackpackInScroll(player, backpack, scroll)
-    if not NinjaLineages.Progression.isCompleted(player, "storage_seal") then
-        player:Say(getText("UI_NL_Error_JutsuNotLearned"))
-        return
-    end
-    local cost = NinjaLineages.Balance.getCost("BASIC")
-    if not NinjaLineages.Chakra.canAffordChakra(player, cost) then
-        player:Say(getText("UI_NL_Error_NotEnoughChakra_StorageSeal"))
-        return
-    end
-    if not isBackpackContainer(backpack) then return end
-    local scrollInv = getScrollInventory(scroll)
-    if not scrollInv or scrollInv:getItems():size() > 0 then
-        player:Say(getText("UI_NL_Ability_StorageSeal_AlreadySealed"))
-        return
-    end
-    NinjaLineages.Chakra.spendChakra(player, cost)
-    if not NinjaLineages.Utils.Inventory.moveItemBetweenContainers(backpack, backpack:getContainer(), scrollInv) then
-        return false
-    end
-    player:Say(getText("UI_NL_Ability_StorageSeal_Cast"))
-    NinjaLineages.HandSigns.playSeal(player)
-    return true
+    if not backpack or not scroll then return false end
+    return NinjaLineages.AbilityAuthority.request(player, "storage_seal", {
+        backpackItemId = backpack:getID(),
+        scrollItemId = scroll:getID(),
+    })
 end
 
 NLUnsealScrollAction = ISBaseTimedAction and ISBaseTimedAction:derive("NLUnsealScrollAction") or {}
@@ -286,10 +256,10 @@ function NLUnsealScrollAction:isValid()
 end
 
 function NLUnsealScrollAction:perform()
-    local backpack = getContainedBackpack(self.scroll)
-    if backpack then
-        NinjaLineages.Utils.Inventory.moveItemBetweenContainers(backpack, getScrollInventory(self.scroll), self.character:getInventory())
-        self.character:Say(getText("UI_NL_Ability_StorageSeal_Unsealed"))
+    if self.scroll then
+        NinjaLineages.AbilityAuthority.request(self.character, "storage_unseal", {
+            scrollItemId = self.scroll:getID(),
+        })
     end
     if ISBaseTimedAction then
         ISBaseTimedAction.perform(self)
@@ -317,12 +287,9 @@ local function unsealScroll(player, scroll)
         ISTimedActionQueue.add(NLUnsealScrollAction:new(player, scroll))
         NinjaLineages.HandSigns.playSeal(player)
     else
-        if NinjaLineages.Utils.Inventory.moveItemBetweenContainers(
-                backpack,
-                getScrollInventory(scroll),
-                player:getInventory()) then
-            NinjaLineages.HandSigns.playSeal(player)
-        end
+        NinjaLineages.AbilityAuthority.request(player, "storage_unseal", {
+            scrollItemId = scroll:getID(),
+        })
     end
 end
 
@@ -376,7 +343,6 @@ end
 -- Dynamic Registration
 NinjaLineages.registerPlayerUpdate("uzumaki.update", function(player)
     applyUzumakiBleedSlow(player)
-    updateAlarmSeals(player)
 end)
 
 NinjaLineages.registerPlayerGetDamage("uzumaki.getDamage", refundUzumakiDamage)

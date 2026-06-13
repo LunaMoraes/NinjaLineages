@@ -432,7 +432,6 @@ NinjaLineages.registerPlayerUpdate("uchiha.update", function(player)
     updateKamui(player)
 end)
 
-NinjaLineages.registerZombieUpdate("uchiha.evade", sharinganEvade)
 
 NinjaLineages.registerCreatePlayer("uchiha.init", function(player)
     recoverKamuiVision(player)
