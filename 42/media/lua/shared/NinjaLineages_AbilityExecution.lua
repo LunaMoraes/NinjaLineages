@@ -80,13 +80,18 @@ local function executeGenericEffect(player, definition, resolved)
         stats:set(CharacterStat.PANIC, math.max(0, stats:get(CharacterStat.PANIC) - resolved.mastery * effectiveness * 100))
         stats:set(CharacterStat.STRESS, math.max(0, stats:get(CharacterStat.STRESS) - resolved.mastery * effectiveness))
     elseif effect.kind == "forward_movement" then
-        local x, y = projectedPoint(player, resolved.distance)
-        local square = getCell():getGridSquare(x, y, player:getZ())
-        if not square or not player:getCurrentSquare() or square:isBlockedTo(player:getCurrentSquare()) then
-            return false, "invalid_target"
-        end
-        player:setX(x)
-        player:setY(y)
+        local forward = player:getForwardDirection()
+        if not forward then return false, "invalid_target" end
+        local now = NinjaLineages.Utils.Time.gameMinutes()
+        active[player] = active[player] or {}
+        active[player].forwardMovement = {
+            startedAt = now,
+            endsAt = now + resolved.duration,
+            directionX = forward:getX(),
+            directionY = forward:getY(),
+            distance = resolved.distance,
+            travelled = 0,
+        }
     elseif effect.kind == "timed_state" then
         local duration = resolved.duration
         if effect.durationScale then
@@ -461,6 +466,36 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
     local previousUpdateAt = state.lastUpdateAt or now
     state.lastUpdateAt = now
     local data = NinjaLineages.getNLData(player)
+
+    local movement = state.forwardMovement
+    if movement then
+        local duration = movement.endsAt - movement.startedAt
+        local progress = duration > 0
+            and math.min(1, math.max(0, (now - movement.startedAt) / duration))
+            or 1
+        local targetDistance = movement.distance * progress
+        local stepDistance = NinjaLineages.Constants.CommonJutsu.Dash.STEP_DISTANCE
+
+        while movement.travelled < targetDistance do
+            local distance = math.min(stepDistance, targetDistance - movement.travelled)
+            local nextX = player:getX() + (movement.directionX * distance)
+            local nextY = player:getY() + (movement.directionY * distance)
+            local cell = getCell()
+            local currentSquare = cell:getGridSquare(player:getX(), player:getY(), player:getZ())
+            local nextSquare = cell:getGridSquare(nextX, nextY, player:getZ())
+            if not currentSquare or not nextSquare or nextSquare:isBlockedTo(currentSquare) then
+                state.forwardMovement = nil
+                break
+            end
+            player:setX(nextX)
+            player:setY(nextY)
+            movement.travelled = movement.travelled + distance
+        end
+
+        if state.forwardMovement and progress >= 1 then
+            state.forwardMovement = nil
+        end
+    end
 
     local function syncTrait(endField, addedField, trait)
         if data[endField] and now < data[endField] then

@@ -19,8 +19,8 @@ NinjaLineages.Constants.CommonJutsu = {
         HEAL_BASE = 5.0,
         HEAL_PER_PROWESS = 1.5,
     },
-    BodyFlicker = {
-        BOOST_MULTIPLIER = 0.25,
+    Dash = {
+        STEP_DISTANCE = 0.25,
     },
 }
 

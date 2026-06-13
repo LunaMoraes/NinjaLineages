@@ -93,7 +93,7 @@ module Base
     item NL_Training_chakra_burst { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_chakra_burst_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
     item NL_Training_pressure_point_pulse { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_pressure_point_pulse_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
     item NL_Training_shadow_close { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_shadow_close_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
-    item NL_Training_body_flicker { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_body_flicker_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_dash { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_dash_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
     item NL_Training_strength_genin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_strength_genin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
     item NL_Training_strength_chunin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_strength_chunin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
     item NL_Training_strength_jonin { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_strength_jonin_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }

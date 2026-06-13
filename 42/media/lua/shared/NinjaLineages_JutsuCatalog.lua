@@ -179,11 +179,11 @@ Catalog.Definitions = {
         effect = { kind = "shadow_close" },
     },
     {
-        id = "body_flicker",
+        id = "dash",
         category = "common",
         node = { discipline = "taijutsu", rank = "GENIN", order = 10 },
         handSigns = { "bird", "hare", "rat" },
-        balance = { cost = "ADVANCED", cooldown = "DASH", distance = "TOUCH", duration = "BURST" },
+        balance = { cost = "ADVANCED", cooldown = "DASH", distance = "STANDARD", duration = "BURST" },
         effect = { kind = "forward_movement" },
     },
 
