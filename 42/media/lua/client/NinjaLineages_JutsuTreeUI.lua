@@ -94,6 +94,24 @@ function NLJutsuTreeUI:initialise()
             panel:drawText("Rank: " .. text("UI_NL_Rank_" .. NinjaLineages.Progression.getNinjaRank(self.player)), boxX, boxY + 35, 0.85, 0.85, 0.9, 1, UIFont.Small)
             panel:drawText("Ninja XP: " .. math.floor(NinjaLineages.Progression.getNinjaXP(self.player)), boxX, boxY + 60, 0.85, 0.85, 0.9, 1, UIFont.Small)
 
+            local rank = NinjaLineages.Progression.getNinjaRank(self.player)
+            local rankImage = nil
+            if rank == "GENIN" then
+                rankImage = "media/ui/jutsuTree/ranks/genin.png"
+            elseif rank == "CHUNIN" then
+                rankImage = "media/ui/jutsuTree/ranks/chunin.png"
+            elseif rank == "JONIN" or rank == "KAGE" then
+                rankImage = "media/ui/jutsuTree/ranks/jounin.png"
+            end
+
+            if rankImage then
+                local tex = getTexture(rankImage)
+                if tex then
+                    local imgX = margin + math.floor((leftWidth - margin - 96) / 2)
+                    panel:drawTextureScaled(tex, imgX, boxY + 95, 96, 96, 1.0, 1.0, 1.0, 1.0)
+                end
+            end
+
             -- Clip card buttons to scroll area
             panel:setStencilRect(cardsX, cardY, w - cardsX - margin, cardHeight)
         elseif self.screen == "discipline" and self.selectedDiscipline then
