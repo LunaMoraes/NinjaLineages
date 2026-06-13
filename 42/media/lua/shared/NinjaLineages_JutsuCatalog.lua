@@ -523,7 +523,7 @@ local function presentation(definition)
         nameFallback = value.nameFallback or definition.id,
         descriptionFallback = value.descriptionFallback or "",
         icon = value.icon or (definition.node
-            and ("media/ui/jutsuTree/nodes/" .. definition.id .. ".png")
+            and ("media/ui/jutsuTree/nodes/" .. definition.node.discipline .. ".png")
             or "media/ui/NLJutsu.png"),
     }
 end

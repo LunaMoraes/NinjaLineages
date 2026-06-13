@@ -25,7 +25,7 @@ for _, definition in ipairs(Catalog.getAll()) do
             description = "UI_NL_Node_" .. definition.id .. "_Desc",
             nameFallback = view.nameFallback or definition.id,
             descriptionFallback = view.descriptionFallback or "",
-            icon = "media/ui/jutsuTree/nodes/" .. definition.id .. ".png",
+            icon = view.icon or ("media/ui/jutsuTree/nodes/" .. node.discipline .. ".png"),
             fallbackIcon = "media/ui/NLJutsu.png",
             trainingItem = "Base.NL_Training_" .. definition.id,
             abilityId = definition.selectable ~= false and definition.id or nil,
