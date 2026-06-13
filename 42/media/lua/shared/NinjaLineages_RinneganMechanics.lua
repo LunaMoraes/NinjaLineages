@@ -9,7 +9,6 @@ NinjaLineages.RinneganMechanics = NinjaLineages.RinneganMechanics or {}
 
 local mechanics = NinjaLineages.RinneganMechanics
 local consts = NinjaLineages.Constants
-local cooldownKey = "rinnegan.shinra_tensei"
 local activePushes = {}
 local nextPushUpdateAt = 0
 
@@ -56,7 +55,10 @@ function mechanics.validateCast(player, targets)
         return false, "lineage"
     end
 
-    local onCooldown, remaining = NinjaLineages.Cooldowns.isOnCooldown(player, cooldownKey)
+    local onCooldown, remaining = NinjaLineages.Cooldowns.isOnCooldown(
+        player,
+        NinjaLineages.JutsuCatalog.getCooldownKey("shinra_tensei")
+    )
     if onCooldown then
         return false, "cooldown", remaining
     end
@@ -240,7 +242,7 @@ function mechanics.execute(player)
 
     NinjaLineages.Cooldowns.set(
         player,
-        cooldownKey,
+        NinjaLineages.JutsuCatalog.getCooldownKey("shinra_tensei"),
         NinjaLineages.JutsuCatalog.resolveBalance("shinra_tensei").cooldown
     )
     return true

@@ -46,6 +46,7 @@ local function getAvailableAbilities(player)
 end
 
 local function getSelectedAbility(player, abilities)
+    NinjaLineages.JutsuCatalog.migratePlayerData(player)
     local data = NinjaLineages.getNLData(player)
     for _, ability in ipairs(abilities) do
         if data.selectedAbilityId == ability.id

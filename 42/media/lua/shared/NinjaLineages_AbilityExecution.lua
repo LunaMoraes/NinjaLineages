@@ -15,15 +15,8 @@ local boundZombies = {}
 local nextAlarmScanAt = 0
 local specializedExecutors = {}
 
-local function validateNode(player, nodeId)
-    if not NinjaLineages.Progression.isCompleted(player, nodeId) then return false, "not_learned" end
-    return true
-end
-
 local function cooldownKey(definition)
-    if definition.cooldownKey then return definition.cooldownKey end
-    if definition.node then return "tree." .. definition.id end
-    return definition.category .. "." .. definition.id
+    return Catalog.getCooldownKey(definition)
 end
 
 local function validateCommit(player, definition, resolved)
@@ -555,7 +548,7 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
                     local changed = NinjaLineages.Utils.Healing.healPart(
                         player:getBodyDamage(),
                         part,
-                        rebirth.healingTick
+                        rebirth.healing
                     )
                     if changed then NinjaLineages.Chakra.spendChakra(player, step) end
                 end
@@ -629,9 +622,11 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
         if NinjaLineages.hasSharingan(player) then
             local sharingan = Catalog.resolveBalance("sharingan")
             if data.mangekyoUnlocked then
-                drain = sharingan.mangekyoDrain
+                drain = sharingan.evolvedDrain
             else
-                drain = sharingan.drainByStage[NinjaLineages.getSharinganStage(player)] or 0
+                drain = sharingan.sustainedDrains[
+                    NinjaLineages.getSharinganStage(player)
+                ] or 0
             end
         elseif NinjaLineages.hasByakugan(player) then
             drain = Catalog.resolveBalance("byakugan").sustainedDrain

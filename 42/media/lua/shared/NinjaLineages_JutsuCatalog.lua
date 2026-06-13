@@ -61,7 +61,6 @@ local function node(id, discipline, rank, order, prerequisites, effectType)
         selectable = false,
         category = "common",
         node = {
-            id = id,
             discipline = discipline,
             rank = rank,
             order = order,
@@ -73,24 +72,23 @@ end
 
 Catalog.Definitions = {
     {
-        id = "quietstep",
-        cooldownKey = "common.quiet_step",
+        id = "quiet_step",
         category = "common",
-        node = { id = "quiet_step", discipline = "genjutsu", rank = "GENIN", order = 10 },
+        node = { discipline = "genjutsu", rank = "GENIN", order = 10 },
         presentation = {
             nameKey = "UI_NL_Ability_QuietStep_Name",
             descriptionKey = "UI_NL_Ability_QuietStep_Desc",
             castMessageKey = "UI_NL_Ability_QuietStep_Cast",
         },
-        casting = { handSigns = { "rat", "snake", "hare" } },
+        handSigns = { "rat", "snake", "hare" },
         balance = { cost = "BASIC", cooldown = "STANDARD", duration = "STANDARD_MS" },
         effect = { kind = "timed_state", stateField = "quietStepEndTime", durationScale = true },
     },
     {
         id = "false_sound",
         category = "common",
-        node = { id = "false_sound", discipline = "genjutsu", rank = "GENIN", order = 20 },
-        casting = { handSigns = { "rat", "hare", "snake" } },
+        node = { discipline = "genjutsu", rank = "GENIN", order = 20 },
+        handSigns = { "rat", "hare", "snake" },
         balance = { cost = "BASIC", cooldown = "SHORT", radius = "LARGE" },
         effect = { kind = "world_sound", projected = true },
     },
@@ -98,10 +96,10 @@ Catalog.Definitions = {
         id = "veil_presence",
         category = "common",
         node = {
-            id = "veil_presence", discipline = "genjutsu", rank = "CHUNIN", order = 10,
+            discipline = "genjutsu", rank = "CHUNIN", order = 10,
             prerequisites = { "quiet_step", "false_sound" },
         },
-        casting = { handSigns = { "snake", "rat", "tiger" } },
+        handSigns = { "snake", "rat", "tiger" },
         balance = {
             cost = "STANDARD", cooldown = "LONG", radius = "STANDARD",
             duration = "LONG_MS", indoorBonusDuration = "STANDARD_MS",
@@ -112,52 +110,49 @@ Catalog.Definitions = {
         id = "killing_intent",
         category = "common",
         node = {
-            id = "killing_intent", discipline = "genjutsu", rank = "JONIN", order = 10,
+            discipline = "genjutsu", rank = "JONIN", order = 10,
             prerequisites = { "veil_presence" },
         },
-        casting = { handSigns = { "tiger", "dragon", "tiger" } },
+        handSigns = { "tiger", "dragon", "tiger" },
         balance = { cost = "MAJOR", cooldown = "VERY_LONG", radius = "STANDARD", control = "CHUNIN" },
         effect = { kind = "area_control" },
     },
     {
-        id = "focus",
-        cooldownKey = "common.chakra_focus",
+        id = "chakra_focus",
         category = "common",
-        node = { id = "chakra_focus", discipline = "ninjutsu", rank = "GENIN", order = 10 },
+        node = { discipline = "ninjutsu", rank = "GENIN", order = 10 },
         presentation = {
             nameKey = "UI_NL_Ability_ChakraFocus_Name",
             descriptionKey = "UI_NL_Ability_ChakraFocus_Desc",
             castMessageKey = "UI_NL_Ability_ChakraFocus_Cast",
         },
-        casting = { handSigns = { "ram", "dragon", "tiger" } },
+        handSigns = { "ram", "dragon", "tiger" },
         balance = { cost = "BASIC", cooldown = "STANDARD", mastery = "JONIN" },
         effect = { kind = "restore_focus" },
     },
     {
-        id = "grip",
-        cooldownKey = "common.chakra_grip",
+        id = "chakra_grip",
         category = "common",
-        node = { id = "chakra_grip", discipline = "ninjutsu", rank = "GENIN", order = 20 },
+        node = { discipline = "ninjutsu", rank = "GENIN", order = 20 },
         presentation = {
             nameKey = "UI_NL_Ability_ChakraGrip_Name",
             descriptionKey = "UI_NL_Ability_ChakraGrip_Desc",
             castMessageKey = "UI_NL_Ability_ChakraGrip_Cast",
         },
-        casting = { handSigns = { "dog", "ox", "horse" } },
+        handSigns = { "dog", "ox", "horse" },
         balance = { cost = "BASIC", cooldown = "SHORT", duration = "STANDARD_MS" },
         effect = { kind = "timed_state", stateField = "chakraGripEndTime", durationScale = true },
     },
     {
-        id = "reinforcement",
-        cooldownKey = "common.reinforcement",
+        id = "physical_reinforcement",
         category = "common",
-        node = { id = "physical_reinforcement", discipline = "ninjutsu", rank = "GENIN", order = 30 },
+        node = { discipline = "ninjutsu", rank = "GENIN", order = 30 },
         presentation = {
             nameKey = "UI_NL_Ability_PhysicalReinforcement_Name",
             descriptionKey = "UI_NL_Ability_PhysicalReinforcement_Desc",
             castMessageKey = "UI_NL_Ability_PhysicalReinforcement_Cast",
         },
-        casting = { handSigns = { "tiger", "horse", "ox" } },
+        handSigns = { "tiger", "horse", "ox" },
         balance = { cost = "STANDARD", cooldown = "LONG", duration = "STANDARD_MS", recovery = "GENIN" },
         effect = { kind = "timed_state", stateField = "reinforcementEndTime", durationScale = true },
     },
@@ -165,10 +160,10 @@ Catalog.Definitions = {
         id = "chakra_burst",
         category = "common",
         node = {
-            id = "chakra_burst", discipline = "ninjutsu", rank = "CHUNIN", order = 10,
+            discipline = "ninjutsu", rank = "CHUNIN", order = 10,
             prerequisites = { "physical_reinforcement", "chakra_grip" },
         },
-        casting = { handSigns = { "ox", "tiger", "ram" } },
+        handSigns = { "ox", "tiger", "ram" },
         balance = {
             cost = "ADVANCED", cooldown = "LONG", targeting = "NARROW",
             damage = "MODERATE", control = "JONIN",
@@ -179,10 +174,10 @@ Catalog.Definitions = {
         id = "pressure_point_pulse",
         category = "common",
         node = {
-            id = "pressure_point_pulse", discipline = "ninjutsu", rank = "CHUNIN", order = 20,
+            discipline = "ninjutsu", rank = "CHUNIN", order = 20,
             prerequisites = { "chakra_focus", "chakra_grip" },
         },
-        casting = { handSigns = { "ram", "ox", "snake" } },
+        handSigns = { "ram", "ox", "snake" },
         balance = {
             cost = "ADVANCED", cooldown = "LONG", targeting = "SMALL_CLUSTER",
             damage = "LIGHT", control = "CHUNIN",
@@ -193,10 +188,10 @@ Catalog.Definitions = {
         id = "shadow_close",
         category = "common",
         node = {
-            id = "shadow_close", discipline = "ninjutsu", rank = "JONIN", order = 10,
+            discipline = "ninjutsu", rank = "JONIN", order = 10,
             prerequisites = { "chakra_burst", "pressure_point_pulse" },
         },
-        casting = { handSigns = { "bird", "rat", "tiger" } },
+        handSigns = { "bird", "rat", "tiger" },
         balance = {
             cost = "MAJOR", cooldown = "VERY_LONG", targeting = "STANDARD",
             distance = "STANDARD", decoyRadius = "STANDARD", control = "GENIN",
@@ -204,16 +199,15 @@ Catalog.Definitions = {
         effect = { kind = "shadow_close" },
     },
     {
-        id = "bodyflicker",
-        cooldownKey = "common.body_flicker",
+        id = "body_flicker",
         category = "common",
-        node = { id = "body_flicker", discipline = "taijutsu", rank = "GENIN", order = 10 },
+        node = { discipline = "taijutsu", rank = "GENIN", order = 10 },
         presentation = {
             nameKey = "UI_NL_Ability_Dash_Name",
             descriptionKey = "UI_NL_Ability_Dash_Desc",
             castMessageKey = "UI_NL_Ability_Dash_Cast",
         },
-        casting = { handSigns = { "bird", "hare", "rat" } },
+        handSigns = { "bird", "hare", "rat" },
         balance = { cost = "ADVANCED", cooldown = "DASH", distance = "TOUCH", duration = "BURST_MS" },
         effect = { kind = "forward_movement" },
     },
@@ -242,32 +236,31 @@ Catalog.Definitions = {
     node("maintenance_jonin", "kenjutsu", "JONIN", 40, { "maintenance_chunin" }),
 
     {
-        id = "healing",
-        cooldownKey = "common.healing",
+        id = "minor_healing",
         category = "common",
-        node = { id = "minor_healing", discipline = "medical", rank = "GENIN", order = 10 },
+        node = { discipline = "medical", rank = "GENIN", order = 10 },
         presentation = {
             nameKey = "UI_NL_Ability_Healing_Name",
             descriptionKey = "UI_NL_Ability_Healing_Desc",
             castMessageKey = "UI_NL_Ability_Healing_Cast",
         },
-        casting = { handSigns = { "boar", "ram", "snake" } },
+        handSigns = { "boar", "ram", "snake" },
         balance = { cost = "STANDARD", cooldown = "STANDARD", healing = "LIGHT" },
         effect = { kind = "heal_most_damaged", fields = { "health", "scratch", "cut" } },
     },
     {
         id = "cell_stimulation",
         category = "common",
-        node = { id = "cell_stimulation", discipline = "medical", rank = "GENIN", order = 20 },
-        casting = { handSigns = { "boar", "ram", "tiger" } },
+        node = { discipline = "medical", rank = "GENIN", order = 20 },
+        handSigns = { "boar", "ram", "tiger" },
         balance = { cost = "STANDARD", cooldown = "LONG", healing = "MODERATE", duration = "LONG_MS" },
         effect = { kind = "cell_stimulation" },
     },
     {
         id = "chakra_needle",
         category = "common",
-        node = { id = "chakra_needle", discipline = "medical", rank = "GENIN", order = 30 },
-        casting = { handSigns = { "snake", "ram", "bird" } },
+        node = { discipline = "medical", rank = "GENIN", order = 30 },
+        handSigns = { "snake", "ram", "bird" },
         balance = {
             cost = "STANDARD", cooldown = "SHORT", targeting = "NARROW",
             damage = "LIGHT", control = "GENIN",
@@ -278,10 +271,10 @@ Catalog.Definitions = {
         id = "nervous_system_shock",
         category = "common",
         node = {
-            id = "nervous_system_shock", discipline = "medical", rank = "CHUNIN", order = 10,
+            discipline = "medical", rank = "CHUNIN", order = 10,
             prerequisites = { "chakra_needle", "cell_stimulation" },
         },
-        casting = { handSigns = { "snake", "dragon", "ram" } },
+        handSigns = { "snake", "dragon", "ram" },
         balance = {
             cost = "ADVANCED", cooldown = "LONG", targeting = "NARROW",
             damage = "LIGHT", control = "JONIN",
@@ -292,10 +285,10 @@ Catalog.Definitions = {
         id = "field_surgery",
         category = "common",
         node = {
-            id = "field_surgery", discipline = "medical", rank = "CHUNIN", order = 20,
+            discipline = "medical", rank = "CHUNIN", order = 20,
             prerequisites = { "minor_healing", "cell_stimulation" },
         },
-        casting = { handSigns = { "boar", "snake", "ram" } },
+        handSigns = { "boar", "snake", "ram" },
         balance = { cost = "MAJOR", cooldown = "VERY_LONG", healing = "DEVASTATING" },
         effect = {
             kind = "heal_most_damaged",
@@ -306,10 +299,10 @@ Catalog.Definitions = {
         id = "bleeding_suppression",
         category = "common",
         node = {
-            id = "bleeding_suppression", discipline = "medical", rank = "JONIN", order = 10,
+            discipline = "medical", rank = "JONIN", order = 10,
             prerequisites = { "nervous_system_shock", "field_surgery" },
         },
-        casting = { handSigns = { "ram", "boar", "dragon" } },
+        handSigns = { "ram", "boar", "dragon" },
         balance = { cost = "MAJOR", cooldown = "VERY_LONG", healing = "HEAVY", duration = "VERY_LONG_MS" },
         effect = { kind = "timed_state", stateField = "bleedingSuppressionEndTime" },
     },
@@ -326,11 +319,10 @@ Catalog.Definitions = {
             castMessageKey = "UI_NL_Ability_Sharingan_Cast",
             icon = "media/ui/Traits/trait_sharingan.png",
         },
-        casting = { sealFree = true },
         requirements = { { kind = "lineage", id = "uchiha" } },
         balance = {
-            drainByStage = { value = { [1] = 8.5, [2] = 12.0, [3] = 16.3 } },
-            mangekyoDrain = { value = 16.3 },
+            sustainedDrains = { "MODERATE", "HIGH", "EXTREME" },
+            evolvedDrain = "EXTREME",
         },
         executor = "sharingan",
     },
@@ -343,15 +335,14 @@ Catalog.Definitions = {
             castMessageKey = "UI_NL_Ability_Kamui_Cast",
             icon = "media/ui/Traits/trait_sharingan.png",
         },
-        casting = { sealFree = true },
         requirements = {
             { kind = "lineage", id = "uchiha" },
             { kind = "special", id = "mangekyo_unlocked" },
         },
         balance = {
             cost = "FREE", cooldown = "STANDARD", channelDrain = "HIGH",
-            duration = { tier = "SHORT_MS", value = 10000 },
-            minimumChakra = { value = 20 },
+            duration = "COMBAT_MS",
+            minimumChakra = "COMMITTED",
         },
         executor = "kamui",
     },
@@ -364,9 +355,8 @@ Catalog.Definitions = {
             castMessageKey = "UI_NL_Ability_Byakugan_Cast",
             icon = "media/ui/Traits/trait_byakugan.png",
         },
-        casting = { sealFree = true },
         requirements = { { kind = "lineage", id = "hyuga" } },
-        balance = { sustainedDrain = { value = 12.0 } },
+        balance = { sustainedDrain = "HIGH" },
         executor = "byakugan",
     },
     {
@@ -378,13 +368,12 @@ Catalog.Definitions = {
             castMessageKey = "UI_NL_Ability_BindingRoots_Cast",
             icon = "media/ui/Traits/trait_senju.png",
         },
-        casting = { sealFree = true },
         requirements = { { kind = "lineage", id = "senju" } },
         balance = {
             cost = "MAJOR", cooldown = "STANDARD", radius = "LARGE", duration = "BRIEF_MS",
-            innerRadius = { value = 6.0 },
-            innerKnockdownChance = { value = 65 },
-            outerKnockdownChance = { value = 35 },
+            innerRadius = "MEDIUM",
+            innerKnockdownChance = 65,
+            outerKnockdownChance = 35,
         },
         executor = "binding_roots",
     },
@@ -397,7 +386,6 @@ Catalog.Definitions = {
             castMessageKey = "UI_NL_Ability_CreationRebirth_Cast",
             icon = "media/ui/Traits/trait_senju.png",
         },
-        casting = { sealFree = true },
         requirements = {
             { kind = "lineage", id = "senju" },
             { kind = "special", id = "creation_rebirth_unlocked" },
@@ -405,13 +393,8 @@ Catalog.Definitions = {
         balance = {
             costStep = "HARSH",
             duration = "SHORT_MS",
-            tickInterval = { value = 250 },
-            healingTick = {
-                value = {
-                    health = 3, bleeding = 4, scratch = 4, cut = 4,
-                    deepWound = 3, burn = 2, fracture = 1,
-                },
-            },
+            tickInterval = "RAPID_TICK_MS",
+            healing = "CREATION_REBIRTH",
         },
         executor = "creation_rebirth",
     },
@@ -424,12 +407,11 @@ Catalog.Definitions = {
             castMessageKey = "UI_NL_Ability_ShinraTensei_Cast",
             icon = "media/ui/Traits/trait_rinnegan.png",
         },
-        casting = { sealFree = true },
         requirements = { { kind = "lineage", id = "rinnegan" } },
         balance = {
             cost = "MAJOR", costStep = "SMALL", maximumCost = "ULTIMATE",
             cooldown = "STANDARD", radius = "STANDARD", damage = "HEAVY",
-            guaranteedKnockdownRadius = { value = 3.5 },
+            guaranteedKnockdownRadius = "SMALL",
         },
         executor = "shinra_tensei",
     },
@@ -488,40 +470,76 @@ local balanceSchemas = {
     healing = { tiers = "HealingTier", resolver = "getHealing" },
     mastery = { tiers = "MasteryTier", resolver = "getMastery" },
     recovery = { tiers = "MasteryTier", resolver = "getMastery" },
+    minimumChakra = { tiers = "ChakraCostTier", resolver = "getCost" },
+    sustainedDrains = {
+        tiers = "SustainedDrainTier",
+        resolver = "getSustainedDrain",
+        list = true,
+    },
+    evolvedDrain = { tiers = "SustainedDrainTier", resolver = "getSustainedDrain" },
+    innerRadius = { tiers = "RadiusTier", resolver = "getRadius" },
+    tickInterval = { tiers = "DurationTier", resolver = "getDuration" },
+    guaranteedKnockdownRadius = { tiers = "RadiusTier", resolver = "getRadius" },
 }
-local explicitBalanceFields = {
-    minimumChakra = true,
-    drainByStage = true,
-    mangekyoDrain = true,
-    innerRadius = true,
+local mechanicFields = {
     innerKnockdownChance = true,
     outerKnockdownChance = true,
-    tickInterval = true,
-    healingTick = true,
-    guaranteedKnockdownRadius = true,
 }
 
 Catalog.ById = {}
 Catalog.ByNodeId = {}
 
+Catalog.LegacyAbilityIds = {
+    quietstep = "quiet_step",
+    focus = "chakra_focus",
+    grip = "chakra_grip",
+    reinforcement = "physical_reinforcement",
+    bodyflicker = "body_flicker",
+    healing = "minor_healing",
+}
+
+Catalog.LegacyCooldownKeys = {
+    ["common.reinforcement"] = "common.physical_reinforcement",
+    ["common.healing"] = "common.minor_healing",
+    ["tree.false_sound"] = "common.false_sound",
+    ["tree.veil_presence"] = "common.veil_presence",
+    ["tree.killing_intent"] = "common.killing_intent",
+    ["tree.chakra_burst"] = "common.chakra_burst",
+    ["tree.pressure_point_pulse"] = "common.pressure_point_pulse",
+    ["tree.shadow_close"] = "common.shadow_close",
+    ["tree.chakra_needle"] = "common.chakra_needle",
+    ["tree.cell_stimulation"] = "common.cell_stimulation",
+    ["tree.nervous_system_shock"] = "common.nervous_system_shock",
+    ["tree.field_surgery"] = "common.field_surgery",
+    ["tree.bleeding_suppression"] = "common.bleeding_suppression",
+}
+
 local function presentation(definition)
     local value = definition.presentation or {}
-    local sourceId = definition.node and definition.node.id or definition.id
+    local sourceId = definition.id
     return {
         nameKey = value.nameKey or ("UI_NL_Node_" .. sourceId .. "_Name"),
         descriptionKey = value.descriptionKey or ("UI_NL_Node_" .. sourceId .. "_Desc"),
         nameFallback = value.nameFallback or definition.id,
         descriptionFallback = value.descriptionFallback or "",
         icon = value.icon or (definition.node
-            and ("media/ui/jutsuTree/nodes/" .. definition.node.id .. ".png")
+            and ("media/ui/jutsuTree/nodes/" .. definition.id .. ".png")
             or "media/ui/NLJutsu.png"),
     }
 end
 
 local function resolveValue(key, reference)
     if reference == nil then return nil end
-    if type(reference) == "table" and reference.value ~= nil then return reference.value end
-    local tier = type(reference) == "table" and reference.tier or reference
+    local schema = balanceSchemas[key]
+    if schema and schema.list then
+        local resolved = {}
+        for index, tier in ipairs(reference) do
+            resolved[index] = Balance[schema.resolver](tier)
+        end
+        return resolved
+    end
+    if mechanicFields[key] then return reference end
+    local tier = reference
     if key == "damage" then
         local minimum, maximum = Balance.getDamageRange(tier)
         return { tier = tier, min = minimum, max = maximum }
@@ -529,13 +547,11 @@ local function resolveValue(key, reference)
     if key == "control" then
         return { tier = tier, value = Balance.getMastery(tier) }
     end
-    if explicitBalanceFields[key] then return tier end
-    local schema = balanceSchemas[key]
     return schema and Balance[schema.resolver](tier) or tier
 end
 
 function Catalog.get(id)
-    return Catalog.ById[id]
+    return Catalog.ById[Catalog.LegacyAbilityIds[id] or id]
 end
 
 function Catalog.getByNodeId(nodeId)
@@ -568,7 +584,7 @@ function Catalog.getNodesForDiscipline(disciplineId)
         if (a.node.order or 0) ~= (b.node.order or 0) then
             return (a.node.order or 0) < (b.node.order or 0)
         end
-        return a.node.id < b.node.id
+        return a.id < b.id
     end)
     return result
 end
@@ -581,6 +597,32 @@ function Catalog.resolveBalance(id)
         resolved[key] = resolveValue(key, reference)
     end
     return resolved
+end
+
+function Catalog.getCooldownKey(definition)
+    definition = type(definition) == "table" and definition or Catalog.get(definition)
+    return definition and (definition.category .. "." .. definition.id) or nil
+end
+
+function Catalog.migratePlayerData(player)
+    if not player then return end
+    local data = NinjaLineages.getNLData(player)
+    if data.jutsuCatalogSchema == 2 then return end
+
+    data.selectedAbilityId = Catalog.LegacyAbilityIds[data.selectedAbilityId]
+        or data.selectedAbilityId
+    data.cooldowns = data.cooldowns or {}
+    for oldKey, newKey in pairs(Catalog.LegacyCooldownKeys) do
+        if data.cooldowns[oldKey] then
+            data.cooldowns[newKey] = math.max(
+                data.cooldowns[newKey] or 0,
+                data.cooldowns[oldKey]
+            )
+            data.cooldowns[oldKey] = nil
+        end
+    end
+    data.jutsuCatalogSchema = 2
+    NinjaLineages.transmitPlayerData(player)
 end
 
 local function checkLineage(player, id)
@@ -597,9 +639,10 @@ end
 function Catalog.checkRequirements(player, definition)
     definition = type(definition) == "table" and definition or Catalog.get(definition)
     if not player or not definition then return false, "invalid_player" end
+    Catalog.migratePlayerData(player)
     if definition.node
             and NinjaLineages.Progression
-            and not NinjaLineages.Progression.isCompleted(player, definition.node.id) then
+            and not NinjaLineages.Progression.isCompleted(player, definition.id) then
         return false, "not_learned"
     end
     for _, requirement in ipairs(definition.requirements or {}) do
@@ -626,20 +669,19 @@ end
 
 function Catalog.toAbility(definition)
     local view = presentation(definition)
-    local casting = definition.casting or {}
     local balance = definition.balance or {}
     return {
         id = definition.id,
         lineage = definition.category,
-        nodeId = definition.node and definition.node.id or nil,
+        nodeId = definition.node and definition.id or nil,
         name = view.nameKey,
         nameFallback = view.nameFallback,
         descriptionKey = view.descriptionKey,
         descriptionFallback = view.descriptionFallback,
         texture = view.icon,
         fallbackTexture = "media/ui/NLJutsu.png",
-        handSigns = casting.handSigns,
-        sealFree = casting.sealFree == true or definition.category ~= "common",
+        handSigns = definition.handSigns,
+        sealFree = not definition.handSigns,
         costTier = type(balance.cost) == "table" and balance.cost.tier or balance.cost,
         cooldownTier = type(balance.cooldown) == "table" and balance.cooldown.tier or balance.cooldown,
         condition = function(player) return Catalog.isAvailable(player, definition) end,
@@ -658,19 +700,24 @@ end
 local function validateBalance(definition)
     for key, reference in pairs(definition.balance or {}) do
         local schema = balanceSchemas[key]
-        if key ~= "damage" and key ~= "control" and not explicitBalanceFields[key] and not schema then
+        if key ~= "damage" and key ~= "control" and not schema and not mechanicFields[key] then
             error("[JutsuCatalog] Unknown balance field '" .. tostring(key) .. "' on " .. definition.id)
         end
-        if type(reference) == "table" and reference.value ~= nil then
-            if reference.tier and schema and not Balance[schema.tiers][reference.tier] then
-                error("[JutsuCatalog] Unknown " .. key .. " tier '" .. tostring(reference.tier) .. "' on " .. definition.id)
+        if schema and schema.list then
+            if type(reference) ~= "table" or #reference == 0 then
+                error("[JutsuCatalog] Balance field '" .. key .. "' must be a tier list on " .. definition.id)
             end
-        else
-            local tier = type(reference) == "table" and reference.tier or reference
+            for _, tier in ipairs(reference) do
+                if Balance[schema.tiers][tier] == nil then
+                    error("[JutsuCatalog] Unknown " .. key .. " tier '" .. tostring(tier) .. "' on " .. definition.id)
+                end
+            end
+        elseif not mechanicFields[key] then
+            local tier = reference
             local tiers = key == "damage" and Balance.DamageTier
                 or key == "control" and Balance.MasteryTier
                 or schema and Balance[schema.tiers]
-            if not explicitBalanceFields[key] and (not tiers or tiers[tier] == nil) then
+            if not tiers or tiers[tier] == nil then
                 error("[JutsuCatalog] Unknown " .. key .. " tier '" .. tostring(tier) .. "' on " .. definition.id)
             end
         end
@@ -688,6 +735,7 @@ function Catalog.validate()
 
         if definition.node then
             local value = definition.node
+            value.id = definition.id
             value.prerequisites = value.prerequisites or {}
             value.effectType = value.effectType or (definition.selectable == false and "passive" or "ability")
             if nodeIds[value.id] then error("[JutsuCatalog] Duplicate node id '" .. value.id .. "'") end
@@ -701,7 +749,7 @@ function Catalog.validate()
             Catalog.ByNodeId[value.id] = definition
         end
 
-        for _, sign in ipairs((definition.casting and definition.casting.handSigns) or {}) do
+        for _, sign in ipairs(definition.handSigns or {}) do
             if not handSigns[sign] then error("[JutsuCatalog] Unknown hand sign '" .. tostring(sign) .. "'") end
         end
         for _, requirement in ipairs(definition.requirements or {}) do

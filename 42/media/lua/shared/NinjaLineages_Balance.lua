@@ -6,6 +6,7 @@ NinjaLineages.Balance.ChakraCostTier = {
     TRIVIAL = 3,
     BASIC = 8,
     STANDARD = 15,
+    COMMITTED = 20,
     ADVANCED = 25,
     MAJOR = 40,
     ULTIMATE = 65,
@@ -31,9 +32,11 @@ NinjaLineages.Balance.CooldownTier = {
 
 NinjaLineages.Balance.DurationTier = {
     INSTANT = 0,
+    RAPID_TICK_MS = 250,
     BURST_MS = 500,
     BRIEF_MS = 3500,
     SHORT_MS = 8000,
+    COMBAT_MS = 10000,
     STANDARD_MS = 15000,
     LONG_MS = 30000,
     VERY_LONG_MS = 60000,
@@ -43,6 +46,7 @@ NinjaLineages.Balance.RadiusTier = {
     SELF = 0,
     TOUCH = 1.5,
     SMALL = 3.5,
+    MEDIUM = 6.0,
     STANDARD = 7.0,
     LARGE = 10.0,
     HUGE = 15.0,
@@ -78,6 +82,15 @@ NinjaLineages.Balance.HealingTier = {
     MODERATE = { health = 12.0, wound = 24.0, pain = 12.0, fatigue = 0.08 },
     HEAVY = { health = 20.0, wound = 40.0, pain = 25.0, fatigue = 0.18 },
     DEVASTATING = { health = 30.0, wound = 60.0, pain = 40.0, fatigue = 0.25 },
+    CREATION_REBIRTH = {
+        health = 3.0,
+        bleeding = 4.0,
+        scratch = 4.0,
+        cut = 4.0,
+        deepWound = 3.0,
+        burn = 2.0,
+        fracture = 1.0,
+    },
 }
 
 NinjaLineages.Balance.TargetingTier = {
