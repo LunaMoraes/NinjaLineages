@@ -52,13 +52,17 @@ Events.LevelPerk.Add(function(player, perk)
     if perk == chakraControl then updateCreationRebirthUnlock(player) end
 end)
 
-NinjaLineages.registerEveryMinute("senju.passive", function(player)
+NinjaLineages.registerEveryMinute("senju.passive", function(player, elapsedMinutes)
     if not NinjaLineages.hasSenju(player) then return end
     local stats = player:getStats()
     if not stats then return end
     local currentEndurance = stats:get(CharacterStat.ENDURANCE)
     stats:set(
         CharacterStat.ENDURANCE,
-        math.min(1.0, currentEndurance + consts.Senju.Passive.ENDURANCE_PER_MINUTE)
+        math.min(
+            1.0,
+            currentEndurance
+                + (consts.Senju.Passive.ENDURANCE_PER_MINUTE * (elapsedMinutes or 1))
+        )
     )
 end)

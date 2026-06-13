@@ -22,24 +22,24 @@ NinjaLineages.Balance.ChakraCostStepTier = {
 
 NinjaLineages.Balance.CooldownTier = {
     NONE = 0,
-    DASH = 5,
-    QUICK = 15,
-    SHORT = 30,
-    STANDARD = 60,
-    LONG = 120,
-    VERY_LONG = 300,
+    DASH = 2,
+    QUICK = 6,
+    SHORT = 12,
+    STANDARD = 24,
+    LONG = 48,
+    VERY_LONG = 120,
 }
 
 NinjaLineages.Balance.DurationTier = {
     INSTANT = 0,
-    RAPID_TICK_MS = 250,
-    BURST_MS = 500,
-    BRIEF_MS = 3500,
-    SHORT_MS = 8000,
-    COMBAT_MS = 10000,
-    STANDARD_MS = 15000,
-    LONG_MS = 30000,
-    VERY_LONG_MS = 60000,
+    RAPID_TICK = 0.1,
+    BURST = 0.2,
+    BRIEF = 1.4,
+    SHORT = 3.2,
+    COMBAT = 4,
+    STANDARD = 6,
+    LONG = 12,
+    VERY_LONG = 24,
 }
 
 NinjaLineages.Balance.RadiusTier = {
@@ -63,10 +63,10 @@ NinjaLineages.Balance.SustainedDrainTier = {
 }
 
 NinjaLineages.Balance.ChannelDrainTier = {
-    LOW = 1.0,
-    STANDARD = 2.0,
-    HIGH = 3.0,
-    EXTREME = 5.0,
+    LOW = 2.5,
+    STANDARD = 5.0,
+    HIGH = 7.5,
+    EXTREME = 12.5,
 }
 
 NinjaLineages.Balance.DamageTier = {
@@ -116,7 +116,7 @@ NinjaLineages.Balance.Progression = {
         KILL = 2,
         CHAKRA_RATIO = 0.25,
         CHAKRA_DAILY_CAP = 30,
-        MEDITATION_INTERVAL_SECONDS = 10,
+        MEDITATION_INTERVAL_MINUTES = 4,
         MEDITATION_REWARD = 1,
         MEDITATION_DAILY_CAP = 30,
     },
@@ -153,7 +153,7 @@ NinjaLineages.Balance.MasteryTier = {
 }
 
 NinjaLineages.Balance.Meditation = {
-    CHAKRA_CONTROL_TICK_MS = 5000,
+    CHAKRA_CONTROL_TICK_MINUTES = 2,
     CHAKRA_CONTROL_TICK_XP = 1.5,
     CHAKRA_CONTROL_COMPLETION_XP = 10.0,
     ACTION_TICKS = 3000,

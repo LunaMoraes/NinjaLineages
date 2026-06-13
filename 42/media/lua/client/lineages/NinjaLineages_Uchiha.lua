@@ -96,27 +96,7 @@ local function applyKamuiVisionItem(player)
     end
 end
 
-local function recoverKamuiVision(player)
-    local data = NinjaLineages.getNLData(player)
-    local level = data.kamuiVisionLevel or 0
-    if level <= 0 then
-        data.kamuiVisionLevel = 0
-        data.kamuiVisionRecoverAt = nil
-        applyKamuiVisionItem(player)
-        return
-    end
-
-    local now = NinjaLineages.Utils.Time.worldAgeHours()
-    if data.kamuiVisionRecoverAt and now >= data.kamuiVisionRecoverAt then
-        level = math.max(0, level - 1)
-        data.kamuiVisionLevel = level
-        if level > 0 then
-            data.kamuiVisionRecoverAt = now + consts.Uchiha.Vision.RECOVERY_HOURS[level]
-        else
-            data.kamuiVisionRecoverAt = nil
-        end
-        NinjaLineages.transmitPlayerData(player)
-    end
+local function updateKamuiVisionPresentation(player)
     applyKamuiVisionItem(player)
 end
 
@@ -164,12 +144,12 @@ end
 NinjaLineages.registerPlayerUpdate("uchiha.update", function(player)
     updateSharinganProgress(player)
     updateSharinganMoodle(player)
-    recoverKamuiVision(player)
+    updateKamuiVisionPresentation(player)
 end)
 
 
 NinjaLineages.registerCreatePlayer("uchiha.init", function(player)
-    recoverKamuiVision(player)
+    updateKamuiVisionPresentation(player)
     updateSharinganMoodle(player)
 end)
 

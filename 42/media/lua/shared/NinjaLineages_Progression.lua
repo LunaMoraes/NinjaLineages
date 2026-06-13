@@ -10,19 +10,13 @@ local Progression = NinjaLineages.Progression
 local Balance = NinjaLineages.Balance
 local Trees = NinjaLineages.TreeDefinitions
 
-Progression.SCHEMA_VERSION = 2
-
 local function getState(player)
     local data = NinjaLineages.getNLData(player)
     data.progression = data.progression or {}
     local state = data.progression
-    if state.schemaVersion ~= Progression.SCHEMA_VERSION then
-        state.schemaVersion = Progression.SCHEMA_VERSION
-        state.ninjaXP = state.ninjaXP or 0
-        state.nodes = state.nodes or {}
-        state.dailyXP = state.dailyXP or {}
-        state.training = nil
-    end
+    state.ninjaXP = state.ninjaXP or 0
+    state.nodes = state.nodes or {}
+    state.dailyXP = state.dailyXP or {}
     return state
 end
 
@@ -41,8 +35,8 @@ function Progression.setNinjaXP(player, amount)
 end
 
 local function currentDay()
-    local hours = NinjaLineages.Utils and NinjaLineages.Utils.Time.worldAgeHours() or 0
-    return math.floor(hours / 24)
+    local minutes = NinjaLineages.Utils and NinjaLineages.Utils.Time.gameMinutes() or 0
+    return math.floor(minutes / (24 * 60))
 end
 
 local function resetDailyIfNeeded(state)

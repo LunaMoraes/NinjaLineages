@@ -25,6 +25,7 @@ require "client/lineages/NinjaLineages_Uzumaki"
 NinjaLineages.JutsuCatalog.registerSelectableAbilities()
 
 local consts = NinjaLineages.Constants
+local lastMinuteUpdateAt = {}
 
 -- Ability selection logic
 local function getAvailableAbilities(player)
@@ -46,7 +47,6 @@ local function getAvailableAbilities(player)
 end
 
 local function getSelectedAbility(player, abilities)
-    NinjaLineages.JutsuCatalog.migratePlayerData(player)
     local data = NinjaLineages.getNLData(player)
     for _, ability in ipairs(abilities) do
         if data.selectedAbilityId == ability.id
@@ -298,13 +298,8 @@ local function onPlayerUpdate(player)
     if not player then return end
     if not player:isLocalPlayer() then return end
 
-    if player:getPlayerNum() == 0 then
-        NinjaLineages.Utils.Time.advanceGameplayClock(player)
-    end
-
     runListeners(NinjaLineages.PlayerUpdates, "PlayerUpdate", player)
 
-    NinjaLineages.HandSigns.update(player)
     NinjaLineages.AbilityAuthority.updatePending()
     if not (isClient and isClient()) then
         NinjaLineages.AbilityAuthority.updatePlayer(player)
@@ -327,9 +322,12 @@ local function onPlayerGetDamage(player, damageType, damage)
     runListeners(NinjaLineages.PlayerGetDamageListeners, "PlayerGetDamage", player, damageType, damage)
 end
 
-local function everyOneMinute()
-    local player = getPlayer()
+local function updatePlayerMinute(player)
     if not player or player:isDead() then return end
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    local elapsed = math.max(0, now - (lastMinuteUpdateAt[player] or (now - 1)))
+    lastMinuteUpdateAt[player] = now
+    if elapsed <= 0 then return end
 
     local maxChakra = NinjaLineages.Chakra.getMaxChakra(player)
     local currentChakra = NinjaLineages.Chakra.getChakra(player)
@@ -346,7 +344,20 @@ local function everyOneMinute()
         NinjaLineages.Moodles.setValue("NLChakra", player, 0.5) -- Hidden
     end
 
-    runListeners(NinjaLineages.EveryMinuteListeners, "EveryMinute", player)
+    runListeners(NinjaLineages.EveryMinuteListeners, "EveryMinute", player, elapsed)
+end
+
+local function everyOneMinute()
+    if not (isClient and isClient()) then
+        NinjaLineages.AbilityAuthority.updateAlarmSeals()
+    end
+    if getNumActivePlayers and getSpecificPlayer then
+        for playerIndex = 0, getNumActivePlayers() - 1 do
+            updatePlayerMinute(getSpecificPlayer(playerIndex))
+        end
+    else
+        updatePlayerMinute(getPlayer())
+    end
 end
 
 local function initKeybinds()

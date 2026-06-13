@@ -10,7 +10,6 @@ NinjaLineages.RinneganMechanics = NinjaLineages.RinneganMechanics or {}
 local mechanics = NinjaLineages.RinneganMechanics
 local consts = NinjaLineages.Constants
 local activePushes = {}
-local nextPushUpdateAt = 0
 
 function mechanics.getRadius()
     return NinjaLineages.JutsuCatalog.resolveBalance("shinra_tensei").radius
@@ -193,11 +192,8 @@ end
 
 function mechanics.update()
     if #activePushes == 0 then return end
-    local now = NinjaLineages.Utils.Time.nowMs()
-    if now < nextPushUpdateAt then return end
-    nextPushUpdateAt = now + consts.Rinnegan.ShinraTensei.PUSH_UPDATE_INTERVAL_MS
-
-    local duration = consts.Rinnegan.ShinraTensei.PULSE_DURATION_MS
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    local duration = consts.Rinnegan.ShinraTensei.PUSH_DURATION_MINUTES
     local radius = mechanics.getRadius()
 
     for i = #activePushes, 1, -1 do
@@ -235,7 +231,7 @@ function mechanics.execute(player)
     if not valid then return false, reason, remaining end
 
     NinjaLineages.Chakra.spendChakra(player, cost)
-    local startedAt = NinjaLineages.Utils.Time.nowMs()
+    local startedAt = NinjaLineages.Utils.Time.gameMinutes()
     for _, target in ipairs(targets) do
         beginPush(player, target, startedAt)
     end

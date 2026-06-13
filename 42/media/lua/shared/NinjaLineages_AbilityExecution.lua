@@ -10,10 +10,9 @@ local Authority = NinjaLineages.AbilityAuthority
 local Balance = NinjaLineages.Balance
 local Catalog = NinjaLineages.JutsuCatalog
 local active = {}
-local alarmSeals = {}
 local boundZombies = {}
-local nextAlarmScanAt = 0
 local specializedExecutors = {}
+local ALARM_DATA_KEY = "NinjaLineagesAlarmSeals"
 
 local function cooldownKey(definition)
     return Catalog.getCooldownKey(definition)
@@ -95,7 +94,7 @@ local function executeGenericEffect(player, definition, resolved)
                 NinjaLineages.Skills.getJutsuProwessLevel(player)
             )
         end
-        data[effect.stateField] = NinjaLineages.Utils.Time.cooldownNowMs() + duration
+        data[effect.stateField] = NinjaLineages.Utils.Time.gameMinutes() + duration
     elseif effect.kind == "world_sound" or effect.kind == "sound_timed_state" then
         local x, y = player:getX(), player:getY()
         if effect.projected or effect.kind == "sound_timed_state" then
@@ -108,7 +107,7 @@ local function executeGenericEffect(player, definition, resolved)
             if square and not square:isOutside() then
                 duration = duration + (resolved.indoorBonusDuration or 0)
             end
-            data[effect.stateField] = NinjaLineages.Utils.Time.cooldownNowMs() + duration
+            data[effect.stateField] = NinjaLineages.Utils.Time.gameMinutes() + duration
         end
     elseif effect.kind == "area_control" then
         for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, resolved.radius)) do
@@ -206,7 +205,7 @@ specializedExecutors.binding_roots = function(player, definition)
             ),
             position = "FRONT",
         })
-        boundZombies[target.zombie] = NinjaLineages.Utils.Time.cooldownNowMs()
+        boundZombies[target.zombie] = NinjaLineages.Utils.Time.gameMinutes()
             + resolved.duration
     end
     commit(player, definition, resolved, cost)
@@ -219,7 +218,9 @@ specializedExecutors.creation_rebirth = function(player, definition)
     if NinjaLineages.Chakra.getChakra(player) <= 0 then return false, "chakra" end
     local resolved = Catalog.resolveBalance(definition)
     active[player] = active[player] or {}
-    active[player].creationRebirthUntil = NinjaLineages.Utils.Time.cooldownNowMs() + resolved.duration
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    active[player].creationRebirthUntil = now + resolved.duration
+    active[player].nextRebirthTick = now
     return true
 end
 
@@ -249,8 +250,8 @@ local function applyKamuiVisionPenalty(player)
     local data = NinjaLineages.getNLData(player)
     local level = math.min(3, (data.kamuiVisionLevel or 0) + 1)
     data.kamuiVisionLevel = level
-    data.kamuiVisionRecoverAt = NinjaLineages.Utils.Time.worldAgeHours()
-        + NinjaLineages.Constants.Uchiha.Vision.RECOVERY_HOURS[level]
+    data.kamuiVisionRecoverAt = NinjaLineages.Utils.Time.gameMinutes()
+        + NinjaLineages.Constants.Uchiha.Vision.RECOVERY_MINUTES[level]
     NinjaLineages.transmitPlayerData(player)
 end
 
@@ -282,8 +283,9 @@ specializedExecutors.kamui = function(player, definition)
     if NinjaLineages.Chakra.getChakra(player) < resolved.minimumChakra then
         return false, "chakra"
     end
-    active[player].kamuiUntil = NinjaLineages.Utils.Time.cooldownNowMs() + resolved.duration
-    active[player].lastTick = NinjaLineages.Utils.Time.cooldownNowMs()
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    active[player].kamuiUntil = now + resolved.duration
+    active[player].lastUpdateAt = now
     local okGhost, wasGhost = pcall(function() return player:isGhostMode() end)
     local okGod, wasGod = pcall(function() return player:isGodMod() end)
     local okNoClip, wasNoClip = pcall(function() return player:isNoClip() end)
@@ -325,6 +327,21 @@ local function getScrollInventory(scroll)
     return ok and inventory or nil
 end
 
+local function validateNode(player, nodeId)
+    if not NinjaLineages.Progression.isCompleted(player, nodeId) then
+        return false, "not_learned"
+    end
+    return true
+end
+
+local function alarmRecords()
+    return ModData.getOrCreate(ALARM_DATA_KEY)
+end
+
+local function alarmKey(x, y, z)
+    return tostring(x) .. "," .. tostring(y) .. "," .. tostring(z)
+end
+
 Authority.register("alarm_seal", function(player, args)
     local learned, reason = validateNode(player, "alarm_seal")
     if not learned then return false, reason end
@@ -340,15 +357,14 @@ Authority.register("alarm_seal", function(player, args)
     local cost = Balance.getCost("BASIC")
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then return false, "chakra" end
 
-    local modData = square:getModData()
-    modData.NinjaLineages = modData.NinjaLineages or {}
-    if modData.NinjaLineages.alarmSeal then return false, "invalid_target" end
-    modData.NinjaLineages.alarmSeal = {
+    local records = alarmRecords()
+    local key = alarmKey(square:getX(), square:getY(), square:getZ())
+    if records[key] then return false, "invalid_target" end
+    records[key] = {
         owner = player:getUsername() or "",
         x = square:getX(), y = square:getY(), z = square:getZ(),
     }
-    if square.transmitModData then square:transmitModData() end
-    alarmSeals[tostring(x) .. "," .. tostring(y) .. "," .. tostring(z)] = square
+    if ModData.transmit then ModData.transmit(ALARM_DATA_KEY) end
     NinjaLineages.Utils.Inventory.consumeInventoryItem(player, seal)
     NinjaLineages.Chakra.spendChakra(player, cost)
     return true
@@ -441,23 +457,10 @@ end
 function NinjaLineages.AbilityAuthority.updatePlayer(player)
     local state = active[player] or {}
     active[player] = state
-    local now = NinjaLineages.Utils.Time.cooldownNowMs()
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    local previousUpdateAt = state.lastUpdateAt or now
+    state.lastUpdateAt = now
     local data = NinjaLineages.getNLData(player)
-
-    if not state.nextAlarmDiscoveryAt or now >= state.nextAlarmDiscoveryAt then
-        state.nextAlarmDiscoveryAt = now + NinjaLineages.Constants.Uzumaki.AlarmSeal.DISCOVERY_MS
-        local radius = NinjaLineages.Constants.Uzumaki.AlarmSeal.DISCOVERY_RADIUS
-        local z = math.floor(player:getZ())
-        for x = math.floor(player:getX() - radius), math.floor(player:getX() + radius) do
-            for y = math.floor(player:getY() - radius), math.floor(player:getY() + radius) do
-                local square = getCell():getGridSquare(x, y, z)
-                local squareData = square and square:getModData()
-                if squareData and squareData.NinjaLineages and squareData.NinjaLineages.alarmSeal then
-                    alarmSeals[tostring(x) .. "," .. tostring(y) .. "," .. tostring(z)] = square
-                end
-            end
-        end
-    end
 
     local function syncTrait(endField, addedField, trait)
         if data[endField] and now < data[endField] then
@@ -495,13 +498,19 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
         data.veilAddedInconspicuous = nil
     end
 
-    if data.reinforcementEndTime and now < data.reinforcementEndTime then
+    if data.reinforcementEndTime then
         local stats = player:getStats()
-        local recovery = Balance.getMastery("GENIN") * NinjaLineages.Constants.Chakra.BASE_REGEN_PCT_PER_MINUTE
+        local reinforcement = Catalog.resolveBalance("physical_reinforcement")
+        local reinforcementElapsed = math.max(
+            0,
+            math.min(now, data.reinforcementEndTime) - previousUpdateAt
+        )
+        local recovery = (reinforcement.recovery or 0)
+            * NinjaLineages.Constants.Chakra.BASE_REGEN_PCT_PER_MINUTE
+            * reinforcementElapsed
         stats:set(CharacterStat.FATIGUE, math.max(0, stats:get(CharacterStat.FATIGUE) - recovery))
         stats:set(CharacterStat.ENDURANCE, math.min(1, stats:get(CharacterStat.ENDURANCE) + recovery))
-    elseif data.reinforcementEndTime then
-        data.reinforcementEndTime = nil
+        if now >= data.reinforcementEndTime then data.reinforcementEndTime = nil end
     end
 
     if data.bleedingSuppressionEndTime and now < data.bleedingSuppressionEndTime then
@@ -518,11 +527,13 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
     end
 
     if state.kamuiUntil then
-        local delta = math.max(0, (now - (state.lastTick or now)) / 1000)
-        state.lastTick = now
         local chakra = NinjaLineages.Chakra.getChakra(player)
         local kamui = Catalog.resolveBalance("kamui")
-        chakra = math.max(0, chakra - kamui.channelDrain * delta)
+        local kamuiElapsed = math.max(
+            0,
+            math.min(now, state.kamuiUntil) - previousUpdateAt
+        )
+        chakra = math.max(0, chakra - kamui.channelDrain * kamuiElapsed)
         NinjaLineages.Chakra.setChakra(player, chakra)
         if now >= state.kamuiUntil or chakra <= 0 then
             state.kamuiUntil = nil
@@ -534,11 +545,11 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
     end
 
     if state.creationRebirthUntil then
-        if now >= state.creationRebirthUntil then
-            state.creationRebirthUntil = nil
-        elseif not state.nextRebirthTick or now >= state.nextRebirthTick then
-            local rebirth = Catalog.resolveBalance("creation_rebirth")
-            state.nextRebirthTick = now + rebirth.tickInterval
+        local rebirth = Catalog.resolveBalance("creation_rebirth")
+        local processUntil = math.min(now, state.creationRebirthUntil)
+        while state.nextRebirthTick
+                and state.nextRebirthTick <= processUntil
+                and state.nextRebirthTick < state.creationRebirthUntil do
             local parts = player:getBodyDamage():getBodyParts()
             local step = rebirth.costStep
             for i = 0, parts:size() - 1 do
@@ -553,14 +564,32 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
                     if changed then NinjaLineages.Chakra.spendChakra(player, step) end
                 end
             end
+            state.nextRebirthTick = state.nextRebirthTick + rebirth.tickInterval
         end
+        if now >= state.creationRebirthUntil then
+            state.creationRebirthUntil = nil
+            state.nextRebirthTick = nil
+        end
+    end
+
+    local visionLevel = data.kamuiVisionLevel or 0
+    while visionLevel > 0
+            and data.kamuiVisionRecoverAt
+            and now >= data.kamuiVisionRecoverAt do
+        visionLevel = visionLevel - 1
+        data.kamuiVisionLevel = visionLevel
+        if visionLevel > 0 then
+            data.kamuiVisionRecoverAt = data.kamuiVisionRecoverAt
+                + NinjaLineages.Constants.Uchiha.Vision.RECOVERY_MINUTES[visionLevel]
+        else
+            data.kamuiVisionRecoverAt = nil
+        end
+        NinjaLineages.transmitPlayerData(player)
     end
 end
 
 function NinjaLineages.AbilityAuthority.updateWorld()
-    local zombies = getCell() and getCell():getZombieList()
-    if not zombies then return end
-    local now = NinjaLineages.Utils.Time.cooldownNowMs()
+    local now = NinjaLineages.Utils.Time.gameMinutes()
     for zombie, bindUntil in pairs(boundZombies) do
         if not zombie or zombie:isDead() or now >= bindUntil then
             boundZombies[zombie] = nil
@@ -569,45 +598,109 @@ function NinjaLineages.AbilityAuthority.updateWorld()
             pcall(function() zombie:setStaggerBack(true) end)
         end
     end
-    local wallNow = NinjaLineages.Utils.Time.nowMs()
-    if wallNow < nextAlarmScanAt then return end
-    nextAlarmScanAt = wallNow + NinjaLineages.Constants.Uzumaki.AlarmSeal.SCAN_MS
-    for key, square in pairs(alarmSeals) do
-        local modData = square and square:getModData()
-        local seal = modData and modData.NinjaLineages and modData.NinjaLineages.alarmSeal
-        if not seal then
-            alarmSeals[key] = nil
-        else
-            for i = 0, zombies:size() - 1 do
-                local zombie = zombies:get(i)
-                local dx = zombie and zombie:getX() - (square:getX() + 0.5) or 999
-                local dy = zombie and zombie:getY() - (square:getY() + 0.5) or 999
-                local radius = NinjaLineages.Constants.Uzumaki.AlarmSeal.RADIUS
-                if zombie and not zombie:isDead() and dx * dx + dy * dy <= radius * radius then
-                    modData.NinjaLineages.alarmSeal = nil
-                    if square.transmitModData then square:transmitModData() end
-                    alarmSeals[key] = nil
-                    local players = getOnlinePlayers and getOnlinePlayers()
-                    if players then
-                        for playerIndex = 0, players:size() - 1 do
-                            local owner = players:get(playerIndex)
-                            if owner and (owner:getUsername() or "") == seal.owner then
-                                sendServerCommand(owner, "NinjaLineages", "abilityEvent", {
-                                    kind = "alarm_triggered",
-                                    casterOnlineId = owner:getOnlineID(),
-                                })
-                                break
-                            end
-                        end
-                    end
-                    break
-                end
-            end
+end
+
+function NinjaLineages.AbilityAuthority.initAlarmSeals()
+    alarmRecords()
+end
+
+local function findAlarmOwner(username)
+    local players = getOnlinePlayers and getOnlinePlayers()
+    if players then
+        for i = 0, players:size() - 1 do
+            local player = players:get(i)
+            if player and (player:getUsername() or "") == username then return player end
         end
+    end
+    if getNumActivePlayers and getSpecificPlayer then
+        for i = 0, getNumActivePlayers() - 1 do
+            local player = getSpecificPlayer(i)
+            if player and (player:getUsername() or "") == username then return player end
+        end
+    end
+    return nil
+end
+
+local function notifyAlarmOwner(username)
+    local owner = findAlarmOwner(username)
+    if not owner then return end
+    local event = {
+        kind = "alarm_triggered",
+        casterOnlineId = owner:getOnlineID(),
+    }
+    if isServer and isServer() then
+        sendServerCommand(owner, "NinjaLineages", "abilityEvent", event)
+    else
+        NinjaLineages.AbilityAuthority.handleEvent(event)
     end
 end
 
+local function squareContainsZombieInRadius(square, centerX, centerY, radiusSquared)
+    local movingObjects = square and square:getMovingObjects()
+    if not movingObjects then return false end
+    for i = 0, movingObjects:size() - 1 do
+        local object = movingObjects:get(i)
+        if object and instanceof(object, "IsoZombie") and not object:isDead() then
+            local dx = object:getX() - centerX
+            local dy = object:getY() - centerY
+            if dx * dx + dy * dy <= radiusSquared then return true end
+        end
+    end
+    return false
+end
+
+local function squareIntersectsRadius(x, y, centerX, centerY, radiusSquared)
+    local nearestX = math.max(x, math.min(centerX, x + 1))
+    local nearestY = math.max(y, math.min(centerY, y + 1))
+    local dx, dy = centerX - nearestX, centerY - nearestY
+    return dx * dx + dy * dy <= radiusSquared
+end
+
+function NinjaLineages.AbilityAuthority.updateAlarmSeals()
+    local records = alarmRecords()
+    local cell = getCell()
+    if not cell then return end
+    local radius = NinjaLineages.Constants.Uzumaki.AlarmSeal.RADIUS
+    local radiusSquared = radius * radius
+    local changed = false
+
+    for key, seal in pairs(records) do
+        local loadedSquare = cell:getGridSquare(seal.x, seal.y, seal.z)
+        if loadedSquare then
+            local centerX, centerY = seal.x + 0.5, seal.y + 0.5
+            local triggered = false
+            for x = math.floor(centerX - radius), math.floor(centerX + radius) do
+                if triggered then break end
+                for y = math.floor(centerY - radius), math.floor(centerY + radius) do
+                    if squareIntersectsRadius(x, y, centerX, centerY, radiusSquared) then
+                        local square = cell:getGridSquare(x, y, seal.z)
+                        if squareContainsZombieInRadius(square, centerX, centerY, radiusSquared) then
+                            triggered = true
+                            break
+                        end
+                    end
+                end
+            end
+            if triggered then
+                local owner = seal.owner
+                records[key] = nil
+                changed = true
+                notifyAlarmOwner(owner)
+            end
+        end
+    end
+
+    if changed and ModData.transmit then ModData.transmit(ALARM_DATA_KEY) end
+end
+
 function NinjaLineages.AbilityAuthority.everyMinute(player)
+    local state = active[player] or {}
+    active[player] = state
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    local elapsed = math.max(0, now - (state.lastResourceUpdateAt or (now - 1)))
+    state.lastResourceUpdateAt = now
+    if elapsed <= 0 then return end
+
     local data = NinjaLineages.getNLData(player)
     local maxChakra = NinjaLineages.Chakra.getMaxChakra(player)
     local chakra = NinjaLineages.Chakra.getChakra(player)
@@ -615,7 +708,7 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
     local regen = maxChakra * NinjaLineages.Constants.Chakra.BASE_REGEN_PCT_PER_MINUTE
         * NinjaLineages.Skills.getRegenMultiplier(skillLevel)
     if data.isMeditating then regen = regen * NinjaLineages.Constants.Chakra.MEDITATION_REGEN_MULTIPLIER end
-    chakra = math.min(maxChakra, chakra + regen)
+    chakra = math.min(maxChakra, chakra + (regen * elapsed))
 
     if data.eyePowerActive then
         local drain = 0
@@ -633,8 +726,12 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
         end
         drain = drain * NinjaLineages.Skills.getDrainReduction(skillLevel)
         if data.isMeditating then drain = drain * NinjaLineages.Constants.Chakra.MEDITATION_DRAIN_MULTIPLIER end
-        chakra = math.max(0, chakra - drain)
+        chakra = math.max(0, chakra - (drain * elapsed))
         if chakra <= 0 then data.eyePowerActive = false end
     end
     NinjaLineages.Chakra.setChakra(player, chakra)
+end
+
+if not (isClient and isClient()) and Events and Events.OnInitGlobalModData then
+    Events.OnInitGlobalModData.Add(NinjaLineages.AbilityAuthority.initAlarmSeals)
 end

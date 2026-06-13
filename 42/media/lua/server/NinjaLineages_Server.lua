@@ -64,5 +64,6 @@ end
 Events.OnClientCommand.Add(onClientCommand)
 Events.OnTick.Add(updateAbilities)
 Events.EveryOneMinute.Add(function()
+    NinjaLineages.AbilityAuthority.updateAlarmSeals()
     forEachOnlinePlayer(NinjaLineages.AbilityAuthority.everyMinute)
 end)

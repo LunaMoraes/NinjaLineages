@@ -83,15 +83,16 @@ local function onHitZombie(zombie, attacker, bodyPartType, weapon)
     end
 end
 
-local function everyMinute(player)
+local function everyMinute(player, elapsedMinutes)
+    local elapsed = elapsedMinutes or 1
     local stats = player:getStats()
     local strengthXP = rankValue(player, "strength")
     local fitnessXP = rankValue(player, "fitness")
     if strengthXP > 0 and player:getInventoryWeight() > player:getMaxWeight() then
-        player:getXp():AddXP(Perks.Strength, strengthXP)
+        player:getXp():AddXP(Perks.Strength, strengthXP * elapsed)
     end
     if fitnessXP > 0 and stats:get(CharacterStat.ENDURANCE) < Balance.Progression.NormalizedMaximum then
-        player:getXp():AddXP(Perks.Fitness, fitnessXP)
+        player:getXp():AddXP(Perks.Fitness, fitnessXP * elapsed)
     end
 
     local recovery = math.max(
@@ -99,6 +100,7 @@ local function everyMinute(player)
         rankValue(player, "combat_body")
     )
     if recovery > 0 then
+        recovery = recovery * elapsed
         stats:set(CharacterStat.ENDURANCE, math.min(
             Balance.Progression.NormalizedMaximum,
             stats:get(CharacterStat.ENDURANCE) + recovery
@@ -108,6 +110,7 @@ local function everyMinute(player)
 
     local painReduction = rankValue(player, "combat_body")
     if painReduction > 0 then
+        painReduction = painReduction * elapsed
         local parts = player:getBodyDamage():getBodyParts()
         for i = 0, parts:size() - 1 do
             local part = parts:get(i)

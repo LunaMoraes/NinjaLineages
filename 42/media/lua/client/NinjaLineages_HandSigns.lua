@@ -10,7 +10,6 @@ NinjaLineages.HandSigns = NinjaLineages.HandSigns or {}
 local HandSigns = NinjaLineages.HandSigns
 local classicInputs = {}
 
-HandSigns.INPUT_TIMEOUT_MS = 4000
 HandSigns.EMOTE = "nl_handseal_tiger"
 
 HandSigns.Definitions = {
@@ -145,9 +144,6 @@ function HandSigns.handleClassicSign(player, signId)
     if #abilities == 0 then return false end
 
     local state = classicInputs[player] or { signs = {} }
-    local now = NinjaLineages.Utils.Time.nowMs()
-    if state.lastAt and now - state.lastAt > HandSigns.INPUT_TIMEOUT_MS then state.signs = {} end
-    state.lastAt = now
     table.insert(state.signs, signId)
     playSign(player, signId)
     HandSigns.playSeal(player)
@@ -156,7 +152,7 @@ function HandSigns.handleClassicSign(player, signId)
         if sequenceEquals(state.signs, ability.handSigns) then
             state.signs = {}
             classicInputs[player] = state
-            NinjaLineages.AbilityAuthority.request(player, ability.id, {})
+            NinjaLineages.AbilityAuthority.request(player, ability.id, {}, { skipSeal = true })
             return true
         end
     end
@@ -170,13 +166,4 @@ function HandSigns.handleKey(player, key)
     local signId = HandSigns.KeyMap[key]
     if not signId then return false end
     return HandSigns.handleClassicSign(player, signId)
-end
-
-function HandSigns.update(player)
-    local input = classicInputs[player]
-    local now = NinjaLineages.Utils.Time.nowMs()
-    if input and input.lastAt and now - input.lastAt > HandSigns.INPUT_TIMEOUT_MS then
-        input.signs = {}
-        input.lastAt = nil
-    end
 end

@@ -72,7 +72,7 @@
     "UI_NL_Error_NotEnoughChakra_PlaceAlarmSeal": "Not enough chakra to place Alarm Seal",
     "UI_NL_Error_NotEnoughChakra_StorageSeal": "Not enough chakra for Storage Seal",
     "UI_NL_Error_LineageRequired": "%1 is required",
-    "UI_NL_Error_AbilityOnCooldown": "%1 cooldown: %2s",
+    "UI_NL_Error_AbilityOnCooldown": "%1 cooldown: %2 game min",
     "UI_NL_Error_AbilityRequestTimedOut": "The server did not confirm the technique.",
     "UI_NL_Ability_Selected": "%1 selected",
     "UI_NL_HandSigns_NoSigns": "No hand signs required",

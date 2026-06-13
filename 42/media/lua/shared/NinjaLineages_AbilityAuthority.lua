@@ -39,14 +39,14 @@ function Authority.isPending(player, actionId)
     local key = pendingKey(player, actionId)
     local pending = Authority.pending[key]
     if not pending then return false end
-    if NinjaLineages.Utils.Time.nowMs() - pending.startedAt >= Authority.REQUEST_TIMEOUT_MS then
+    if NinjaLineages.Utils.Time.realMilliseconds() - pending.startedAt >= Authority.REQUEST_TIMEOUT_MS then
         Authority.pending[key] = nil
         return false
     end
     return true
 end
 
-function Authority.request(player, actionId, args)
+function Authority.request(player, actionId, args, presentation)
     if not player or not actionId or Authority.isPending(player, actionId) then return false end
 
     Authority.nextRequestId = Authority.nextRequestId + 1
@@ -55,8 +55,9 @@ function Authority.request(player, actionId, args)
     Authority.pending[key] = {
         requestId = requestId,
         actionId = actionId,
-        startedAt = NinjaLineages.Utils.Time.nowMs(),
+        startedAt = NinjaLineages.Utils.Time.realMilliseconds(),
         player = player,
+        skipSeal = presentation and presentation.skipSeal == true,
     }
 
     if isClient and isClient() then
@@ -78,7 +79,7 @@ function Authority.request(player, actionId, args)
 end
 
 function Authority.updatePending()
-    local now = NinjaLineages.Utils.Time.nowMs()
+    local now = NinjaLineages.Utils.Time.realMilliseconds()
     for key, pending in pairs(Authority.pending) do
         if now - pending.startedAt >= Authority.REQUEST_TIMEOUT_MS then
             Authority.pending[key] = nil
@@ -116,7 +117,7 @@ function Authority.execute(player, requestId, actionId, args)
         result.reason = "duplicate"
         return result
     end
-    Authority.seenRequests[seenKey] = NinjaLineages.Utils.Time.nowMs()
+    Authority.seenRequests[seenKey] = NinjaLineages.Utils.Time.realMilliseconds()
 
     local handler = Authority.handlers[actionId]
     if not handler then
@@ -208,7 +209,9 @@ function Authority.handleResult(result)
                 if message ~= messageKey then player:Say(message) end
             end
         end
-        if NinjaLineages.HandSigns and result.actionId ~= "storage_unseal" then
+        if NinjaLineages.HandSigns
+                and result.actionId ~= "storage_unseal"
+                and not (pending and pending.skipSeal) then
             NinjaLineages.HandSigns.playSeal(player)
         end
     elseif result.reason == "cooldown" then
@@ -223,7 +226,7 @@ function Authority.handleResult(result)
 end
 
 function Authority.pruneSeenRequests()
-    local now = NinjaLineages.Utils.Time.nowMs()
+    local now = NinjaLineages.Utils.Time.realMilliseconds()
     if now - Authority.lastSeenPruneAt < 60000 then return end
     Authority.lastSeenPruneAt = now
     for key, seenAt in pairs(Authority.seenRequests) do

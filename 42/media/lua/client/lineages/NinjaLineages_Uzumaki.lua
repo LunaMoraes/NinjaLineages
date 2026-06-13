@@ -12,9 +12,6 @@ NinjaLineages.Uzumaki = NinjaLineages.Uzumaki or {}
 local consts = NinjaLineages.Constants
 
 local uzumakiHealthState = {}
-local alarmSeals = {}
-local nextAlarmScanAt = 0
-local nextAlarmDiscoveryAt = 0
 
 local function getBodyPartSnapshot(player)
     local snapshot = {}
@@ -38,7 +35,7 @@ local function captureUzumakiHealthState(player)
     local data = uzumakiHealthState[player] or {}
     pcall(function() data.generalHealth = bodyDamage:getHealth() end)
     data.parts = getBodyPartSnapshot(player)
-    data.lastPassiveAt = NinjaLineages.Utils.Time.nowGameMs(player)
+    data.lastPassiveAt = NinjaLineages.Utils.Time.gameMinutes()
     uzumakiHealthState[player] = data
 end
 
@@ -67,13 +64,13 @@ local function applyUzumakiBleedSlow(player)
         return
     end
 
-    local nowMs = NinjaLineages.Utils.Time.nowGameMs(player)
+    local now = NinjaLineages.Utils.Time.gameMinutes()
     local data = uzumakiHealthState[player]
     if not data then
         captureUzumakiHealthState(player)
         return
     end
-    if data.lastPassiveAt and nowMs < data.lastPassiveAt + consts.Uzumaki.Passive.TICK_MS then return end
+    if data.lastPassiveAt and now < data.lastPassiveAt + consts.Uzumaki.Passive.TICK_MINUTES then return end
 
     local bodyDamage = player:getBodyDamage()
     local parts = bodyDamage and bodyDamage:getBodyParts()
@@ -100,46 +97,6 @@ local function getActualInventoryItem(item)
     return item
 end
 
-local function getSquareKey(square)
-    if not square then return nil end
-    return tostring(square:getX()) .. "," .. tostring(square:getY()) .. "," .. tostring(square:getZ())
-end
-
-local function transmitSquareModData(square)
-    if not square then return end
-    if square.transmitModData then
-        pcall(function() square:transmitModData() end)
-    elseif square.transmitModdata then
-        pcall(function() square:transmitModdata() end)
-    end
-end
-
-local function registerAlarmSeal(square, player)
-    if not square then return end
-    local owner = ""
-    pcall(function() owner = player and player:getUsername() or "" end)
-    local modData = square:getModData()
-    modData.NinjaLineages = modData.NinjaLineages or {}
-    modData.NinjaLineages.alarmSeal = {
-        owner = owner,
-        x = square:getX(),
-        y = square:getY(),
-        z = square:getZ(),
-    }
-    transmitSquareModData(square)
-    alarmSeals[getSquareKey(square)] = square
-end
-
-local function removeAlarmSeal(square)
-    if not square then return end
-    local modData = square:getModData()
-    if modData.NinjaLineages then
-        modData.NinjaLineages.alarmSeal = nil
-    end
-    transmitSquareModData(square)
-    alarmSeals[getSquareKey(square)] = nil
-end
-
 local function placeAlarmSeal(player, square)
     if not square then square = player:getSquare() end
     if not square then return false end
@@ -148,65 +105,6 @@ local function placeAlarmSeal(player, square)
         y = square:getY(),
         z = square:getZ(),
     })
-end
-
-local function discoverAlarmSealsNearPlayer(player)
-    if not player or not player:getSquare() then return end
-    local cell = getCell()
-    if not cell then return end
-    local px = player:getX()
-    local py = player:getY()
-    local z = player:getZ()
-    local radius = consts.Uzumaki.AlarmSeal.DISCOVERY_RADIUS
-    for x = math.floor(px - radius), math.floor(px + radius) do
-        for y = math.floor(py - radius), math.floor(py + radius) do
-            local square = cell:getGridSquare(x, y, z)
-            local modData = square and square:getModData()
-            if modData and modData.NinjaLineages and modData.NinjaLineages.alarmSeal then
-                alarmSeals[getSquareKey(square)] = square
-            end
-        end
-    end
-end
-
-local function triggerAlarmSeal(player, square)
-    local alarmData = square:getModData().NinjaLineages
-        and square:getModData().NinjaLineages.alarmSeal
-    local username = ""
-    pcall(function() username = player:getUsername() or "" end)
-    if alarmData and alarmData.owner ~= "" and alarmData.owner ~= username then return end
-    removeAlarmSeal(square)
-    if player and not player:isDead() then
-        player:Say(getText("UI_NL_Ability_AlarmSeal_Triggered"))
-    end
-end
-
-local function updateAlarmSeals(player)
-    local nowMs = NinjaLineages.Utils.Time.nowGameMs(player)
-    if nowMs >= nextAlarmDiscoveryAt then
-        nextAlarmDiscoveryAt = nowMs + consts.Uzumaki.AlarmSeal.DISCOVERY_MS
-        discoverAlarmSealsNearPlayer(player)
-    end
-    if nowMs < nextAlarmScanAt then return end
-    nextAlarmScanAt = nowMs + consts.Uzumaki.AlarmSeal.SCAN_MS
-
-    local zombies = getCell() and getCell():getZombieList()
-    if not zombies then return end
-    for key, square in pairs(alarmSeals) do
-        if not square then
-            alarmSeals[key] = nil
-        else
-            for i = 0, zombies:size() - 1 do
-                local zombie = zombies:get(i)
-                local dx = zombie and (zombie:getX() - (square:getX() + 0.5)) or 999
-                local dy = zombie and (zombie:getY() - (square:getY() + 0.5)) or 999
-                if zombie and not zombie:isDead() and ((dx * dx) + (dy * dy)) <= (consts.Uzumaki.AlarmSeal.RADIUS * consts.Uzumaki.AlarmSeal.RADIUS) then
-                    triggerAlarmSeal(player, square)
-                    break
-                end
-            end
-        end
-    end
 end
 
 -- Storage Seal logic

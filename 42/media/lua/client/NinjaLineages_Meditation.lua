@@ -19,29 +19,32 @@ function NLMeditationAction:start()
     if not self.character:isSitOnGround() then
         self.character:reportEvent("EventSitOnGround")
     end
-    self.lastXpTick = NinjaLineages.Utils.Time.nowGameMs(self.character)
+    self.lastXpTick = NinjaLineages.Utils.Time.gameMinutes()
     self.lastNinjaXpTick = self.lastXpTick
     self.character:Say(getText("UI_NL_Meditating"))
 end
 
 function NLMeditationAction:update()
-    local current = NinjaLineages.Utils.Time.nowGameMs(self.character)
+    local current = NinjaLineages.Utils.Time.gameMinutes()
     if not self.lastXpTick then self.lastXpTick = current end
-    if current - self.lastXpTick >= NinjaLineages.Balance.Meditation.CHAKRA_CONTROL_TICK_MS then
-        self.lastXpTick = current
+    local chakraInterval = NinjaLineages.Balance.Meditation.CHAKRA_CONTROL_TICK_MINUTES
+    local chakraTicks = math.floor((current - self.lastXpTick) / chakraInterval)
+    if chakraTicks > 0 then
+        self.lastXpTick = self.lastXpTick + (chakraTicks * chakraInterval)
         require "NinjaLineages_Skills"
         NinjaLineages.Skills.addChakraControlXP(
             self.character,
-            NinjaLineages.Balance.Meditation.CHAKRA_CONTROL_TICK_XP
+            chakraTicks * NinjaLineages.Balance.Meditation.CHAKRA_CONTROL_TICK_XP
         )
     end
-    local interval = NinjaLineages.Balance.Progression.NinjaXP.MEDITATION_INTERVAL_SECONDS * 1000
-    if current - self.lastNinjaXpTick >= interval then
-        self.lastNinjaXpTick = current
+    local interval = NinjaLineages.Balance.Progression.NinjaXP.MEDITATION_INTERVAL_MINUTES
+    local ninjaXpTicks = math.floor((current - self.lastNinjaXpTick) / interval)
+    if ninjaXpTicks > 0 then
+        self.lastNinjaXpTick = self.lastNinjaXpTick + (ninjaXpTicks * interval)
         NinjaLineages.Progression.awardXP(
             self.character,
             "meditation",
-            NinjaLineages.Balance.Progression.NinjaXP.MEDITATION_REWARD
+            ninjaXpTicks * NinjaLineages.Balance.Progression.NinjaXP.MEDITATION_REWARD
         )
     end
 end

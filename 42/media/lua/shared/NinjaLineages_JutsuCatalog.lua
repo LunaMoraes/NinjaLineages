@@ -76,7 +76,7 @@ Catalog.Definitions = {
         category = "common",
         node = { discipline = "genjutsu", rank = "GENIN", order = 10 },
         handSigns = { "rat", "snake", "hare" },
-        balance = { cost = "BASIC", cooldown = "STANDARD", duration = "STANDARD_MS" },
+        balance = { cost = "BASIC", cooldown = "STANDARD", duration = "STANDARD" },
         effect = { kind = "timed_state", stateField = "quietStepEndTime", durationScale = true },
     },
     {
@@ -97,7 +97,7 @@ Catalog.Definitions = {
         handSigns = { "snake", "rat", "tiger" },
         balance = {
             cost = "STANDARD", cooldown = "LONG", radius = "STANDARD",
-            duration = "LONG_MS", indoorBonusDuration = "STANDARD_MS",
+            duration = "LONG", indoorBonusDuration = "STANDARD",
         },
         effect = { kind = "sound_timed_state", stateField = "veilPresenceEndTime" },
     },
@@ -125,7 +125,7 @@ Catalog.Definitions = {
         category = "common",
         node = { discipline = "ninjutsu", rank = "GENIN", order = 20 },
         handSigns = { "dog", "ox", "horse" },
-        balance = { cost = "BASIC", cooldown = "SHORT", duration = "STANDARD_MS" },
+        balance = { cost = "BASIC", cooldown = "SHORT", duration = "STANDARD" },
         effect = { kind = "timed_state", stateField = "chakraGripEndTime", durationScale = true },
     },
     {
@@ -133,7 +133,7 @@ Catalog.Definitions = {
         category = "common",
         node = { discipline = "ninjutsu", rank = "GENIN", order = 10 },
         handSigns = { "tiger", "horse", "ox" },
-        balance = { cost = "STANDARD", cooldown = "LONG", duration = "STANDARD_MS", recovery = "GENIN" },
+        balance = { cost = "STANDARD", cooldown = "LONG", duration = "STANDARD", recovery = "GENIN" },
         effect = { kind = "timed_state", stateField = "reinforcementEndTime", durationScale = true },
     },
     {
@@ -183,7 +183,7 @@ Catalog.Definitions = {
         category = "common",
         node = { discipline = "taijutsu", rank = "GENIN", order = 10 },
         handSigns = { "bird", "hare", "rat" },
-        balance = { cost = "ADVANCED", cooldown = "DASH", distance = "TOUCH", duration = "BURST_MS" },
+        balance = { cost = "ADVANCED", cooldown = "DASH", distance = "TOUCH", duration = "BURST" },
         effect = { kind = "forward_movement" },
     },
 
@@ -223,7 +223,7 @@ Catalog.Definitions = {
         category = "common",
         node = { discipline = "medical", rank = "GENIN", order = 20 },
         handSigns = { "boar", "ram", "tiger" },
-        balance = { cost = "STANDARD", cooldown = "LONG", healing = "MODERATE", duration = "LONG_MS" },
+        balance = { cost = "STANDARD", cooldown = "LONG", healing = "MODERATE", duration = "LONG" },
         effect = { kind = "cell_stimulation" },
     },
     {
@@ -273,7 +273,7 @@ Catalog.Definitions = {
             prerequisites = { "nervous_system_shock", "field_surgery" },
         },
         handSigns = { "ram", "boar", "dragon" },
-        balance = { cost = "MAJOR", cooldown = "VERY_LONG", healing = "HEAVY", duration = "VERY_LONG_MS" },
+        balance = { cost = "MAJOR", cooldown = "VERY_LONG", healing = "HEAVY", duration = "VERY_LONG" },
         effect = { kind = "timed_state", stateField = "bleedingSuppressionEndTime" },
     },
 
@@ -311,7 +311,7 @@ Catalog.Definitions = {
         },
         balance = {
             cost = "FREE", cooldown = "STANDARD", channelDrain = "HIGH",
-            duration = "COMBAT_MS",
+            duration = "COMBAT",
             minimumChakra = "COMMITTED",
         },
         executor = "kamui",
@@ -340,7 +340,7 @@ Catalog.Definitions = {
         },
         requirements = { { kind = "lineage", id = "senju" } },
         balance = {
-            cost = "MAJOR", cooldown = "STANDARD", radius = "LARGE", duration = "BRIEF_MS",
+            cost = "MAJOR", cooldown = "STANDARD", radius = "LARGE", duration = "BRIEF",
             innerRadius = "MEDIUM",
             innerKnockdownChance = 65,
             outerKnockdownChance = 35,
@@ -362,8 +362,8 @@ Catalog.Definitions = {
         },
         balance = {
             costStep = "HARSH",
-            duration = "SHORT_MS",
-            tickInterval = "RAPID_TICK_MS",
+            duration = "SHORT",
+            tickInterval = "RAPID_TICK",
             healing = "CREATION_REBIRTH",
         },
         executor = "creation_rebirth",
@@ -459,31 +459,6 @@ local mechanicFields = {
 Catalog.ById = {}
 Catalog.ByNodeId = {}
 
-Catalog.LegacyAbilityIds = {
-    quietstep = "quiet_step",
-    focus = "chakra_focus",
-    grip = "chakra_grip",
-    reinforcement = "physical_reinforcement",
-    bodyflicker = "body_flicker",
-    healing = "minor_healing",
-}
-
-Catalog.LegacyCooldownKeys = {
-    ["common.reinforcement"] = "common.physical_reinforcement",
-    ["common.healing"] = "common.minor_healing",
-    ["tree.false_sound"] = "common.false_sound",
-    ["tree.veil_presence"] = "common.veil_presence",
-    ["tree.killing_intent"] = "common.killing_intent",
-    ["tree.chakra_burst"] = "common.chakra_burst",
-    ["tree.pressure_point_pulse"] = "common.pressure_point_pulse",
-    ["tree.shadow_close"] = "common.shadow_close",
-    ["tree.chakra_needle"] = "common.chakra_needle",
-    ["tree.cell_stimulation"] = "common.cell_stimulation",
-    ["tree.nervous_system_shock"] = "common.nervous_system_shock",
-    ["tree.field_surgery"] = "common.field_surgery",
-    ["tree.bleeding_suppression"] = "common.bleeding_suppression",
-}
-
 local function presentation(definition)
     local value = definition.presentation or {}
     local sourceId = definition.id
@@ -521,7 +496,7 @@ local function resolveValue(key, reference)
 end
 
 function Catalog.get(id)
-    return Catalog.ById[Catalog.LegacyAbilityIds[id] or id]
+    return Catalog.ById[id]
 end
 
 function Catalog.getByNodeId(nodeId)
@@ -574,27 +549,6 @@ function Catalog.getCooldownKey(definition)
     return definition and (definition.category .. "." .. definition.id) or nil
 end
 
-function Catalog.migratePlayerData(player)
-    if not player then return end
-    local data = NinjaLineages.getNLData(player)
-    if data.jutsuCatalogSchema == 2 then return end
-
-    data.selectedAbilityId = Catalog.LegacyAbilityIds[data.selectedAbilityId]
-        or data.selectedAbilityId
-    data.cooldowns = data.cooldowns or {}
-    for oldKey, newKey in pairs(Catalog.LegacyCooldownKeys) do
-        if data.cooldowns[oldKey] then
-            data.cooldowns[newKey] = math.max(
-                data.cooldowns[newKey] or 0,
-                data.cooldowns[oldKey]
-            )
-            data.cooldowns[oldKey] = nil
-        end
-    end
-    data.jutsuCatalogSchema = 2
-    NinjaLineages.transmitPlayerData(player)
-end
-
 local function checkLineage(player, id)
     local checks = {
         uchiha = NinjaLineages.hasSharingan,
@@ -609,7 +563,6 @@ end
 function Catalog.checkRequirements(player, definition)
     definition = type(definition) == "table" and definition or Catalog.get(definition)
     if not player or not definition then return false, "invalid_player" end
-    Catalog.migratePlayerData(player)
     if definition.node
             and NinjaLineages.Progression
             and not NinjaLineages.Progression.isCompleted(player, definition.id) then

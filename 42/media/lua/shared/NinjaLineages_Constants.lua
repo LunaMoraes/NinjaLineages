@@ -40,7 +40,7 @@ NinjaLineages.Constants.Uchiha = {
         [3] = 90,
     },
     Vision = {
-        RECOVERY_HOURS = { 1, 6, 24 },
+        RECOVERY_MINUTES = { 60, 360, 1440 },
         ITEMS = {
             "Base.NL_KamuiVision_L1",
             "Base.NL_KamuiVision_L2",
@@ -59,8 +59,8 @@ NinjaLineages.Constants.Rinnegan = {
     ShinraTensei = {
         ACTIVATION_VOICE = "NLShinraTenseiActivation",
         PUSH_STEP = 0.25,
-        PULSE_DURATION_MS = 700,
-        PUSH_UPDATE_INTERVAL_MS = 50,
+        PUSH_DURATION_MINUTES = 0.28,
+        VISUAL_DURATION_MS = 700,
         PULSE_SEGMENTS = 64,
         PULSE_THICKNESS = 2.0,
         PULSE_COLOR = {
@@ -86,13 +86,10 @@ NinjaLineages.Constants.Uzumaki = {
     Passive = {
         DAMAGE_REFUND = 0.33,
         BLEED_REFUND = 0.75,
-        TICK_MS = 1000,
+        TICK_MINUTES = 0.4,
     },
     AlarmSeal = {
         RADIUS = 2.0,
-        SCAN_MS = 500,
-        DISCOVERY_MS = 5000,
-        DISCOVERY_RADIUS = 25,
     },
     StorageSeal = {
         UNSEAL_TIME = 80,

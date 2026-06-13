@@ -16,7 +16,7 @@ local function addPulse(x, y, z)
         x = x,
         y = y,
         z = z,
-        startedAt = NinjaLineages.Utils.Time.nowMs(),
+        startedAt = NinjaLineages.Utils.Time.realMilliseconds(),
     })
 end
 NinjaLineages.Rinnegan.addPulse = addPulse
@@ -36,12 +36,12 @@ local function sayCastError(player, reason, remaining)
 end
 
 local function renderPulses()
-    local now = NinjaLineages.Utils.Time.nowMs()
+    local now = NinjaLineages.Utils.Time.realMilliseconds()
     local pulseConsts = consts.Rinnegan.ShinraTensei
 
     for i = #pulses, 1, -1 do
         local pulse = pulses[i]
-        local progress = (now - pulse.startedAt) / pulseConsts.PULSE_DURATION_MS
+        local progress = (now - pulse.startedAt) / pulseConsts.VISUAL_DURATION_MS
         if progress >= 1 then
             table.remove(pulses, i)
         elseif progress >= 0 then
