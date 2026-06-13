@@ -2,6 +2,7 @@ require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Chakra"
 require "NinjaLineages_Balance"
+require "NinjaLineages_JutsuCatalog"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.RinneganMechanics = NinjaLineages.RinneganMechanics or {}
@@ -13,7 +14,7 @@ local activePushes = {}
 local nextPushUpdateAt = 0
 
 function mechanics.getRadius()
-    return NinjaLineages.Balance.getRadius("STANDARD")
+    return NinjaLineages.JutsuCatalog.resolveBalance("shinra_tensei").radius
 end
 
 function mechanics.collectTargets(player)
@@ -43,9 +44,10 @@ function mechanics.collectTargets(player)
 end
 
 function mechanics.getCost(targetCount)
-    local baseCost = NinjaLineages.Balance.getCost("MAJOR")
-    local stepCost = NinjaLineages.Balance.getCostStep("SMALL")
-    local capCost = NinjaLineages.Balance.getCost("ULTIMATE")
+    local resolved = NinjaLineages.JutsuCatalog.resolveBalance("shinra_tensei")
+    local baseCost = resolved.cost
+    local stepCost = resolved.costStep
+    local capCost = resolved.maximumCost
     return math.min(capCost, baseCost + (targetCount * stepCost))
 end
 
@@ -70,7 +72,8 @@ end
 
 local function getKnockdownChance(distance)
     local radius = mechanics.getRadius()
-    local guaranteedRadius = consts.Rinnegan.ShinraTensei.GUARANTEED_KNOCKDOWN_RADIUS
+    local guaranteedRadius = NinjaLineages.JutsuCatalog.resolveBalance("shinra_tensei")
+        .guaranteedKnockdownRadius
     if distance <= guaranteedRadius then return 100 end
 
     local outerRange = radius - guaranteedRadius
@@ -149,7 +152,8 @@ local function applyDamage(player, state)
     end
 
     local travelRatio = math.min(1, state.maxTravel / radius)
-    local minDamage, maxDamage = NinjaLineages.Balance.getDamageRange("HEAVY")
+    local damage = NinjaLineages.JutsuCatalog.resolveBalance("shinra_tensei").damage
+    local minDamage, maxDamage = damage.min, damage.max
     local damage = minDamage + ((maxDamage - minDamage) * travelRatio)
     NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
 end
@@ -237,7 +241,7 @@ function mechanics.execute(player)
     NinjaLineages.Cooldowns.set(
         player,
         cooldownKey,
-        NinjaLineages.Balance.getCooldown("STANDARD")
+        NinjaLineages.JutsuCatalog.resolveBalance("shinra_tensei").cooldown
     )
     return true
 end

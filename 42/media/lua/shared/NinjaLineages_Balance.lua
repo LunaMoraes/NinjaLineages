@@ -146,26 +146,6 @@ NinjaLineages.Balance.Meditation = {
     ACTION_TICKS = 3000,
 }
 
-NinjaLineages.Balance.Jutsu = {
-    MINOR_HEALING = { healing = "LIGHT" },
-    PHYSICAL_REINFORCEMENT = { duration = "STANDARD_MS", recovery = "GENIN" },
-    QUIET_STEP = { duration = "STANDARD_MS" },
-    CHAKRA_FOCUS = { mastery = "JONIN" },
-    CHAKRA_GRIP = { duration = "STANDARD_MS" },
-    BODY_FLICKER = { distance = "TOUCH" },
-    FALSE_SOUND = { radius = "LARGE", duration = "INSTANT" },
-    VEIL_PRESENCE = { duration = "LONG_MS", radius = "STANDARD" },
-    KILLING_INTENT = { radius = "STANDARD", control = "CHUNIN" },
-    CHAKRA_BURST = { targeting = "NARROW", damage = "MODERATE", control = "JONIN" },
-    PRESSURE_POINT_PULSE = { targeting = "SMALL_CLUSTER", damage = "LIGHT", control = "CHUNIN" },
-    SHADOW_CLOSE = { targeting = "STANDARD", distance = "STANDARD", decoyRadius = "STANDARD" },
-    CHAKRA_NEEDLE = { targeting = "NARROW", damage = "LIGHT", control = "GENIN" },
-    CELL_STIMULATION = { healing = "MODERATE", duration = "LONG_MS" },
-    NERVOUS_SYSTEM_SHOCK = { targeting = "NARROW", damage = "LIGHT", control = "JONIN" },
-    FIELD_SURGERY = { healing = "DEVASTATING" },
-    BLEEDING_SUPPRESSION = { healing = "HEAVY", duration = "VERY_LONG_MS" },
-}
-
 NinjaLineages.Balance.TraitCostTier = {
     STANDARD_LINEAGE = 14,
     RARE_LINEAGE = 18,
@@ -231,10 +211,6 @@ function NinjaLineages.Balance.getTargeting(tier)
             and NinjaLineages.Balance.getRadius(definition.clusterRadius)
             or nil,
     }
-end
-
-function NinjaLineages.Balance.getJutsu(id)
-    return NinjaLineages.Balance.Jutsu[id]
 end
 
 function NinjaLineages.Balance.getMastery(tier)

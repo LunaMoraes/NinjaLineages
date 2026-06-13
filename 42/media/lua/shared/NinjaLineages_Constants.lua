@@ -1,4 +1,4 @@
--- Post-balance constants. Current costs/cooldowns/durations/radius/damage live in NinjaLineages_Balance.lua.
+-- Global balance tiers live in NinjaLineages_Balance.lua; per-jutsu tuning lives in NinjaLineages_JutsuCatalog.lua.
 -- This file only contains constants that define specific mechanics, identity states, or scaling formulas.
 
 NinjaLineages = NinjaLineages or {}
@@ -39,16 +39,6 @@ NinjaLineages.Constants.Uchiha = {
         [2] = 60,
         [3] = 90,
     },
-    SharinganDrainPerMinute = {
-        [1] = 8.5,
-        [2] = 12.0,
-        [3] = 16.3,
-    },
-    MangekyoDrainPerMinute = 16.3,
-    Kamui = {
-        MIN_CHAKRA_GATE = 20,
-        DURATION_MS = 10000,
-    },
     Vision = {
         RECOVERY_HOURS = { 1, 6, 24 },
         ITEMS = {
@@ -63,13 +53,11 @@ NinjaLineages.Constants.Hyuga = {
     Audio = {
         ACTIVATION_VOICE = "NLByakuganActivation",
     },
-    ByakuganDrainPerMinute = 12.0,
 }
 
 NinjaLineages.Constants.Rinnegan = {
     ShinraTensei = {
         ACTIVATION_VOICE = "NLShinraTenseiActivation",
-        GUARANTEED_KNOCKDOWN_RADIUS = 3.5,
         PUSH_STEP = 0.25,
         PULSE_DURATION_MS = 700,
         PUSH_UPDATE_INTERVAL_MS = 50,
@@ -84,13 +72,7 @@ NinjaLineages.Constants.Rinnegan = {
 }
 
 NinjaLineages.Constants.Senju = {
-    BindingRoots = {
-        INNER_RADIUS = 6.0,
-        INNER_KNOCKDOWN_CHANCE = 65,
-        OUTER_KNOCKDOWN_CHANCE = 35,
-    },
     CreationRebirth = {
-        TICK_MS = 250,
         SENJU_UNLOCK_LEVEL = 7,
         SCROLL_MIN_MAX_CHAKRA = 500,
         SCROLL_GUARANTEED_MAX_CHAKRA = 900,

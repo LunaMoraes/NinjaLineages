@@ -6,12 +6,11 @@ require "NinjaLineages_Chakra"
 require "NinjaLineages_Skills"
 require "NinjaLineages_Moodles"
 require "NinjaLineages_UI"
-require "NinjaLineages_CommonJutsu"
 require "NinjaLineages_HandSigns"
 require "NinjaLineages_AbilityExecution"
+require "NinjaLineages_JutsuCatalog"
 require "NinjaLineages_Meditation"
 require "NinjaLineages_Training"
-require "NinjaLineages_TreeAbilities"
 require "NinjaLineages_TreePassives"
 require "NinjaLineages_ChakraBandage"
 require "NinjaLineages_JutsuTreeUI"
@@ -23,6 +22,8 @@ require "client/lineages/NinjaLineages_Senju"
 require "client/lineages/NinjaLineages_Rinnegan"
 require "client/lineages/NinjaLineages_Uzumaki"
 
+NinjaLineages.JutsuCatalog.registerSelectableAbilities()
+
 local consts = NinjaLineages.Constants
 
 -- Ability selection logic
@@ -32,6 +33,7 @@ local function getAvailableAbilities(player)
             local displayName = ability.name
             if type(displayName) == "string" and displayName:sub(1, 3) == "UI_" then
                 displayName = getText(displayName)
+                if displayName == ability.name then displayName = ability.nameFallback or ability.id end
             end
             local copy = {}
             for k, v in pairs(ability) do
@@ -156,7 +158,13 @@ showCategoryRadial = function(player, disciplineId, list)
             text = text .. "\n" .. getText("UI_NL_HandSigns_ClassicDisabled")
             command = nil
         end
-        menu:addSlice(text, getTexture(ability.texture), command, player, ability)
+        menu:addSlice(
+            text,
+            getTexture(ability.texture) or getTexture(ability.fallbackTexture),
+            command,
+            player,
+            ability
+        )
     end
 
     menu:addToUIManager()
@@ -211,7 +219,7 @@ showAbilityRadial = function(player)
         if #list > 0 then
             local def = disciplines[discId]
             local discName = def and def.name and getText(def.name) or discId
-            local icon = getTexture(list[1].texture)
+            local icon = getTexture(list[1].texture) or getTexture(list[1].fallbackTexture)
             menu:addSlice(discName, icon, function(p)
                 showCategoryRadial(p, discId, list)
             end, player)
@@ -226,7 +234,13 @@ showAbilityRadial = function(player)
             text = text .. "\n" .. getText("UI_NL_HandSigns_ClassicDisabled")
             command = nil
         end
-        menu:addSlice(text, getTexture(ability.texture), command, player, ability)
+        menu:addSlice(
+            text,
+            getTexture(ability.texture) or getTexture(ability.fallbackTexture),
+            command,
+            player,
+            ability
+        )
     end
 
     menu:addToUIManager()

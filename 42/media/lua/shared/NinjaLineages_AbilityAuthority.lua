@@ -1,4 +1,5 @@
 require "NinjaLineages_Traits"
+require "NinjaLineages_JutsuCatalog"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.AbilityAuthority = NinjaLineages.AbilityAuthority or {}
@@ -137,19 +138,7 @@ function Authority.execute(player, requestId, actionId, args)
     return result
 end
 
-local successMessages = {
-    healing = "UI_NL_Ability_Healing_Cast",
-    reinforcement = "UI_NL_Ability_PhysicalReinforcement_Cast",
-    quietstep = "UI_NL_Ability_QuietStep_Cast",
-    focus = "UI_NL_Ability_ChakraFocus_Cast",
-    grip = "UI_NL_Ability_ChakraGrip_Cast",
-    bodyflicker = "UI_NL_Ability_Dash_Cast",
-    binding_roots = "UI_NL_Ability_BindingRoots_Cast",
-    creation_rebirth = "UI_NL_Ability_CreationRebirth_Cast",
-    shinra_tensei = "UI_NL_Ability_ShinraTensei_Cast",
-    sharingan = "UI_NL_Ability_Sharingan_Cast",
-    byakugan = "UI_NL_Ability_Byakugan_Cast",
-    kamui = "UI_NL_Ability_Kamui_Cast",
+local externalSuccessMessages = {
     alarm_seal = "UI_NL_Ability_AlarmSeal_Cast",
     storage_seal = "UI_NL_Ability_StorageSeal_Cast",
     storage_unseal = "UI_NL_Ability_StorageSeal_Unsealed",
@@ -166,13 +155,12 @@ local errorMessages = {
 }
 
 local function abilityDisplayName(actionId)
-    for _, ability in ipairs(NinjaLineages.Abilities or {}) do
-        if ability.id == actionId then
-            if type(ability.name) == "string" and ability.name:sub(1, 3) == "UI_" then
-                return getText(ability.name)
-            end
-            return tostring(ability.name or actionId)
-        end
+    local definition = NinjaLineages.JutsuCatalog.get(actionId)
+    if definition then
+        local ability = NinjaLineages.JutsuCatalog.toAbility(definition)
+        local translated = getText(ability.name)
+        if translated ~= ability.name then return translated end
+        return ability.nameFallback or actionId
     end
     return tostring(actionId)
 end
@@ -206,8 +194,19 @@ function Authority.handleResult(result)
         end
         if result.state and result.state.messageKey then
             player:Say(getText(result.state.messageKey))
-        elseif successMessages[result.actionId] then
-            player:Say(getText(successMessages[result.actionId]))
+        else
+            local definition = NinjaLineages.JutsuCatalog.get(result.actionId)
+            local messageKey = definition
+                and definition.presentation
+                and definition.presentation.castMessageKey
+                or externalSuccessMessages[result.actionId]
+            if not messageKey and definition then
+                messageKey = "UI_NL_Ability_" .. definition.id .. "_Cast"
+            end
+            if messageKey then
+                local message = getText(messageKey)
+                if message ~= messageKey then player:Say(message) end
+            end
         end
         if NinjaLineages.HandSigns and result.actionId ~= "storage_unseal" then
             NinjaLineages.HandSigns.playSeal(player)

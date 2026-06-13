@@ -63,32 +63,6 @@ local function renderPulses()
     end
 end
 
-local function finishLocalCast(player)
-    addPulse(player:getX(), player:getY(), math.floor(player:getZ()))
-    pcall(function()
-        player:playerVoiceSound(consts.Rinnegan.ShinraTensei.ACTIVATION_VOICE)
-    end)
-    player:Say(getText("UI_NL_Ability_ShinraTensei_Cast"))
-end
-
-local function useShinraTensei(player)
-    return NinjaLineages.AbilityAuthority.request(player, "shinra_tensei", {})
-end
-
-NinjaLineages.registerAbility({
-    id = "shinra_tensei",
-    lineage = "rinnegan",
-    name = "UI_NL_Ability_ShinraTensei_Name",
-    descriptionKey = "UI_NL_Ability_ShinraTensei_Desc",
-    texture = "media/ui/Traits/trait_rinnegan.png",
-    condition = function(player) return NinjaLineages.hasRinnegan(player) end,
-    costTier = "MAJOR",
-    cooldownTier = "STANDARD",
-    radiusTier = "STANDARD",
-    damageTier = "HEAVY",
-    action = useShinraTensei
-})
-
 NinjaLineages.registerPlayerUpdate("rinnegan.shinraTenseiPush", function()
     if not (isClient and isClient()) then
         mechanics.update()

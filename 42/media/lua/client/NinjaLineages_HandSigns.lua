@@ -2,6 +2,7 @@ require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Progression"
 require "NinjaLineages_AbilityAuthority"
+require "NinjaLineages_JutsuCatalog"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.HandSigns = NinjaLineages.HandSigns or {}
@@ -49,9 +50,8 @@ end
 
 function HandSigns.isAvailable(player, ability)
     if not ability then return false end
-    if ability.nodeId and not NinjaLineages.Progression.isCompleted(player, ability.nodeId) then
-        return false
-    end
+    local definition = NinjaLineages.JutsuCatalog.get(ability.id)
+    if definition then return NinjaLineages.JutsuCatalog.isAvailable(player, definition) end
     return not ability.condition or ability.condition(player)
 end
 
@@ -92,12 +92,11 @@ function HandSigns.playSeal(player)
 end
 
 function HandSigns.activateAbility(player, ability)
-    if not ability or not ability.action then return false end
+    if not ability then return false end
     if HandSigns.isClassic() and not ability.sealFree then
         player:Say(getText("UI_NL_HandSigns_ClassicDisabled"))
         return false
     end
-    if ability.preCast and not ability.preCast(player, true) then return false end
     return NinjaLineages.AbilityAuthority.request(player, ability.id, {})
 end
 
@@ -157,7 +156,6 @@ function HandSigns.handleClassicSign(player, signId)
         if sequenceEquals(state.signs, ability.handSigns) then
             state.signs = {}
             classicInputs[player] = state
-            if ability.preCast and not ability.preCast(player, true) then return true end
             NinjaLineages.AbilityAuthority.request(player, ability.id, {})
             return true
         end

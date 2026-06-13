@@ -2,55 +2,44 @@ require "NinjaLineages_AbilityAuthority"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Chakra"
 require "NinjaLineages_Balance"
+require "NinjaLineages_JutsuCatalog"
 require "NinjaLineages_RinneganMechanics"
 require "NinjaLineages_Items"
 
 local Authority = NinjaLineages.AbilityAuthority
 local Balance = NinjaLineages.Balance
+local Catalog = NinjaLineages.JutsuCatalog
 local active = {}
 local alarmSeals = {}
 local boundZombies = {}
 local nextAlarmScanAt = 0
-
-local COMMON = {
-    healing = { node = "minor_healing", cost = "STANDARD", cooldown = "STANDARD", key = "common.healing" },
-    reinforcement = { node = "physical_reinforcement", cost = "STANDARD", cooldown = "LONG", key = "common.reinforcement" },
-    quietstep = { node = "quiet_step", cost = "BASIC", cooldown = "STANDARD", key = "common.quiet_step" },
-    focus = { node = "chakra_focus", cost = "BASIC", cooldown = "STANDARD", key = "common.chakra_focus" },
-    grip = { node = "chakra_grip", cost = "BASIC", cooldown = "SHORT", key = "common.chakra_grip" },
-    bodyflicker = { node = "body_flicker", cost = "ADVANCED", cooldown = "DASH", key = "common.body_flicker" },
-}
-
-local TREE = {
-    false_sound = { cost = "BASIC", cooldown = "SHORT" },
-    veil_presence = { cost = "STANDARD", cooldown = "LONG" },
-    killing_intent = { cost = "MAJOR", cooldown = "VERY_LONG" },
-    chakra_burst = { cost = "ADVANCED", cooldown = "LONG" },
-    pressure_point_pulse = { cost = "ADVANCED", cooldown = "LONG" },
-    shadow_close = { cost = "MAJOR", cooldown = "VERY_LONG" },
-    chakra_needle = { cost = "STANDARD", cooldown = "SHORT" },
-    cell_stimulation = { cost = "STANDARD", cooldown = "LONG" },
-    nervous_system_shock = { cost = "ADVANCED", cooldown = "LONG" },
-    field_surgery = { cost = "MAJOR", cooldown = "VERY_LONG" },
-    bleeding_suppression = { cost = "MAJOR", cooldown = "VERY_LONG" },
-}
+local specializedExecutors = {}
 
 local function validateNode(player, nodeId)
     if not NinjaLineages.Progression.isCompleted(player, nodeId) then return false, "not_learned" end
     return true
 end
 
-local function validateCommit(player, key, costTier, cooldownTier)
+local function cooldownKey(definition)
+    if definition.cooldownKey then return definition.cooldownKey end
+    if definition.node then return "tree." .. definition.id end
+    return definition.category .. "." .. definition.id
+end
+
+local function validateCommit(player, definition, resolved)
+    local key = cooldownKey(definition)
     local onCooldown, remaining = NinjaLineages.Cooldowns.isOnCooldown(player, key)
     if onCooldown then return false, "cooldown", remaining end
-    local cost = Balance.getCost(costTier)
+    local cost = resolved.cost or 0
     if not NinjaLineages.Chakra.canAffordChakra(player, cost) then return false, "chakra" end
     return true, nil, nil, cost
 end
 
-local function commit(player, key, cost, cooldownTier)
+local function commit(player, definition, resolved, cost)
     if not NinjaLineages.Chakra.spendChakra(player, cost) then return false end
-    NinjaLineages.Cooldowns.set(player, key, Balance.getCooldown(cooldownTier))
+    if resolved.cooldown and resolved.cooldown > 0 then
+        NinjaLineages.Cooldowns.set(player, cooldownKey(definition), resolved.cooldown)
+    end
     return true
 end
 
@@ -72,105 +61,83 @@ local function projectedPoint(player, distance)
     return player:getX() + forward:getX() * distance, player:getY() + forward:getY() * distance
 end
 
-local function executeCommon(player, id)
-    local definition = COMMON[id]
-    local learned, reason = validateNode(player, definition.node)
-    if not learned then return false, reason end
-    local valid, failure, remaining, cost = validateCommit(player, definition.key, definition.cost, definition.cooldown)
-    if not valid then return false, failure, remaining end
+local function rollDamage(resolved)
+    local damage = resolved.damage
+    if not damage then return 0 end
+    if type(damage) == "number" then return damage end
+    if damage.tier then return Balance.rollDamage(damage.tier) end
+    local minimum, maximum = tonumber(damage.min) or 0, tonumber(damage.max) or 0
+    return minimum + ((ZombRand(0, 1001) / 1000) * (maximum - minimum))
+end
 
+local function executeGenericEffect(player, definition, resolved)
+    local effect = definition.effect
     local data = NinjaLineages.getNLData(player)
-    if id == "healing" then
+    if effect.kind == "heal_most_damaged" then
         local part = mostDamagedPart(player)
         if not part then return false, "no_wounds" end
-        local healing = Balance.getHealing(Balance.getJutsu("MINOR_HEALING").healing)
-        local changed = NinjaLineages.Utils.Healing.healPart(player:getBodyDamage(), part, {
-            health = healing.health, scratch = healing.wound, cut = healing.wound,
-        })
+        local values = {}
+        for _, field in ipairs(effect.fields or {}) do
+            values[field] = field == "health" and resolved.healing.health or resolved.healing.wound
+        end
+        local changed = NinjaLineages.Utils.Healing.healPart(player:getBodyDamage(), part, values)
         if not changed then return false, "no_wounds" end
-    elseif id == "focus" then
+    elseif effect.kind == "restore_focus" then
         local stats = player:getStats()
-        local mastery = Balance.getMastery(Balance.getJutsu("CHAKRA_FOCUS").mastery)
         local effectiveness = NinjaLineages.Skills.getJutsuEffectiveness(NinjaLineages.Skills.getJutsuProwessLevel(player))
-        stats:set(CharacterStat.PANIC, math.max(0, stats:get(CharacterStat.PANIC) - mastery * effectiveness * 100))
-        stats:set(CharacterStat.STRESS, math.max(0, stats:get(CharacterStat.STRESS) - mastery * effectiveness))
-    elseif id == "bodyflicker" then
-        local distance = Balance.getRadius(Balance.getJutsu("BODY_FLICKER").distance)
-        local x, y = projectedPoint(player, distance)
+        stats:set(CharacterStat.PANIC, math.max(0, stats:get(CharacterStat.PANIC) - resolved.mastery * effectiveness * 100))
+        stats:set(CharacterStat.STRESS, math.max(0, stats:get(CharacterStat.STRESS) - resolved.mastery * effectiveness))
+    elseif effect.kind == "forward_movement" then
+        local x, y = projectedPoint(player, resolved.distance)
         local square = getCell():getGridSquare(x, y, player:getZ())
         if not square or not player:getCurrentSquare() or square:isBlockedTo(player:getCurrentSquare()) then
             return false, "invalid_target"
         end
         player:setX(x)
         player:setY(y)
-    else
-        local configKey = ({
-            reinforcement = "PHYSICAL_REINFORCEMENT",
-            quietstep = "QUIET_STEP",
-            grip = "CHAKRA_GRIP",
-        })[id]
-        local field = ({
-            reinforcement = "reinforcementEndTime",
-            quietstep = "quietStepEndTime",
-            grip = "chakraGripEndTime",
-        })[id]
-        local duration = Balance.getDuration(Balance.getJutsu(configKey).duration)
-            * NinjaLineages.Skills.getJutsuDuration(NinjaLineages.Skills.getJutsuProwessLevel(player))
-        data[field] = NinjaLineages.Utils.Time.cooldownNowMs() + duration
-    end
-
-    commit(player, definition.key, cost, definition.cooldown)
-    NinjaLineages.transmitPlayerData(player)
-    return true
-end
-
-for id in pairs(COMMON) do
-    local actionId = id
-    Authority.register(actionId, function(player) return executeCommon(player, actionId) end)
-end
-
-local function executeTree(player, id)
-    local learned, reason = validateNode(player, id)
-    if not learned then return false, reason end
-    local definition = TREE[id]
-    local key = "tree." .. id
-    local valid, failure, remaining, cost = validateCommit(player, key, definition.cost, definition.cooldown)
-    if not valid then return false, failure, remaining end
-    local config = Balance.getJutsu(string.upper(id))
-    local data = NinjaLineages.getNLData(player)
-
-    if id == "false_sound" or id == "veil_presence" then
-        local radius = Balance.getRadius(config.radius)
-        local x, y = projectedPoint(player, radius)
-        addSound(player, x, y, player:getZ(), radius, radius)
-        if id == "veil_presence" then
-            local duration = Balance.getDuration(config.duration)
+    elseif effect.kind == "timed_state" then
+        local duration = resolved.duration
+        if effect.durationScale then
+            duration = duration * NinjaLineages.Skills.getJutsuDuration(
+                NinjaLineages.Skills.getJutsuProwessLevel(player)
+            )
+        end
+        data[effect.stateField] = NinjaLineages.Utils.Time.cooldownNowMs() + duration
+    elseif effect.kind == "world_sound" or effect.kind == "sound_timed_state" then
+        local x, y = player:getX(), player:getY()
+        if effect.projected or effect.kind == "sound_timed_state" then
+            x, y = projectedPoint(player, resolved.radius)
+        end
+        addSound(player, x, y, player:getZ(), resolved.radius, resolved.radius)
+        if effect.kind == "sound_timed_state" then
+            local duration = resolved.duration
             local square = player:getSquare()
-            if square and not square:isOutside() then duration = duration + Balance.getDuration("STANDARD_MS") end
-            data.veilPresenceEndTime = NinjaLineages.Utils.Time.cooldownNowMs() + duration
+            if square and not square:isOutside() then
+                duration = duration + (resolved.indoorBonusDuration or 0)
+            end
+            data[effect.stateField] = NinjaLineages.Utils.Time.cooldownNowMs() + duration
         end
-    elseif id == "killing_intent" then
-        for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, Balance.getRadius(config.radius))) do
-            NinjaLineages.Utils.Combat.applyControlTier(entry.zombie, config.control)
+    elseif effect.kind == "area_control" then
+        for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, resolved.radius)) do
+            NinjaLineages.Utils.Combat.applyControlTier(entry.zombie, resolved.control.tier)
         end
-    elseif id == "pressure_point_pulse" then
-        local primary = NinjaLineages.Utils.Zombies.getFacingTarget(player, config.targeting)
+    elseif effect.kind == "cluster_damage" then
+        local primary = NinjaLineages.Utils.Zombies.getFacingTarget(player, resolved.targeting)
         if not primary then return false, "no_target" end
-        local targeting = Balance.getTargeting(config.targeting)
         local count = 0
-        for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(primary, targeting.clusterRadius)) do
-            if count >= targeting.maxTargets then break end
-            NinjaLineages.Utils.Combat.applyZombieDamage(player, entry.zombie, Balance.rollDamage(config.damage))
-            NinjaLineages.Utils.Combat.applyControlTier(entry.zombie, config.control)
+        for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(primary, resolved.targeting.clusterRadius)) do
+            if count >= resolved.targeting.maxTargets then break end
+            NinjaLineages.Utils.Combat.applyZombieDamage(player, entry.zombie, rollDamage(resolved))
+            NinjaLineages.Utils.Combat.applyControlTier(entry.zombie, resolved.control.tier)
             count = count + 1
         end
-    elseif id == "shadow_close" then
-        local target = NinjaLineages.Utils.Zombies.getFacingTarget(player, config.targeting)
+    elseif effect.kind == "shadow_close" then
+        local target = NinjaLineages.Utils.Zombies.getFacingTarget(player, resolved.targeting)
         if not target then return false, "no_target" end
         local originX, originY = player:getX(), player:getY()
         local dx, dy = target:getX() - originX, target:getY() - originY
         local length = math.sqrt(dx * dx + dy * dy)
-        local distance = math.min(length, Balance.getRadius(config.distance))
+        local distance = math.min(length, resolved.distance)
         if length > 0 then
             local x, y = originX + dx / length * distance, originY + dy / length * distance
             local square = getCell():getGridSquare(x, y, player:getZ())
@@ -180,48 +147,45 @@ local function executeTree(player, id)
             player:setX(x)
             player:setY(y)
         end
-        local radius = Balance.getRadius(config.decoyRadius)
-        addSound(player, originX, originY, player:getZ(), radius, radius)
-        NinjaLineages.Utils.Combat.applyControlTier(target, "GENIN")
-    elseif id == "cell_stimulation" then
-        local healing = Balance.getHealing(config.healing)
+        addSound(player, originX, originY, player:getZ(), resolved.decoyRadius, resolved.decoyRadius)
+        NinjaLineages.Utils.Combat.applyControlTier(target, resolved.control.tier)
+    elseif effect.kind == "cell_stimulation" then
         local stats = player:getStats()
-        stats:set(CharacterStat.FATIGUE, math.max(0, stats:get(CharacterStat.FATIGUE) - healing.fatigue))
+        stats:set(CharacterStat.FATIGUE, math.max(0, stats:get(CharacterStat.FATIGUE) - resolved.healing.fatigue))
         local parts = player:getBodyDamage():getBodyParts()
         for i = 0, parts:size() - 1 do
             local part = parts:get(i)
-            pcall(function() part:setAdditionalPain(math.max(0, part:getAdditionalPain() - healing.pain)) end)
+            pcall(function()
+                part:setAdditionalPain(math.max(0, part:getAdditionalPain() - resolved.healing.pain))
+            end)
         end
-    elseif id == "field_surgery" then
-        local part = mostDamagedPart(player)
-        if not part then return false, "no_wounds" end
-        local healing = Balance.getHealing(config.healing)
-        local changed = NinjaLineages.Utils.Healing.healPart(player:getBodyDamage(), part, {
-            health = healing.health, bleeding = healing.wound, scratch = healing.wound,
-            cut = healing.wound, deepWound = healing.wound, burn = healing.wound, fracture = healing.wound,
-        })
-        if not changed then return false, "no_wounds" end
-    elseif id == "bleeding_suppression" then
-        data.bleedingSuppressionEndTime = NinjaLineages.Utils.Time.cooldownNowMs()
-            + Balance.getDuration(config.duration)
-    else
-        local target = NinjaLineages.Utils.Zombies.getFacingTarget(player, config.targeting)
+    elseif effect.kind == "target_damage" then
+        local target = NinjaLineages.Utils.Zombies.getFacingTarget(player, resolved.targeting)
         if not target then return false, "no_target" end
-        NinjaLineages.Utils.Combat.applyZombieDamage(player, target, Balance.rollDamage(config.damage))
-        NinjaLineages.Utils.Combat.applyControlTier(target, config.control)
+        NinjaLineages.Utils.Combat.applyZombieDamage(player, target, rollDamage(resolved))
+        NinjaLineages.Utils.Combat.applyControlTier(target, resolved.control.tier)
+    else
+        return false, "server_error"
     end
+    return true
+end
 
-    commit(player, key, cost, definition.cooldown)
+local function executeCatalogAbility(player, definition)
+    local valid, reason = Catalog.checkRequirements(player, definition)
+    if not valid then return false, reason end
+    local resolved = Catalog.resolveBalance(definition)
+    local allowed, failure, remaining, cost = validateCommit(player, definition, resolved)
+    if not allowed then return false, failure, remaining end
+    local executed, executionReason = executeGenericEffect(player, definition, resolved)
+    if not executed then return false, executionReason end
+    if not commit(player, definition, resolved, cost) then return false, "chakra" end
     NinjaLineages.transmitPlayerData(player)
     return true
 end
 
-for id in pairs(TREE) do
-    local actionId = id
-    Authority.register(actionId, function(player) return executeTree(player, actionId) end)
-end
-
-Authority.register("shinra_tensei", function(player)
+specializedExecutors.shinra_tensei = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
     local ok, reason, remaining = NinjaLineages.RinneganMechanics.execute(player)
     if not ok then return false, reason, remaining end
     return true, nil, nil, {
@@ -232,31 +196,39 @@ Authority.register("shinra_tensei", function(player)
             z = math.floor(player:getZ()),
         },
     }
-end)
+end
 
-Authority.register("binding_roots", function(player)
-    if not NinjaLineages.hasSenju(player) then return false, "lineage" end
-    local valid, reason, remaining, cost = validateCommit(player, "senju.binding_roots", "MAJOR", "STANDARD")
+specializedExecutors.binding_roots = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
     if not valid then return false, reason, remaining end
-    for _, target in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, Balance.getRadius("LARGE"))) do
+    for _, target in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, resolved.radius)) do
         NinjaLineages.Utils.Combat.staggerZombie(target.zombie, {
-            knockdown = ZombRand(1, 101) <= (target.distance <= NinjaLineages.Constants.Senju.BindingRoots.INNER_RADIUS and 65 or 35),
+            knockdown = ZombRand(1, 101) <= (
+                target.distance <= resolved.innerRadius
+                    and resolved.innerKnockdownChance
+                    or resolved.outerKnockdownChance
+            ),
             position = "FRONT",
         })
         boundZombies[target.zombie] = NinjaLineages.Utils.Time.cooldownNowMs()
-            + Balance.getDuration("BRIEF_MS")
+            + resolved.duration
     end
-    commit(player, "senju.binding_roots", cost, "STANDARD")
+    commit(player, definition, resolved, cost)
     return true
-end)
+end
 
-Authority.register("creation_rebirth", function(player)
-    if not NinjaLineages.CreationRebirth.isUnlocked(player) then return false, "locked" end
+specializedExecutors.creation_rebirth = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
     if NinjaLineages.Chakra.getChakra(player) <= 0 then return false, "chakra" end
+    local resolved = Catalog.resolveBalance(definition)
     active[player] = active[player] or {}
-    active[player].creationRebirthUntil = NinjaLineages.Utils.Time.cooldownNowMs() + Balance.getDuration("SHORT_MS")
+    active[player].creationRebirthUntil = NinjaLineages.Utils.Time.cooldownNowMs() + resolved.duration
     return true
-end)
+end
 
 local function toggleEye(player, lineage)
     local check = lineage == "sharingan" and NinjaLineages.hasSharingan or NinjaLineages.hasByakugan
@@ -280,13 +252,30 @@ local function toggleEye(player, lineage)
     }
 end
 
-Authority.register("sharingan", function(player) return toggleEye(player, "sharingan") end)
-Authority.register("byakugan", function(player) return toggleEye(player, "byakugan") end)
+local function applyKamuiVisionPenalty(player)
+    local data = NinjaLineages.getNLData(player)
+    local level = math.min(3, (data.kamuiVisionLevel or 0) + 1)
+    data.kamuiVisionLevel = level
+    data.kamuiVisionRecoverAt = NinjaLineages.Utils.Time.worldAgeHours()
+        + NinjaLineages.Constants.Uchiha.Vision.RECOVERY_HOURS[level]
+    NinjaLineages.transmitPlayerData(player)
+end
 
-Authority.register("kamui", function(player)
-    if not NinjaLineages.hasSharingan(player) or not NinjaLineages.getNLData(player).mangekyoUnlocked then
-        return false, "locked"
-    end
+specializedExecutors.sharingan = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    return toggleEye(player, "sharingan")
+end
+specializedExecutors.byakugan = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    return toggleEye(player, "byakugan")
+end
+
+specializedExecutors.kamui = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
     active[player] = active[player] or {}
     if active[player].kamuiUntil then
         active[player].kamuiUntil = nil
@@ -295,12 +284,12 @@ Authority.register("kamui", function(player)
         pcall(function() player:setNoClip(active[player].wasNoClip == true) end)
         return true, nil, nil, { messageKey = "UI_NL_Ability_Kamui_Cancelled" }
     end
-    local valid, reason, remaining = validateCommit(player, "uchiha.kamui", "FREE", "STANDARD")
+    local valid, reason, remaining = validateCommit(player, definition, resolved)
     if not valid then return false, reason, remaining end
-    if NinjaLineages.Chakra.getChakra(player) < NinjaLineages.Constants.Uchiha.Kamui.MIN_CHAKRA_GATE then
+    if NinjaLineages.Chakra.getChakra(player) < resolved.minimumChakra then
         return false, "chakra"
     end
-    active[player].kamuiUntil = NinjaLineages.Utils.Time.cooldownNowMs() + NinjaLineages.Constants.Uchiha.Kamui.DURATION_MS
+    active[player].kamuiUntil = NinjaLineages.Utils.Time.cooldownNowMs() + resolved.duration
     active[player].lastTick = NinjaLineages.Utils.Time.cooldownNowMs()
     local okGhost, wasGhost = pcall(function() return player:isGhostMode() end)
     local okGod, wasGod = pcall(function() return player:isGodMod() end)
@@ -311,9 +300,26 @@ Authority.register("kamui", function(player)
     player:setGhostMode(true)
     player:setGodMod(true)
     pcall(function() player:setNoClip(true) end)
-    NinjaLineages.Cooldowns.set(player, "uchiha.kamui", Balance.getCooldown("STANDARD"))
+    NinjaLineages.Cooldowns.set(player, cooldownKey(definition), resolved.cooldown)
     return true
-end)
+end
+
+for _, definition in ipairs(Catalog.getSelectable()) do
+    local actionDefinition = definition
+    if actionDefinition.effect then
+        Authority.register(actionDefinition.id, function(player)
+            return executeCatalogAbility(player, actionDefinition)
+        end)
+    else
+        local executor = specializedExecutors[actionDefinition.executor]
+        if not executor then
+            error("[AbilityExecution] Missing specialized executor '" .. tostring(actionDefinition.executor) .. "'")
+        end
+        Authority.register(actionDefinition.id, function(player, args)
+            return executor(player, actionDefinition, args)
+        end)
+    end
+end
 
 local function getInventoryItem(player, itemId)
     local inventory = player and player:getInventory()
@@ -522,13 +528,15 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
         local delta = math.max(0, (now - (state.lastTick or now)) / 1000)
         state.lastTick = now
         local chakra = NinjaLineages.Chakra.getChakra(player)
-        chakra = math.max(0, chakra - Balance.getChannelDrain("HIGH") * delta)
+        local kamui = Catalog.resolveBalance("kamui")
+        chakra = math.max(0, chakra - kamui.channelDrain * delta)
         NinjaLineages.Chakra.setChakra(player, chakra)
         if now >= state.kamuiUntil or chakra <= 0 then
             state.kamuiUntil = nil
             player:setGhostMode(state.wasGhostMode == true)
             player:setGodMod(state.wasGodMod == true)
             pcall(function() player:setNoClip(state.wasNoClip == true) end)
+            applyKamuiVisionPenalty(player)
         end
     end
 
@@ -536,17 +544,19 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
         if now >= state.creationRebirthUntil then
             state.creationRebirthUntil = nil
         elseif not state.nextRebirthTick or now >= state.nextRebirthTick then
-            state.nextRebirthTick = now + NinjaLineages.Constants.Senju.CreationRebirth.TICK_MS
+            local rebirth = Catalog.resolveBalance("creation_rebirth")
+            state.nextRebirthTick = now + rebirth.tickInterval
             local parts = player:getBodyDamage():getBodyParts()
-            local step = Balance.getCostStep("HARSH")
+            local step = rebirth.costStep
             for i = 0, parts:size() - 1 do
                 local part = parts:get(i)
                 if NinjaLineages.Utils.Healing.getPartSeverity(part) > 0
                         and NinjaLineages.Chakra.getChakra(player) >= step then
-                    local changed = NinjaLineages.Utils.Healing.healPart(player:getBodyDamage(), part, {
-                        health = 3, bleeding = 4, scratch = 4, cut = 4,
-                        deepWound = 3, burn = 2, fracture = 1,
-                    })
+                    local changed = NinjaLineages.Utils.Healing.healPart(
+                        player:getBodyDamage(),
+                        part,
+                        rebirth.healingTick
+                    )
                     if changed then NinjaLineages.Chakra.spendChakra(player, step) end
                 end
             end
@@ -617,13 +627,14 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
     if data.eyePowerActive then
         local drain = 0
         if NinjaLineages.hasSharingan(player) then
+            local sharingan = Catalog.resolveBalance("sharingan")
             if data.mangekyoUnlocked then
-                drain = NinjaLineages.Constants.Uchiha.MangekyoDrainPerMinute
+                drain = sharingan.mangekyoDrain
             else
-                drain = NinjaLineages.Constants.Uchiha.SharinganDrainPerMinute[NinjaLineages.getSharinganStage(player)] or 0
+                drain = sharingan.drainByStage[NinjaLineages.getSharinganStage(player)] or 0
             end
         elseif NinjaLineages.hasByakugan(player) then
-            drain = NinjaLineages.Constants.Hyuga.ByakuganDrainPerMinute
+            drain = Catalog.resolveBalance("byakugan").sustainedDrain
         end
         drain = drain * NinjaLineages.Skills.getDrainReduction(skillLevel)
         if data.isMeditating then drain = drain * NinjaLineages.Constants.Chakra.MEDITATION_DRAIN_MULTIPLIER end

@@ -14,6 +14,12 @@ local function text(key, ...)
     return getText(key, ...)
 end
 
+local function translated(key, fallback)
+    local value = getText(key)
+    if value == key then return fallback or key end
+    return value
+end
+
 function NLJutsuTreeUI:initialise()
     ISCollapsableWindow.initialise(self)
     
@@ -139,8 +145,8 @@ function NLJutsuTreeUI:initialise()
 
             if self.selectedNode then
                 local node = NinjaLineages.TreeDefinitions.getNode(self.selectedNode)
-                panel:drawText(text(node.name), self.detailsX, math.floor(h * 0.18), 1, 1, 1, 1, UIFont.Medium)
-                panel:drawText(text(node.description), self.detailsX, math.floor(h * 0.24), 0.85, 0.85, 0.9, 1, UIFont.Small)
+                panel:drawText(translated(node.name, node.nameFallback), self.detailsX, math.floor(h * 0.18), 1, 1, 1, 1, UIFont.Medium)
+                panel:drawText(translated(node.description, node.descriptionFallback), self.detailsX, math.floor(h * 0.24), 0.85, 0.85, 0.9, 1, UIFont.Small)
             end
         end
     end
@@ -198,7 +204,7 @@ function NLJutsuTreeUI:createSelectionScreen()
     self.cardButtons = {}
     for index, disciplineId in ipairs(NinjaLineages.TreeDefinitions.DisciplineOrder) do
         local definition = NinjaLineages.TreeDefinitions.Disciplines[disciplineId]
-        local title = text(definition.name)
+        local title = translated(definition.name, definition.nameFallback)
         if definition.locked then title = title .. "\n" .. text("UI_NL_Tree_Locked") end
         local button = self:addButton(
             cardsX + ((index - 1) * (cardWidth + cardGap)) - self.scrollOffset,
@@ -214,7 +220,7 @@ function NLJutsuTreeUI:createSelectionScreen()
         button.enable = definition.locked ~= true
         button.backgroundColor = { r = 0.10, g = 0.10, b = 0.14, a = 0.95 }
         button.backgroundColorMouseOver = { r = 0.20, g = 0.20, b = 0.28, a = 0.95 }
-        button.tooltip = text(definition.description)
+        button.tooltip = translated(definition.description, definition.descriptionFallback)
         button.render = function(btn)
             -- 1. Draw card texture scaled to fill the entire button
             local cardTex = getTexture(definition.card)
@@ -396,13 +402,12 @@ function NLJutsuTreeUI:createDisciplineScreen(disciplineId)
     for _, definition in ipairs(nodes) do table.insert(grouped[definition.tier], definition) end
 
     for tier, definitions in pairs(grouped) do
-        table.sort(definitions, function(a, b) return a.id < b.id end)
         local row = tierOrder[tier]
         local y = h - margin - (row * rowHeight)
         local gap = math.floor((treeWidth - (#definitions * nodeWidth)) / (#definitions + 1))
         for index, definition in ipairs(definitions) do
             local state = NinjaLineages.Progression.getNodeState(self.player, definition.id)
-            local title = text(definition.name) .. "\n" .. text("UI_NL_Tree_State_" .. state)
+            local title = translated(definition.name, definition.nameFallback) .. "\n" .. text("UI_NL_Tree_State_" .. state)
             local button = self:addButton(
                 treeX + gap + ((index - 1) * (nodeWidth + gap)),
                 y,
@@ -413,7 +418,7 @@ function NLJutsuTreeUI:createDisciplineScreen(disciplineId)
                 NLJutsuTreeUI.onNode
             )
             button.internal = definition.id
-            button:setImage(getTexture(definition.icon))
+            button:setImage(getTexture(definition.icon) or getTexture(definition.fallbackIcon))
             button.backgroundColor = self:getNodeColor(state)
             self.nodeButtons[definition.id] = button
         end
