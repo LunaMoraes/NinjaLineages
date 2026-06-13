@@ -1,6 +1,7 @@
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISPanelJoypad"
 require "ISUI/ISButton"
+require "TimedActions/ISTimedActionQueue"
 require "NinjaLineages_TreeDefinitions"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Training"
@@ -18,6 +19,57 @@ local function translated(key, fallback)
     local value = getText(key)
     if value == key then return fallback or key end
     return value
+end
+
+local function setMouseTooltip(button, tooltip)
+    button.tooltip = tooltip
+    button.updateTooltip = function(btn)
+        if btn:isMouseOver() and btn.tooltip then
+            if not btn.tooltipUI then
+                btn.tooltipUI = ISToolTip:new()
+                btn.tooltipUI:setOwner(btn)
+                btn.tooltipUI:setVisible(false)
+                btn.tooltipUI:setAlwaysOnTop(true)
+                btn.tooltipUI.maxLineWidth = 300
+            end
+            if not btn.tooltipUI:getIsVisible() then
+                btn.tooltipUI:addToUIManager()
+                btn.tooltipUI:setVisible(true)
+            end
+            btn.tooltipUI.description = btn.tooltip
+            btn.tooltipUI:setDesiredPosition(getMouseX(), getMouseY() + 8)
+        elseif btn.tooltipUI and btn.tooltipUI:getIsVisible() then
+            btn.tooltipUI:setVisible(false)
+            btn.tooltipUI:removeFromUIManager()
+        end
+    end
+end
+
+local function drawDisabledSideButton(panel, button)
+    if not button or not button:getIsVisible() then return end
+
+    local hovered = button:isMouseOver()
+    local background = hovered
+        and { r = 0.18, g = 0.18, b = 0.24, a = 0.95 }
+        or { r = 0.11, g = 0.11, b = 0.15, a = 0.95 }
+    local border = hovered
+        and { r = 0.50, g = 0.50, b = 0.62, a = 0.90 }
+        or { r = 0.34, g = 0.34, b = 0.42, a = 0.85 }
+
+    panel:drawRect(button.x, button.y, button.width, button.height,
+        background.a, background.r, background.g, background.b)
+    panel:drawRectBorder(button.x, button.y, button.width, button.height,
+        border.a, border.r, border.g, border.b)
+
+    local font = UIFont.Small
+    local textHeight = getTextManager():MeasureStringY(font, button.title)
+    panel:drawTextCentre(
+        button.title,
+        button.x + (button.width / 2),
+        button.y + ((button.height - textHeight) / 2),
+        0.58, 0.58, 0.64, 1,
+        font
+    )
 end
 
 function NLJutsuTreeUI:initialise()
@@ -173,6 +225,8 @@ function NLJutsuTreeUI:initialise()
         ISPanelJoypad.render(panel)
         if self.screen == "selection" then
             panel:clearStencilRect()
+            drawDisabledSideButton(panel, self.foundVillageButton)
+            drawDisabledSideButton(panel, self.missionBoardButton)
         end
     end
 
@@ -356,6 +410,38 @@ function NLJutsuTreeUI:createSelectionScreen()
     self.leftArrowHovered = false
     self.rightArrowHovered = false
     self:repositionCardButtons()
+
+    local sideButtonX = margin + 10
+    local sideButtonWidth = leftWidth - margin - 20
+    local sideButtonHeight = math.floor(h * 0.055)
+    local sideButtonGap = 8
+    local sideButtonY = cardY + cardHeight - (sideButtonHeight * 2) - sideButtonGap - 15
+    local comingSoon = text("UI_NL_Tree_ComingSoon")
+
+    self.foundVillageButton = self:addButton(
+        sideButtonX,
+        sideButtonY,
+        sideButtonWidth,
+        sideButtonHeight,
+        text("UI_NL_Tree_FoundHiddenVillage"),
+        self,
+        nil
+    )
+    self.foundVillageButton.enable = false
+    setMouseTooltip(self.foundVillageButton, comingSoon)
+
+    self.missionBoardButton = self:addButton(
+        sideButtonX,
+        sideButtonY + sideButtonHeight + sideButtonGap,
+        sideButtonWidth,
+        sideButtonHeight,
+        text("UI_NL_Tree_OpenMissionBoard"),
+        self,
+        nil
+    )
+    self.missionBoardButton.enable = false
+    setMouseTooltip(self.missionBoardButton, comingSoon)
+    self:updateSelectionButtons()
 end
 
 function NLJutsuTreeUI:onDiscipline(button)
@@ -396,6 +482,19 @@ end
 
 function NLJutsuTreeUI:update()
     ISCollapsableWindow.update(self)
+    if self.screen == "selection" then
+        self:updateSelectionButtons()
+    elseif self.screen == "discipline" then
+        self:refreshDisciplineState()
+    end
+end
+
+function NLJutsuTreeUI:updateSelectionButtons()
+    if self.foundVillageButton then
+        self.foundVillageButton:setVisible(
+            NinjaLineages.Progression.getNinjaRank(self.player) == "KAGE"
+        )
+    end
 end
 
 function NLJutsuTreeUI:createDisciplineScreen(disciplineId)
@@ -438,6 +537,7 @@ function NLJutsuTreeUI:createDisciplineScreen(disciplineId)
             button.internal = definition.id
             button:setImage(getTexture(definition.icon) or getTexture(definition.fallbackIcon))
             button.backgroundColor = self:getNodeColor(state)
+            button.nodeState = state
             self.nodeButtons[definition.id] = button
         end
     end
@@ -473,25 +573,37 @@ function NLJutsuTreeUI:onNode(button)
     self:updateActionButton()
 end
 
+function NLJutsuTreeUI:getTrainingProgress(nodeId)
+    local required = NinjaLineages.Progression.getTrainingPages(self.player, nodeId)
+    if required <= 0 then return 0 end
+
+    local persisted = NinjaLineages.Progression.getTrainingPagesRead(self.player, nodeId) / required
+    local live = 0
+    local queue = ISTimedActionQueue.getTimedActionQueue(self.player)
+    local action = queue and queue.current
+    if action and action.Type == "NLJutsuTrainingAction" and action.nodeId == nodeId and action.action then
+        live = action:getJobDelta()
+    end
+    return math.max(0, math.min(1, math.max(persisted, live)))
+end
+
 function NLJutsuTreeUI:updateActionButton()
     if not self.selectedNode then
         self.actionButton.enable = false
         return
     end
     local state = NinjaLineages.Progression.getNodeState(self.player, self.selectedNode)
+    if self.pendingUnlockNode == self.selectedNode and state ~= "available" then
+        self.pendingUnlockNode = nil
+    end
     if state == "available" then
         self.actionButton.title = text(
             "UI_NL_Tree_Unlock",
             NinjaLineages.Progression.getNodeCost(self.player, self.selectedNode)
         )
-        self.actionButton.enable = true
+        self.actionButton.enable = self.pendingUnlockNode ~= self.selectedNode
     elseif state == "unlocked" then
-        local progress = NinjaLineages.Progression.getTrainingPagesRead(self.player, self.selectedNode)
-        local required = NinjaLineages.Progression.getTrainingPages(self.player, self.selectedNode)
-        local pct = 0
-        if required > 0 then
-            pct = math.floor((progress / required) * 100)
-        end
+        local pct = math.floor(self:getTrainingProgress(self.selectedNode) * 100)
         self.actionButton.title = text("UI_NL_Tree_Train", pct)
         self.actionButton.enable = true
     else
@@ -504,12 +616,34 @@ function NLJutsuTreeUI:onAction()
     if not self.selectedNode then return end
     local state = NinjaLineages.Progression.getNodeState(self.player, self.selectedNode)
     if state == "available" then
+        if self.pendingUnlockNode == self.selectedNode then return end
+        self.pendingUnlockNode = self.selectedNode
+        self:updateActionButton()
         NinjaLineages.Progression.requestUnlock(self.player, self.selectedNode)
     elseif state == "unlocked" then
         local action = NLJutsuTrainingAction:new(self.player, self.selectedNode)
         if action then
             ISTimedActionQueue.add(action)
             self:close()
+        end
+    end
+    self:updateActionButton()
+end
+
+function NLJutsuTreeUI:refreshDisciplineState()
+    if not self.selectedDiscipline or not self.nodeButtons then return end
+
+    local nodes = NinjaLineages.TreeDefinitions.getNodesForDiscipline(self.selectedDiscipline)
+    for _, definition in ipairs(nodes) do
+        local button = self.nodeButtons[definition.id]
+        if button then
+            local state = NinjaLineages.Progression.getNodeState(self.player, definition.id)
+            if button.nodeState ~= state then
+                button.nodeState = state
+                button.title = translated(definition.name, definition.nameFallback)
+                    .. "\n" .. text("UI_NL_Tree_State_" .. state)
+                button.backgroundColor = self:getNodeColor(state)
+            end
         end
     end
     self:updateActionButton()
@@ -570,3 +704,28 @@ function NLJutsuTreeUI.open(player)
     NLJutsuTreeUI.instances[playerNum] = ui
     if JoypadState.players[playerNum + 1] then setJoypadFocus(playerNum, ui) end
 end
+
+function NLJutsuTreeUI.onServerCommand(module, command, args)
+    if module ~= "NinjaLineages" then return end
+    if command ~= "unlockResult"
+            and command ~= "trainingResult"
+            and command ~= "progressionUpdated" then
+        return
+    end
+
+    for _, ui in pairs(NLJutsuTreeUI.instances) do
+        if command == "unlockResult"
+                and args
+                and args.ok ~= true
+                and ui.pendingUnlockNode == args.nodeId then
+            ui.pendingUnlockNode = nil
+        end
+        if ui.screen == "selection" then
+            ui:updateSelectionButtons()
+        elseif ui.screen == "discipline" then
+            ui:refreshDisciplineState()
+        end
+    end
+end
+
+Events.OnServerCommand.Add(NLJutsuTreeUI.onServerCommand)
