@@ -120,7 +120,7 @@ Catalog.Definitions = {
     {
         id = "chakra_focus",
         category = "common",
-        node = { discipline = "ninjutsu", rank = "GENIN", order = 10 },
+        node = { discipline = "ninjutsu", rank = "GENIN", order = 30 },
         presentation = {
             nameKey = "UI_NL_Ability_ChakraFocus_Name",
             descriptionKey = "UI_NL_Ability_ChakraFocus_Desc",
@@ -146,7 +146,7 @@ Catalog.Definitions = {
     {
         id = "physical_reinforcement",
         category = "common",
-        node = { discipline = "ninjutsu", rank = "GENIN", order = 30 },
+        node = { discipline = "ninjutsu", rank = "GENIN", order = 10 },
         presentation = {
             nameKey = "UI_NL_Ability_PhysicalReinforcement_Name",
             descriptionKey = "UI_NL_Ability_PhysicalReinforcement_Desc",
@@ -238,7 +238,7 @@ Catalog.Definitions = {
     {
         id = "minor_healing",
         category = "common",
-        node = { discipline = "medical", rank = "GENIN", order = 10 },
+        node = { discipline = "medical", rank = "GENIN", order = 30 },
         presentation = {
             nameKey = "UI_NL_Ability_Healing_Name",
             descriptionKey = "UI_NL_Ability_Healing_Desc",
@@ -259,7 +259,7 @@ Catalog.Definitions = {
     {
         id = "chakra_needle",
         category = "common",
-        node = { discipline = "medical", rank = "GENIN", order = 30 },
+        node = { discipline = "medical", rank = "GENIN", order = 10 },
         handSigns = { "snake", "ram", "bird" },
         balance = {
             cost = "STANDARD", cooldown = "SHORT", targeting = "NARROW",
