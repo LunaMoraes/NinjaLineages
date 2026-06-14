@@ -27,6 +27,22 @@ NinjaLineages.JutsuCatalog.registerSelectableAbilities()
 local consts = NinjaLineages.Constants
 local lastMinuteUpdateAt = {}
 
+local function updateChakraMoodle(player)
+    local maxChakra = NinjaLineages.Chakra.getMaxChakra(player)
+    local currentChakra = NinjaLineages.Chakra.getChakra(player)
+    local pct = maxChakra > 0 and (currentChakra / maxChakra) or 0
+
+    if pct < consts.Chakra.CRITICAL_THRESHOLD then
+        NinjaLineages.Moodles.setValue("NLChakra", player, 0.3)
+    elseif pct < consts.Chakra.LOW_THRESHOLD then
+        NinjaLineages.Moodles.setValue("NLChakra", player, 0.4)
+    else
+        NinjaLineages.Moodles.setValue("NLChakra", player, 0.5)
+    end
+end
+
+NinjaLineages.registerPlayerUpdate("chakra.moodle", updateChakraMoodle)
+
 -- Ability selection logic
 local function getAvailableAbilities(player)
     local abilities = {}
@@ -347,19 +363,8 @@ local function updatePlayerMinute(player)
     lastMinuteUpdateAt[player] = now
     if elapsed <= 0 then return end
 
-    local maxChakra = NinjaLineages.Chakra.getMaxChakra(player)
-    local currentChakra = NinjaLineages.Chakra.getChakra(player)
     if not (isClient and isClient()) then
         NinjaLineages.AbilityAuthority.everyMinute(player)
-        currentChakra = NinjaLineages.Chakra.getChakra(player)
-    end
-    local pct = currentChakra / maxChakra
-    if pct < consts.Chakra.CRITICAL_THRESHOLD then
-        NinjaLineages.Moodles.setValue("NLChakra", player, 0.3) -- Bad lvl 2 (Very Low)
-    elseif pct < consts.Chakra.LOW_THRESHOLD then
-        NinjaLineages.Moodles.setValue("NLChakra", player, 0.4) -- Bad lvl 1 (Low)
-    else
-        NinjaLineages.Moodles.setValue("NLChakra", player, 0.5) -- Hidden
     end
 
     runListeners(NinjaLineages.EveryMinuteListeners, "EveryMinute", player, elapsed)
