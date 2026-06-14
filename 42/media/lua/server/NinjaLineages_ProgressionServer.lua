@@ -8,6 +8,17 @@ local function sendState(player, command, payload)
     sendServerCommand(player, "NinjaLineages", command, payload or {})
 end
 
+local function canUseDebugCommands(player)
+    if not (SandboxVars
+            and SandboxVars.NinjaLineages
+            and SandboxVars.NinjaLineages.DebugMode == true) then
+        return false
+    end
+
+    local ok, accessLevel = pcall(function() return player:getAccessLevel() end)
+    return ok and string.lower(tostring(accessLevel or "")) == "admin"
+end
+
 local function handleAward(player, args)
     local source = args and args.source
     local amount = tonumber(args and args.amount) or 0
@@ -35,6 +46,39 @@ local function handleCompleteTraining(player, args)
     sendState(player, "trainingResult", { ok = ok == true, reason = reason, nodeId = nodeId })
 end
 
+local function handleDebugAddXP(player, args)
+    if not canUseDebugCommands(player) then
+        sendState(player, "debugResult", { ok = false, action = "addXP" })
+        return
+    end
+
+    local amount = math.min(1000, math.max(0, tonumber(args and args.amount) or 0))
+    if amount <= 0 then
+        sendState(player, "debugResult", { ok = false, action = "addXP" })
+        return
+    end
+
+    local current = NinjaLineages.Progression.getNinjaXP(player)
+    NinjaLineages.Progression.setNinjaXP(player, current + amount)
+    sendState(player, "debugResult", { ok = true, action = "addXP", amount = amount })
+end
+
+local function handleDebugToggleBypass(player)
+    if not canUseDebugCommands(player) then
+        sendState(player, "debugResult", { ok = false, action = "toggleBypass" })
+        return
+    end
+
+    local data = NinjaLineages.getNLData(player)
+    data.bypassTraining = data.bypassTraining ~= true
+    NinjaLineages.transmitPlayerData(player)
+    sendState(player, "debugResult", {
+        ok = true,
+        action = "toggleBypass",
+        enabled = data.bypassTraining,
+    })
+end
+
 local function onClientCommand(module, command, player, args)
     if module ~= "NinjaLineages" then return end
     if command == "awardNinjaXP" then
@@ -43,6 +87,10 @@ local function onClientCommand(module, command, player, args)
         handleUnlock(player, args)
     elseif command == "completeTraining" then
         handleCompleteTraining(player, args)
+    elseif command == "debugAddNinjaXP" then
+        handleDebugAddXP(player, args)
+    elseif command == "debugToggleBypass" then
+        handleDebugToggleBypass(player)
     end
 end
 

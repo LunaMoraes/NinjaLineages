@@ -8,13 +8,17 @@ NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uchiha = NinjaLineages.Uchiha or {}
 
 local consts = NinjaLineages.Constants
+local observedSharinganStages = setmetatable({}, { __mode = "k" })
 
 local function updateSharinganProgress(player)
     if not NinjaLineages.hasSharingan(player) then return end
 
-    local data = NinjaLineages.getNLData(player)
     local stage = NinjaLineages.getSharinganStage(player)
-    local lastStage = data.lastSharinganStage or 0
+    local lastStage = observedSharinganStages[player]
+    if lastStage == nil then
+        observedSharinganStages[player] = stage
+        return
+    end
 
     if stage > lastStage then
         if stage == 1 then
@@ -24,12 +28,8 @@ local function updateSharinganProgress(player)
         elseif stage == 3 then
             player:Say(getText("UI_NL_Unlock_SharinganTomoe3"))
         end
-        data.lastSharinganStage = stage
-        NinjaLineages.transmitPlayerData(player)
-    elseif stage < lastStage then
-        data.lastSharinganStage = stage
-        NinjaLineages.transmitPlayerData(player)
     end
+    observedSharinganStages[player] = stage
 end
 
 local function updateSharinganMoodle(player)
@@ -149,6 +149,7 @@ end)
 
 
 NinjaLineages.registerCreatePlayer("uchiha.init", function(player)
+    observedSharinganStages[player] = NinjaLineages.getSharinganStage(player)
     updateKamuiVisionPresentation(player)
     updateSharinganMoodle(player)
 end)

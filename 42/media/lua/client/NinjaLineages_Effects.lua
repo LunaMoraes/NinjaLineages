@@ -111,10 +111,11 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
 
         -- 1. Add 1000 Ninja XP
         debugSubMenu:addOption(getText("UI_NL_Debug_AddXP"), player, function(p)
-            if NinjaLineages.Progression and NinjaLineages.Progression.setNinjaXP then
-                local current = NinjaLineages.Progression.getNinjaXP(p)
-                NinjaLineages.Progression.setNinjaXP(p, current + 1000)
-                p:Say("Added 1000 Ninja XP!")
+            if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugAddXP then
+                local requested = NinjaLineages.Progression.requestDebugAddXP(p, 1000)
+                if requested and not (isClient and isClient()) then
+                    p:Say("Added 1000 Ninja XP!")
+                end
             end
         end)
 
@@ -122,11 +123,11 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         local data = NinjaLineages.getNLData(player)
         local bypassText = "Bypass Training: " .. (data and data.bypassTraining and "ON" or "OFF")
         debugSubMenu:addOption(bypassText, player, function(p)
-            local d = NinjaLineages.getNLData(p)
-            if d then
-                d.bypassTraining = not d.bypassTraining
-                NinjaLineages.transmitPlayerData(p)
-                p:Say("Bypass Training: " .. (d.bypassTraining and "Enabled" or "Disabled"))
+            if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugToggleBypass then
+                local enabled = NinjaLineages.Progression.requestDebugToggleBypass(p)
+                if not (isClient and isClient()) then
+                    p:Say("Bypass Training: " .. (enabled and "Enabled" or "Disabled"))
+                end
             end
         end)
 
@@ -136,6 +137,22 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         end
     end
 end
+
+local function onDebugServerCommand(module, command, args)
+    if module ~= "NinjaLineages" or command ~= "debugResult" then return end
+    local player = getSpecificPlayer(0)
+    if not player then return end
+
+    if not args or args.ok ~= true then
+        player:Say("Ninja Lineages debug command denied.")
+    elseif args.action == "addXP" then
+        player:Say("Added " .. tostring(args.amount or 0) .. " Ninja XP!")
+    elseif args.action == "toggleBypass" then
+        player:Say("Bypass Training: " .. (args.enabled and "Enabled" or "Disabled"))
+    end
+end
+
+Events.OnServerCommand.Add(onDebugServerCommand)
 
 local showAbilityRadial = nil
 local showCategoryRadial = nil

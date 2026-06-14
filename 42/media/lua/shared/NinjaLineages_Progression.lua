@@ -34,6 +34,28 @@ function Progression.setNinjaXP(player, amount)
     NinjaLineages.transmitPlayerData(player)
 end
 
+function Progression.requestDebugAddXP(player, amount)
+    amount = math.max(0, tonumber(amount) or 0)
+    if amount <= 0 then return false end
+    if isClient and isClient() then
+        sendClientCommand(player, "NinjaLineages", "debugAddNinjaXP", { amount = amount })
+        return true
+    end
+    Progression.setNinjaXP(player, Progression.getNinjaXP(player) + amount)
+    return true
+end
+
+function Progression.requestDebugToggleBypass(player)
+    if isClient and isClient() then
+        sendClientCommand(player, "NinjaLineages", "debugToggleBypass", {})
+        return true
+    end
+    local data = NinjaLineages.getNLData(player)
+    data.bypassTraining = data.bypassTraining ~= true
+    NinjaLineages.transmitPlayerData(player)
+    return data.bypassTraining
+end
+
 local function currentDay()
     local minutes = NinjaLineages.Utils and NinjaLineages.Utils.Time.gameMinutes() or 0
     return math.floor(minutes / (24 * 60))
