@@ -183,7 +183,7 @@ local function unsealScroll(player, scroll)
     if not backpack then return end
     if ISTimedActionQueue and ISBaseTimedAction then
         ISTimedActionQueue.add(NLUnsealScrollAction:new(player, scroll))
-        NinjaLineages.HandSigns.playSeal(player)
+        NinjaLineages.HandSigns.playSeal(player, "tiger")
     else
         NinjaLineages.AbilityAuthority.request(player, "storage_unseal", {
             scrollItemId = scroll:getID(),

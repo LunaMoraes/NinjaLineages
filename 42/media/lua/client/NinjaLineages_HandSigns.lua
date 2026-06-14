@@ -9,22 +9,21 @@ NinjaLineages.HandSigns = NinjaLineages.HandSigns or {}
 
 local HandSigns = NinjaLineages.HandSigns
 local classicInputs = {}
-
-HandSigns.EMOTE = "nl_handseal_tiger"
+local activeSequences = {}
 
 HandSigns.Definitions = {
-    monkey = { nameKey = "UI_NL_HandSign_Monkey" },
-    dragon = { nameKey = "UI_NL_HandSign_Dragon" },
-    rat = { nameKey = "UI_NL_HandSign_Rat" },
-    bird = { nameKey = "UI_NL_HandSign_Bird" },
-    snake = { nameKey = "UI_NL_HandSign_Snake" },
-    ox = { nameKey = "UI_NL_HandSign_Ox" },
-    dog = { nameKey = "UI_NL_HandSign_Dog" },
-    horse = { nameKey = "UI_NL_HandSign_Horse" },
-    tiger = { nameKey = "UI_NL_HandSign_Tiger" },
-    boar = { nameKey = "UI_NL_HandSign_Boar" },
-    ram = { nameKey = "UI_NL_HandSign_Ram" },
-    hare = { nameKey = "UI_NL_HandSign_Hare" },
+    monkey = { nameKey = "UI_NL_HandSign_Monkey", emote = "nl_handseal_monkey" },
+    dragon = { nameKey = "UI_NL_HandSign_Dragon", emote = "nl_handseal_dragon" },
+    rat = { nameKey = "UI_NL_HandSign_Rat", emote = "nl_handseal_rat" },
+    bird = { nameKey = "UI_NL_HandSign_Bird", emote = "nl_handseal_bird" },
+    snake = { nameKey = "UI_NL_HandSign_Snake", emote = "nl_handseal_snake" },
+    ox = { nameKey = "UI_NL_HandSign_Ox", emote = "nl_handseal_ox" },
+    dog = { nameKey = "UI_NL_HandSign_Dog", emote = "nl_handseal_dog" },
+    horse = { nameKey = "UI_NL_HandSign_Horse", emote = "nl_handseal_horse" },
+    tiger = { nameKey = "UI_NL_HandSign_Tiger", emote = "nl_handseal_tiger" },
+    boar = { nameKey = "UI_NL_HandSign_Boar", emote = "nl_handseal_boar" },
+    ram = { nameKey = "UI_NL_HandSign_Ram", emote = "nl_handseal_ram" },
+    hare = { nameKey = "UI_NL_HandSign_Hare", emote = "nl_handseal_hare" },
 }
 
 HandSigns.KeyMap = {
@@ -84,10 +83,56 @@ local function playSign(player, signId)
     player:Say(getText(sign.nameKey))
 end
 
-function HandSigns.playSeal(player)
+function HandSigns.playSeal(player, signId)
     if not player or player:isDead() or player:getVehicle() then return false end
-    local ok = pcall(function() player:playEmote(HandSigns.EMOTE) end)
+    local sign = HandSigns.Definitions[signId or "tiger"]
+    if not sign or not sign.emote then return false end
+    local ok = pcall(function() player:playEmote(sign.emote) end)
     return ok
+end
+
+function HandSigns.startSequence(player, signs)
+    if not player then return false end
+    local sequence = signs
+    if type(sequence) ~= "table" or #sequence == 0 then sequence = { "tiger" } end
+
+    activeSequences[player] = nil
+    if not HandSigns.playSeal(player, sequence[1]) then return false end
+    if #sequence > 1 then
+        activeSequences[player] = {
+            signs = sequence,
+            nextIndex = 2,
+            nextAt = NinjaLineages.Utils.Time.realMilliseconds() + 400,
+        }
+    end
+    return true
+end
+
+function HandSigns.playAbilitySeal(player, actionId)
+    local definition = NinjaLineages.JutsuCatalog.get(actionId)
+    if definition and definition.category == "common" and definition.handSigns then
+        return HandSigns.startSequence(player, definition.handSigns)
+    end
+    return HandSigns.startSequence(player, { "tiger" })
+end
+
+function HandSigns.update(player)
+    local sequence = activeSequences[player]
+    if not sequence then return end
+    if not player or player:isDead() or player:getVehicle() then
+        activeSequences[player] = nil
+        return
+    end
+
+    local now = NinjaLineages.Utils.Time.realMilliseconds()
+    if now < sequence.nextAt then return end
+    HandSigns.playSeal(player, sequence.signs[sequence.nextIndex])
+    sequence.nextIndex = sequence.nextIndex + 1
+    if sequence.nextIndex > #sequence.signs then
+        activeSequences[player] = nil
+    else
+        sequence.nextAt = now + 400
+    end
 end
 
 function HandSigns.activateAbility(player, ability)
@@ -146,7 +191,7 @@ function HandSigns.handleClassicSign(player, signId)
     local state = classicInputs[player] or { signs = {} }
     table.insert(state.signs, signId)
     playSign(player, signId)
-    HandSigns.playSeal(player)
+    HandSigns.playSeal(player, signId)
 
     for _, ability in ipairs(abilities) do
         if sequenceEquals(state.signs, ability.handSigns) then

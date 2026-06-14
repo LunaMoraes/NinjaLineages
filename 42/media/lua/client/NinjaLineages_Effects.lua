@@ -300,6 +300,7 @@ local function onPlayerUpdate(player)
 
     runListeners(NinjaLineages.PlayerUpdates, "PlayerUpdate", player)
 
+    NinjaLineages.HandSigns.update(player)
     NinjaLineages.AbilityAuthority.updatePending()
     if not (isClient and isClient()) then
         NinjaLineages.AbilityAuthority.updatePlayer(player)

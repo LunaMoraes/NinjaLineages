@@ -212,7 +212,7 @@ function Authority.handleResult(result)
         if NinjaLineages.HandSigns
                 and result.actionId ~= "storage_unseal"
                 and not (pending and pending.skipSeal) then
-            NinjaLineages.HandSigns.playSeal(player)
+            NinjaLineages.HandSigns.playAbilitySeal(player, result.actionId)
         end
     elseif result.reason == "cooldown" then
         player:Say(getText(
