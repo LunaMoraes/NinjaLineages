@@ -96,7 +96,8 @@ function NLJutsuTreeUI:initialise()
         local margin = math.floor(w * 0.03)
 
         if self.screen == "selection" then
-            local leftWidth = math.floor(w * 0.15)
+            local margin = 20
+            local leftWidth = 250
             local statusHeight = math.floor(h * 0.76)
             local statusY = math.floor((h - statusHeight) / 2)
 
@@ -250,12 +251,13 @@ function NLJutsuTreeUI:createSelectionScreen()
     self.selectedNode = nil
     self.currentPage = self.currentPage or 1
 
+    -- Use fixed layout parameters for the selection screen to maximize space and prevent clipping
+    local margin = 20
+    local leftWidth = 250
+    local cardsX = leftWidth + margin
+
     -- Temporarily restore original width to calculate relative panels sizing
     local origW = self.originalWidth or self.width
-    local leftWidth = math.floor(origW * 0.15)
-    local margin = math.floor(origW * 0.03)
-    local cardsX = leftWidth + math.floor(origW * 0.01)
-
     local h = self.contentPanel.height
     local availableH = math.floor(h * 0.72) -- Adjusted from 0.76 to leave more room for title and controls
     local cardGap = math.floor(origW * 0.008)
@@ -265,7 +267,7 @@ function NLJutsuTreeUI:createSelectionScreen()
     local gridW = (cardWidth * 3) + (cardGap * 2)
 
     -- Dynamically resize the window width to perfectly fit: left panel + card grid + padding
-    local targetWidth = leftWidth + gridW + margin * 3
+    local targetWidth = leftWidth + gridW + margin * 2
     
     local screenWidth = getPlayerScreenWidth(self.playerNum)
     local newX = getPlayerScreenLeft(self.playerNum) + (screenWidth - targetWidth) / 2
@@ -277,9 +279,9 @@ function NLJutsuTreeUI:createSelectionScreen()
 
     -- Re-fetch panel metrics based on the resized width
     local w = self.contentPanel.width
-    margin = math.floor(w * 0.03)
-    leftWidth = math.floor(w * 0.15)
-    cardsX = leftWidth + math.floor(w * 0.01)
+    margin = 20
+    leftWidth = 250
+    cardsX = leftWidth + margin
 
     local statusHeight = math.floor(h * 0.76)
     local statusY = math.floor((h - statusHeight) / 2)
