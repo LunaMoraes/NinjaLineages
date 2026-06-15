@@ -97,51 +97,18 @@ function NLJutsuTreeUI:initialise()
 
         if self.screen == "selection" then
             local leftWidth = math.floor(w * 0.15)
-            local cardGap = math.floor(w * 0.008)
-            local cardsX = leftWidth + math.floor(w * 0.01)
-            local cardHeight = math.floor(h * 0.76)
-            local cardWidth = math.floor(cardHeight / 2)
-            local cardY = math.floor((h - cardHeight) / 2)
+            local statusHeight = math.floor(h * 0.76)
+            local statusY = math.floor((h - statusHeight) / 2)
 
-            -- Smooth frame-rate independent scroll update
-            local totalCardsWidth = #NinjaLineages.TreeDefinitions.DisciplineOrder * (cardWidth + cardGap) - cardGap
-            local visibleWidth = w - cardsX - margin
-            self.maxScrollOffset = math.max(0, totalCardsWidth - visibleWidth)
-            local maxScroll = self.maxScrollOffset
-
-            local dt = UIManager.getMillisSinceLastRender() / 16.66
-            if dt > 5 then dt = 5 end -- Cap lag spikes
-
-            local hoverSpeed = 25 * dt
-            if self.leftArrowHovered then
-                self.targetScrollOffset = math.max(0, self.targetScrollOffset - hoverSpeed)
-            elseif self.rightArrowHovered then
-                self.targetScrollOffset = math.min(maxScroll, self.targetScrollOffset + hoverSpeed)
-            end
-
-            self.targetScrollOffset = math.max(0, math.min(maxScroll, self.targetScrollOffset))
-
-            local diff = self.targetScrollOffset - self.scrollOffset
-            if math.abs(diff) > 0.5 then
-                local lerpFactor = math.max(0, math.min(1, 0.20 * dt))
-                self.scrollOffset = self.scrollOffset + diff * lerpFactor
-                self:repositionCardButtons()
-            else
-                if self.scrollOffset ~= self.targetScrollOffset then
-                    self.scrollOffset = self.targetScrollOffset
-                    self:repositionCardButtons()
-                end
-            end
-
-            -- Draw Selection Title Centered at the top
-            panel:drawTextCentre(text("UI_NL_Tree_SelectionTitle") or "Shinobi Disciplines", w / 2, math.floor(h * 0.06), 1, 1, 1, 1, UIFont.Large)
+            -- Draw Selection Title Centered at the top (with a warm amber/gold color)
+            panel:drawTextCentre(text("UI_NL_Tree_SelectionTitle") or "Shinobi Disciplines", w / 2, math.floor(h * 0.06), 0.95, 0.85, 0.65, 1, UIFont.Large)
 
             -- Draw a beautiful container box on the left side of the selection screen
-            panel:drawRect(margin, cardY, leftWidth - margin, cardHeight, 0.92, 0.08, 0.08, 0.11)
-            panel:drawRectBorder(margin, cardY, leftWidth - margin, cardHeight, 1.0, 0.22, 0.22, 0.32)
+            panel:drawRect(margin, statusY, leftWidth - margin, statusHeight, 0.92, 0.08, 0.08, 0.11)
+            panel:drawRectBorder(margin, statusY, leftWidth - margin, statusHeight, 1.0, 0.4, 0.15, 0.12)
             
             local boxX = margin + 15
-            local boxY = cardY + 20
+            local boxY = statusY + 20
             panel:drawText("STATUS", boxX, boxY, 1, 1, 1, 1, UIFont.Medium)
             panel:drawText("Rank: " .. text("UI_NL_Rank_" .. NinjaLineages.Progression.getNinjaRank(self.player)), boxX, boxY + 35, 0.85, 0.85, 0.9, 1, UIFont.Small)
             panel:drawText("Ninja XP: " .. math.floor(NinjaLineages.Progression.getNinjaXP(self.player)), boxX, boxY + 60, 0.85, 0.85, 0.9, 1, UIFont.Small)
@@ -164,8 +131,28 @@ function NLJutsuTreeUI:initialise()
                 end
             end
 
-            -- Clip card buttons to scroll area
-            panel:setStencilRect(cardsX, cardY, w - cardsX - margin, cardHeight)
+            -- Draw cards area background frame
+            if self.gridX and self.gridY and self.gridW and self.gridH then
+                local frameMargin = 10
+                panel:drawRect(self.gridX - frameMargin, self.gridY - frameMargin, self.gridW + (frameMargin * 2), self.gridH + (frameMargin * 2), 0.95, 0.03, 0.03, 0.04)
+                panel:drawRectBorder(self.gridX - frameMargin, self.gridY - frameMargin, self.gridW + (frameMargin * 2), self.gridH + (frameMargin * 2), 1.0, 0.25, 0.15, 0.12)
+            end
+
+            -- Draw page indicator text
+            if self.controlX and self.controlY and self.arrowWidth and self.indicatorW and self.arrowHeight then
+                local totalPages = math.max(1, math.ceil(#NinjaLineages.TreeDefinitions.DisciplineOrder / 6))
+                local pageText = tostring(self.currentPage) .. " / " .. tostring(totalPages)
+                local font = UIFont.Medium
+                local textWidth = getTextManager():MeasureStringX(font, pageText)
+                local textHeight = getTextManager():MeasureStringY(font, pageText)
+                panel:drawText(
+                    pageText,
+                    self.controlX + self.arrowWidth + 10 + math.floor((self.indicatorW - textWidth) / 2),
+                    self.controlY + math.floor((self.arrowHeight - textHeight) / 2),
+                    0.95, 0.85, 0.65, 1,
+                    font
+                )
+            end
         elseif self.screen == "discipline" and self.selectedDiscipline then
             -- Draw XP next to Back button on the discipline screen
             panel:drawText("Ninja XP: " .. math.floor(NinjaLineages.Progression.getNinjaXP(self.player)), margin + math.floor(w * 0.12), margin + 5, 0.85, 0.85, 0.9, 1, UIFont.Medium)
@@ -224,7 +211,6 @@ function NLJutsuTreeUI:initialise()
     self.contentPanel.render = function(panel)
         ISPanelJoypad.render(panel)
         if self.screen == "selection" then
-            panel:clearStencilRect()
             drawDisabledSideButton(panel, self.foundVillageButton)
             drawDisabledSideButton(panel, self.missionBoardButton)
         end
@@ -261,28 +247,65 @@ function NLJutsuTreeUI:createSelectionScreen()
     self.screen = "selection"
     self.selectedDiscipline = nil
     self.selectedNode = nil
-    self.scrollOffset = self.scrollOffset or 0
+    self.currentPage = self.currentPage or 1
 
     local w = self.contentPanel.width
     local h = self.contentPanel.height
     local margin = math.floor(w * 0.03)
     local leftWidth = math.floor(w * 0.15)
-    local cardGap = math.floor(w * 0.008)
     local cardsX = leftWidth + math.floor(w * 0.01)
-    local cardHeight = math.floor(h * 0.76)
-    local cardWidth = math.floor(cardHeight / 2)
-    local cardY = math.floor((h - cardHeight) / 2)
+
+    local statusHeight = math.floor(h * 0.76)
+    local statusY = math.floor((h - statusHeight) / 2)
+
+    -- 3 columns, 2 rows of cards layout math
+    self.maxAreaW = w - cardsX - margin
+    self.maxAreaH = math.floor(h * 0.78)
+    local cardGap = math.floor(w * 0.008)
+    self.cardGap = cardGap
+
+    local cardWidthByW = math.floor((self.maxAreaW - (2 * cardGap)) / 3)
+    local cardHeightByW = cardWidthByW * 2
+
+    local cardHeightByH = math.floor((self.maxAreaH - cardGap) / 2)
+    local cardWidthByH = math.floor(cardHeightByH / 2)
+
+    self.cardHeight = math.min(cardHeightByW, cardHeightByH)
+    self.cardWidth = math.floor(self.cardHeight / 2)
+
+    self.gridW = (self.cardWidth * 3) + (cardGap * 2)
+    self.gridH = (self.cardHeight * 2) + cardGap
+
+    self.gridX = cardsX + math.floor((self.maxAreaW - self.gridW) / 2)
+    self.gridY = math.floor(h * 0.08) + math.floor((self.maxAreaH - self.gridH) / 2)
+
+    local disciplineOrder = NinjaLineages.TreeDefinitions.DisciplineOrder
+    local totalPages = math.max(1, math.ceil(#disciplineOrder / 6))
+    if self.currentPage > totalPages then self.currentPage = totalPages end
+    if self.currentPage < 1 then self.currentPage = 1 end
+
+    local startIndex = (self.currentPage - 1) * 6 + 1
+    local endIndex = math.min(startIndex + 5, #disciplineOrder)
 
     self.cardButtons = {}
-    for index, disciplineId in ipairs(NinjaLineages.TreeDefinitions.DisciplineOrder) do
+    for index = startIndex, endIndex do
+        local disciplineId = disciplineOrder[index]
         local definition = NinjaLineages.TreeDefinitions.Disciplines[disciplineId]
         local title = translated(definition.name, definition.nameFallback)
         if definition.locked then title = title .. "\n" .. text("UI_NL_Tree_Locked") end
+
+        local localIndex = index - startIndex
+        local col = localIndex % 3
+        local row = math.floor(localIndex / 3)
+
+        local btnX = self.gridX + col * (self.cardWidth + cardGap)
+        local btnY = self.gridY + row * (self.cardHeight + cardGap)
+
         local button = self:addButton(
-            cardsX + ((index - 1) * (cardWidth + cardGap)) - self.scrollOffset,
-            cardY,
-            cardWidth,
-            cardHeight,
+            btnX,
+            btnY,
+            self.cardWidth,
+            self.cardHeight,
             "", -- Empty title so ISButton.render doesn't draw it in the middle
             self,
             NLJutsuTreeUI.onDiscipline
@@ -296,32 +319,34 @@ function NLJutsuTreeUI:createSelectionScreen()
         button.render = function(btn)
             -- 1. Draw card texture scaled to fill the entire button
             local cardTex = getTexture(definition.card)
+            local texCol = btn.textureColor or { r = 1, g = 1, b = 1, a = 1 }
+            if not btn.enable then
+                texCol = { r = 0.35, g = 0.35, b = 0.35, a = 1.0 }
+            end
             if cardTex then
-                btn:drawTextureScaled(cardTex, 0, 0, btn.width, btn.height, btn.textureColor.a, btn.textureColor.r, btn.textureColor.g, btn.textureColor.b)
+                btn:drawTextureScaled(cardTex, 0, 0, btn.width, btn.height, texCol.a, texCol.r, texCol.g, texCol.b)
             end
 
             -- 2. Draw hover overlay if hovered/focused
-            if btn:isMouseOver() or btn.joypadFocused then
+            if btn.enable and (btn:isMouseOver() or btn.joypadFocused) then
                 btn:drawRect(0, 0, btn.width, btn.height, 0.15, 1.0, 1.0, 1.0)
             end
 
             -- 3. Draw border on top of the card image
+            local borderCol = btn.borderColor or { r = 0.34, g = 0.34, b = 0.42, a = 0.85 }
+            if btn.enable and (btn:isMouseOver() or btn.joypadFocused) then
+                borderCol = { r = 0.8, g = 0.65, b = 0.2, a = 1.0 } -- Gold hover border
+            end
             if btn:shouldDrawBorder() then
-                btn:drawRectBorder(0, 0, btn.width, btn.height, btn.borderColor.a, btn.borderColor.r, btn.borderColor.g, btn.borderColor.b)
+                btn:drawRectBorder(0, 0, btn.width, btn.height, borderCol.a, borderCol.r, borderCol.g, borderCol.b)
             end
 
             -- 5. Call ISButton.render(btn) to handle standard rendering
             ISButton.render(btn)
 
-            -- 6. Draw the title text centered horizontally right below the icon
+            -- 6. Draw the title text centered horizontally near the bottom of the card (Bannerlord style)
             if btn.disciplineTitle and btn.disciplineTitle ~= "" then
-                local iconSize = 96
-                if btn.width < iconSize + 16 then
-                    iconSize = math.max(32, btn.width - 16)
-                end
-                local textY = 30 + iconSize + 10 -- 10px below the icon
                 local font = btn.font or UIFont.Small
-                
                 local lines = {}
                 local nlIndex = string.find(btn.disciplineTitle, "\n")
                 if nlIndex then
@@ -332,13 +357,25 @@ function NLJutsuTreeUI:createSelectionScreen()
                 end
                 
                 local lineHeight = getTextManager():MeasureStringY(font, "A")
+                local totalTextHeight = #lines * (lineHeight + 2)
+                local startTextY = btn.height - totalTextHeight - 20
+                
                 for i, line in ipairs(lines) do
                     local lineW = getTextManager():MeasureStringX(font, line)
                     local lineX = (btn.width - lineW) / 2
+                    local lineY = startTextY + (i - 1) * (lineHeight + 2)
                     if btn.enable then
-                        btn:drawText(line, lineX, textY + (i - 1) * (lineHeight + 2), btn.textColor.r, btn.textColor.g, btn.textColor.b, btn.textColor.a, font)
+                        -- Draw drop shadow for readability
+                        btn:drawText(line, lineX + 1, lineY + 1, 0.0, 0.0, 0.0, 1.0, font)
+                        local r, g, b = btn.textColor.r, btn.textColor.g, btn.textColor.b
+                        if btn:isMouseOver() or btn.joypadFocused then
+                            r, g, b = 0.95, 0.85, 0.65 -- Warm amber text on hover
+                        end
+                        btn:drawText(line, lineX, lineY, r, g, b, btn.textColor.a, font)
                     else
-                        btn:drawText(line, lineX, textY + (i - 1) * (lineHeight + 2), 0.3, 0.3, 0.3, 1.0, font)
+                        -- Locked text greyed out
+                        btn:drawText(line, lineX + 1, lineY + 1, 0.0, 0.0, 0.0, 1.0, font)
+                        btn:drawText(line, lineX, lineY, 0.4, 0.4, 0.4, 1.0, font)
                     end
                 end
             end
@@ -377,45 +414,33 @@ function NLJutsuTreeUI:createSelectionScreen()
         table.insert(self.cardButtons, button)
     end
 
-    -- Calculate scroll offset boundaries
-    local totalCardsWidth = #NinjaLineages.TreeDefinitions.DisciplineOrder * (cardWidth + cardGap) - cardGap
-    local visibleWidth = w - cardsX - margin
-    self.maxScrollOffset = math.max(0, totalCardsWidth - visibleWidth)
+    -- Add centered page navigation arrows below the grid
+    self.arrowWidth = 32
+    self.arrowHeight = 32
+    self.indicatorW = 80
+    self.controlW = self.arrowWidth * 2 + self.indicatorW + 20
+    self.controlX = self.gridX + math.floor((self.gridW - self.controlW) / 2)
+    self.controlY = self.gridY + self.gridH + math.floor((h - margin - (self.gridY + self.gridH) - self.arrowHeight) / 2)
 
-    -- Add left/right hover arrows
-    local arrowWidth = 32
-    local arrowHeight = 80
-    local arrowY = cardY + (cardHeight - arrowHeight) / 2
-    
-    self.leftArrowBtn = self:addButton(cardsX + 5, arrowY, arrowWidth, arrowHeight, "<", self, nil)
-    self.leftArrowBtn.internal = "left"
-    self.leftArrowBtn.backgroundColor = { r = 0.05, g = 0.05, b = 0.07, a = 0.7 }
-    self.leftArrowBtn.borderColor = { r = 0.7, g = 0.7, b = 0.7, a = 0.8 }
-    self.leftArrowBtn.font = UIFont.Large
-    self.leftArrowBtn.update = function(btn)
-        ISButton.update(btn)
-        self.leftArrowHovered = btn:isMouseOver()
-    end
-    
-    self.rightArrowBtn = self:addButton(w - margin - arrowWidth - 5, arrowY, arrowWidth, arrowHeight, ">", self, nil)
-    self.rightArrowBtn.internal = "right"
-    self.rightArrowBtn.backgroundColor = { r = 0.05, g = 0.05, b = 0.07, a = 0.7 }
-    self.rightArrowBtn.borderColor = { r = 0.7, g = 0.7, b = 0.7, a = 0.8 }
-    self.rightArrowBtn.font = UIFont.Large
-    self.rightArrowBtn.update = function(btn)
-        ISButton.update(btn)
-        self.rightArrowHovered = btn:isMouseOver()
+    if self.currentPage > 1 then
+        self.leftArrowBtn = self:addButton(self.controlX, self.controlY, self.arrowWidth, self.arrowHeight, "<", self, NLJutsuTreeUI.onPrevPage)
+        self.leftArrowBtn.backgroundColor = { r = 0.11, g = 0.11, b = 0.15, a = 0.95 }
+        self.leftArrowBtn.borderColor = { r = 0.34, g = 0.34, b = 0.42, a = 0.85 }
+        self.leftArrowBtn.font = UIFont.Medium
     end
 
-    self.leftArrowHovered = false
-    self.rightArrowHovered = false
-    self:repositionCardButtons()
+    if self.currentPage < totalPages then
+        self.rightArrowBtn = self:addButton(self.controlX + self.arrowWidth + self.indicatorW + 20, self.controlY, self.arrowWidth, self.arrowHeight, ">", self, NLJutsuTreeUI.onNextPage)
+        self.rightArrowBtn.backgroundColor = { r = 0.11, g = 0.11, b = 0.15, a = 0.95 }
+        self.rightArrowBtn.borderColor = { r = 0.34, g = 0.34, b = 0.42, a = 0.85 }
+        self.rightArrowBtn.font = UIFont.Medium
+    end
 
     local sideButtonX = margin + 10
     local sideButtonWidth = leftWidth - margin - 20
     local sideButtonHeight = math.floor(h * 0.055)
     local sideButtonGap = 8
-    local sideButtonY = cardY + cardHeight - (sideButtonHeight * 2) - sideButtonGap - 15
+    local sideButtonY = statusY + statusHeight - (sideButtonHeight * 2) - sideButtonGap - 15
     local comingSoon = text("UI_NL_Tree_ComingSoon")
 
     self.foundVillageButton = self:addButton(
@@ -451,32 +476,18 @@ function NLJutsuTreeUI:onDiscipline(button)
     self:createDisciplineScreen(button.internal)
 end
 
-function NLJutsuTreeUI:repositionCardButtons()
-    if self.screen ~= "selection" or not self.cardButtons then return end
-    
-    local w = self.contentPanel.width
-    local margin = math.floor(w * 0.03)
-    local leftWidth = math.floor(w * 0.15)
-    local cardGap = math.floor(w * 0.008)
-    local cardsX = leftWidth + math.floor(w * 0.01)
-    local cardHeight = math.floor(self.contentPanel.height * 0.76)
-    local cardWidth = math.floor(cardHeight / 2)
-    
-    for index, button in ipairs(self.cardButtons) do
-        local btnX = cardsX + ((index - 1) * (cardWidth + cardGap)) - self.scrollOffset
-        button:setX(btnX)
-        
-        -- Hide cards that are completely scrolled out of the visible screen area
-        local isVisible = (btnX + cardWidth >= cardsX) and (btnX <= w - margin)
-        button:setVisible(isVisible)
+function NLJutsuTreeUI:onPrevPage()
+    if self.currentPage > 1 then
+        self.currentPage = self.currentPage - 1
+        self:createSelectionScreen()
     end
-    
-    if self.leftArrowBtn then
-        self.leftArrowBtn:setVisible(self.scrollOffset > 0)
-    end
-    if self.rightArrowBtn then
-        local maxScroll = self.maxScrollOffset or 0
-        self.rightArrowBtn:setVisible(self.scrollOffset < maxScroll)
+end
+
+function NLJutsuTreeUI:onNextPage()
+    local totalPages = math.max(1, math.ceil(#NinjaLineages.TreeDefinitions.DisciplineOrder / 6))
+    if self.currentPage < totalPages then
+        self.currentPage = self.currentPage + 1
+        self:createSelectionScreen()
     end
 end
 
@@ -684,8 +695,7 @@ function NLJutsuTreeUI:new(player)
     o:setTitle(text("UI_NL_Tree_Title") or "Jutsu Unlock Trees")
     o.clearFrame = true
     o.joypadButtons = {}
-    o.scrollOffset = 0
-    o.targetScrollOffset = 0
+    o.currentPage = 1
     return o
 end
 
