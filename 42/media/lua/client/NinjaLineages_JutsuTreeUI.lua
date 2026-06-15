@@ -300,8 +300,9 @@ function NLJutsuTreeUI:createSelectionScreen()
     for index = startIndex, endIndex do
         local disciplineId = visibleDisciplines[index]
         local definition = NinjaLineages.TreeDefinitions.Disciplines[disciplineId]
+        local isLocked = NinjaLineages.Progression.isDisciplineLocked(self.player, disciplineId)
         local title = translated(definition.name, definition.nameFallback)
-        if definition.locked then title = title .. "\n" .. text("UI_NL_Tree_Locked") end
+        if isLocked then title = title .. "\n" .. text("UI_NL_Tree_Locked") end
 
         local localIndex = index - startIndex
         local col = localIndex % 3
@@ -321,10 +322,15 @@ function NLJutsuTreeUI:createSelectionScreen()
         )
         button.disciplineTitle = title
         button.internal = disciplineId
-        button.enable = definition.locked ~= true
+        button.enable = not isLocked
         button.backgroundColor = { r = 0.10, g = 0.10, b = 0.14, a = 0.95 }
         button.backgroundColorMouseOver = { r = 0.20, g = 0.20, b = 0.28, a = 0.95 }
-        button.tooltip = translated(definition.description, definition.descriptionFallback)
+        
+        local descKey = definition.description
+        if isLocked then
+            descKey = "UI_NL_Discipline_StandardLockedDesc"
+        end
+        button.tooltip = translated(descKey, definition.descriptionFallback)
         button.render = function(btn)
             -- 1. Draw card texture scaled to fill the entire button
             local cardTex = getTexture(definition.card)
@@ -481,7 +487,7 @@ end
 function NLJutsuTreeUI:onDiscipline(button)
     if not button or not button.internal then return end
     local definition = NinjaLineages.TreeDefinitions.Disciplines[button.internal]
-    if not definition or definition.locked then return end
+    if not definition or NinjaLineages.Progression.isDisciplineLocked(self.player, button.internal) then return end
     self:createDisciplineScreen(button.internal)
 end
 

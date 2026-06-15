@@ -163,7 +163,23 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
             end
         end)
 
-        -- 4. Unlock Mangekyo (moved from Uchiha)
+        -- 4. Toggle All Disciplines Unlocked
+        local unlockedText = getText("UI_NL_Debug_ToggleAllUnlocked") .. ": " .. (data and data.allDisciplinesUnlocked and "ON" or "OFF")
+        debugSubMenu:addOption(unlockedText, player, function(p)
+            if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugToggleAllUnlocked then
+                local enabled = NinjaLineages.Progression.requestDebugToggleAllUnlocked(p)
+                if not (isClient and isClient()) then
+                    p:Say("All Disciplines Unlocked: " .. (enabled and "Enabled" or "Disabled"))
+                    for _, ui in pairs(NLJutsuTreeUI.instances) do
+                        if ui.screen == "selection" then
+                            ui:createSelectionScreen()
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- 5. Unlock Mangekyo (moved from Uchiha)
         if NinjaLineages.Uchiha and NinjaLineages.Uchiha.canUseKamuiTestUnlock and NinjaLineages.Uchiha.canUseKamuiTestUnlock(player) then
             debugSubMenu:addOption(getText("UI_NL_Ability_Kamui_TestUnlock"), player, NinjaLineages.Uchiha.unlockKamuiForSinglePlayerTest)
         end
@@ -183,6 +199,13 @@ local function onDebugServerCommand(module, command, args)
         player:Say("Bypass Training: " .. (args.enabled and "Enabled" or "Disabled"))
     elseif args.action == "toggleAllVisible" then
         player:Say("All Disciplines Visibility: " .. (args.enabled and "Enabled" or "Disabled"))
+        for _, ui in pairs(NLJutsuTreeUI.instances) do
+            if ui.screen == "selection" then
+                ui:createSelectionScreen()
+            end
+        end
+    elseif args.action == "toggleAllUnlocked" then
+        player:Say("All Disciplines Unlocked: " .. (args.enabled and "Enabled" or "Disabled"))
         for _, ui in pairs(NLJutsuTreeUI.instances) do
             if ui.screen == "selection" then
                 ui:createSelectionScreen()

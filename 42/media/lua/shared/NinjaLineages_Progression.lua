@@ -67,6 +67,17 @@ function Progression.requestDebugToggleAllVisible(player)
     return data.allDisciplinesVisible
 end
 
+function Progression.requestDebugToggleAllUnlocked(player)
+    if isClient and isClient() then
+        sendClientCommand(player, "NinjaLineages", "debugToggleAllUnlocked", {})
+        return true
+    end
+    local data = NinjaLineages.getNLData(player)
+    data.allDisciplinesUnlocked = data.allDisciplinesUnlocked ~= true
+    NinjaLineages.transmitPlayerData(player)
+    return data.allDisciplinesUnlocked
+end
+
 function Progression.isDisciplineVisible(player, disciplineId)
     local definition = NinjaLineages.TreeDefinitions.Disciplines[disciplineId]
     if not definition then return false end
@@ -80,6 +91,20 @@ function Progression.isDisciplineVisible(player, disciplineId)
         return true
     end
     return false
+end
+
+function Progression.isDisciplineLocked(player, disciplineId)
+    local definition = NinjaLineages.TreeDefinitions.Disciplines[disciplineId]
+    if not definition then return true end
+    
+    local data = NinjaLineages.getNLData(player)
+    if data.bypassTraining or data.allDisciplinesUnlocked then
+        return false
+    end
+    if data.unlockedDisciplines and data.unlockedDisciplines[disciplineId] then
+        return false
+    end
+    return definition.locked == true
 end
 
 local function currentDay()

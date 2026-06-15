@@ -40,13 +40,34 @@ Catalog.Disciplines = {
     sennin_mode = {
         name = "UI_NL_Discipline_SenninMode",
         description = "UI_NL_Discipline_SenninMode_Desc",
-        card = "media/ui/jutsuTree/cards/chakra_transformation.png",
+        card = "media/ui/jutsuTree/cards/sennin_mode.png",
         locked = true,
     },
     kinjutsu = {
         name = "UI_NL_Discipline_Kinjutsu",
         description = "UI_NL_Discipline_Kinjutsu_Desc",
-        card = "media/ui/jutsuTree/cards/fuinjutsu.png",
+        card = "media/ui/jutsuTree/cards/kinjutsu.png",
+        locked = true,
+        hidden = true,
+    },
+    puppet_master = {
+        name = "UI_NL_Discipline_PuppetMaster",
+        description = "UI_NL_Discipline_PuppetMaster_Desc",
+        card = "media/ui/jutsuTree/cards/puppet_master.png",
+        locked = true,
+        hidden = true,
+    },
+    gene_experimentation = {
+        name = "UI_NL_Discipline_GeneExperimentation",
+        description = "UI_NL_Discipline_GeneExperimentation_Desc",
+        card = "media/ui/jutsuTree/cards/gene_experimentation.png",
+        locked = true,
+        hidden = true,
+    },
+    jinchuuriki = {
+        name = "UI_NL_Discipline_Jinchuuriki",
+        description = "UI_NL_Discipline_Jinchuuriki_Desc",
+        card = "media/ui/jutsuTree/cards/jinchuriki.png",
         locked = true,
         hidden = true,
     },
@@ -61,6 +82,9 @@ Catalog.DisciplineOrder = {
     "fuinjutsu",
     "sennin_mode",
     "kinjutsu",
+    "puppet_master",
+    "gene_experimentation",
+    "jinchuuriki",
 }
 
 local function node(id, discipline, rank, order, prerequisites, effectType)
