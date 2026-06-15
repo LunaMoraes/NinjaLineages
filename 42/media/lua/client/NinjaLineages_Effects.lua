@@ -335,17 +335,18 @@ local function initKeybinds()
     table.insert(keyBinding, { value = "Ninja Ability Radial", key = Keyboard.KEY_NONE })
 end
 
-Events.OnCreatePlayer.Add(function(playerIndex, player)
+local function onCreatePlayer(playerIndex, player)
     if player then
         runListeners(NinjaLineages.CreatePlayerListeners, "CreatePlayer", player)
     end
-end)
+end
 
-Events.OnGameBoot.Add(initKeybinds)
-Events.OnPlayerUpdate.Add(onPlayerUpdate)
-Events.OnZombieUpdate.Add(onZombieUpdate)
-Events.OnHitZombie.Add(onHitZombie)
-Events.OnFillWorldObjectContextMenu.Add(addAbilityContextMenu)
-Events.OnKeyStartPressed.Add(onKeyStartPressed)
-Events.OnPlayerGetDamage.Add(onPlayerGetDamage)
-Events.EveryOneMinute.Add(everyOneMinute)
+NinjaLineages.addEventOnce("client.effects.onCreatePlayer", Events.OnCreatePlayer, onCreatePlayer)
+NinjaLineages.addEventOnce("client.effects.onGameBoot.initKeybinds", Events.OnGameBoot, initKeybinds)
+NinjaLineages.addEventOnce("client.effects.onPlayerUpdate", Events.OnPlayerUpdate, onPlayerUpdate)
+NinjaLineages.addEventOnce("client.effects.onZombieUpdate", Events.OnZombieUpdate, onZombieUpdate)
+NinjaLineages.addEventOnce("client.effects.onHitZombie", Events.OnHitZombie, onHitZombie)
+NinjaLineages.addEventOnce("client.effects.onFillWorldObjectContextMenu.abilities", Events.OnFillWorldObjectContextMenu, addAbilityContextMenu)
+NinjaLineages.addEventOnce("client.effects.onKeyStartPressed", Events.OnKeyStartPressed, onKeyStartPressed)
+NinjaLineages.addEventOnce("client.effects.onPlayerGetDamage", Events.OnPlayerGetDamage, onPlayerGetDamage)
+NinjaLineages.addEventOnce("client.effects.everyOneMinute", Events.EveryOneMinute, everyOneMinute)

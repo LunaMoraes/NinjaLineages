@@ -27,6 +27,20 @@ function NinjaLineages.safeCall(kind, id, fn, ...)
     end
 end
 
+-- Idempotent event registration guard.
+-- Use this instead of direct Events.X.Add(...) in mod files.
+NinjaLineages._eventRegistrations = NinjaLineages._eventRegistrations or {}
+
+function NinjaLineages.addEventOnce(key, eventObj, handler)
+    if not key or not eventObj or not handler then return false end
+    if NinjaLineages._eventRegistrations[key] then return false end
+    if not eventObj.Add then return false end
+
+    eventObj.Add(handler)
+    NinjaLineages._eventRegistrations[key] = true
+    return true
+end
+
 local function addListener(registry, idOrFn, maybeFn)
     local id, fn
 

@@ -260,39 +260,54 @@ local function addStorageSealContextMenu(playerNum, context, items)
 end
 
 -- Dynamic Registration
-NinjaLineages.registerPlayerUpdate("uzumaki.update", function(player)
-    applyUzumakiBleedSlow(player)
-end)
+-- MP client: server owns Uzumaki health mutation.
+-- SP: preserve local authority because server files are not loaded in normal SP.
+if not (isClient and isClient()) then
+    NinjaLineages.registerPlayerUpdate("uzumaki.update", function(player)
+        applyUzumakiBleedSlow(player)
+    end)
 
-NinjaLineages.registerPlayerGetDamage("uzumaki.getDamage", refundUzumakiDamage)
+    NinjaLineages.registerPlayerGetDamage("uzumaki.getDamage", refundUzumakiDamage)
 
-NinjaLineages.registerCreatePlayer("uzumaki.init", captureUzumakiHealthState)
+    NinjaLineages.registerCreatePlayer("uzumaki.init", captureUzumakiHealthState)
+end
 
 -- Hook context menus
 if Events.OnFillInventoryObjectContextMenu then
-    Events.OnFillInventoryObjectContextMenu.Add(addStorageSealContextMenu)
+    NinjaLineages.addEventOnce(
+        "client.uzumaki.onFillInventoryObjectContextMenu.storageSeal",
+        Events.OnFillInventoryObjectContextMenu,
+        addStorageSealContextMenu
+    )
+end
+
+local function addAlarmSealWorldContextMenu(playerNum, context, worldObjects, test)
+    local player = getSpecificPlayer(playerNum)
+    if not player or player:isDead() then return end
+    if test then return true end
+
+    local alarmSeal = NinjaLineages.Utils.Inventory.getFirstInventoryItem(player, "Base.NL_AlarmSeal")
+    if not NinjaLineages.Progression.isCompleted(player, "alarm_seal") then return end
+
+    if alarmSeal then
+        local subMenu = NinjaLineages.UI.getOrCreateWorldSubMenu(context)
+        if subMenu then
+            local square = player:getSquare()
+            for _, worldObject in ipairs(worldObjects or {}) do
+                if worldObject and worldObject.getSquare and worldObject:getSquare() then
+                    square = worldObject:getSquare()
+                    break
+                end
+            end
+            subMenu:addOption(getText("UI_NL_Ability_AlarmSeal_Place"), player, placeAlarmSeal, square)
+        end
+    end
 end
 
 if Events.OnFillWorldObjectContextMenu then
-    Events.OnFillWorldObjectContextMenu.Add(function(playerNum, context, worldObjects, test)
-        local player = getSpecificPlayer(playerNum)
-        if not player or player:isDead() then return end
-        if test then return true end
-
-        local alarmSeal = NinjaLineages.Utils.Inventory.getFirstInventoryItem(player, "Base.NL_AlarmSeal")
-        if not NinjaLineages.Progression.isCompleted(player, "alarm_seal") then return end
-        if alarmSeal then
-            local subMenu = NinjaLineages.UI.getOrCreateWorldSubMenu(context)
-            if subMenu then
-                local square = player:getSquare()
-                for _, worldObject in ipairs(worldObjects or {}) do
-                    if worldObject and worldObject.getSquare and worldObject:getSquare() then
-                        square = worldObject:getSquare()
-                        break
-                    end
-                end
-                subMenu:addOption(getText("UI_NL_Ability_AlarmSeal_Place"), player, placeAlarmSeal, square)
-            end
-        end
-    end)
+    NinjaLineages.addEventOnce(
+        "client.uzumaki.onFillWorldObjectContextMenu.alarmSeal",
+        Events.OnFillWorldObjectContextMenu,
+        addAlarmSealWorldContextMenu
+    )
 end

@@ -3,70 +3,69 @@ require "NinjaLineages_Items"
 require "NinjaLineages_RinneganMechanics"
 require "NinjaLineages_AbilityExecution"
 require "NinjaLineages_ProgressionServer"
+require "NinjaLineages_PassivesServer"
 
-local function unlockMangekyoIfEligible(victim)
-    if not victim or not instanceof(victim, "IsoPlayer") then return end
-    local attacker = victim:getAttackedBy()
-    if not attacker or not instanceof(attacker, "IsoPlayer") then return end
-    if NinjaLineages.getSharinganStage(attacker) < 3 then return end
+local function notifyMangekyoUnlocked(player)
+    if not player then return end
 
-    local data = NinjaLineages.getNLData(attacker)
-    if data.mangekyoUnlocked then return end
-    data.mangekyoUnlocked = true
-    NinjaLineages.transmitPlayerData(attacker)
-end
-
-Events.OnCharacterDeath.Add(unlockMangekyoIfEligible)
-
-local function handleAbilityRequest(player, args)
-    local result = NinjaLineages.AbilityAuthority.execute(
-        player,
-        args and args.requestId,
-        args and args.actionId,
-        args and args.args or {}
-    )
-    result.casterOnlineId = player:getOnlineID()
-    sendServerCommand(player, "NinjaLineages", "abilityResult", result)
-    if result.ok and result.actionId == "shinra_tensei" then
-        sendServerCommand("NinjaLineages", "abilityEvent", {
-            kind = "shinra_tensei_pulse",
-            x = player:getX(),
-            y = player:getY(),
-            z = math.floor(player:getZ()),
+    if isServer and isServer() then
+        sendServerCommand(player, "NinjaLineages", "abilityEvent", {
+            kind = "mangekyo_unlocked",
             casterOnlineId = player:getOnlineID(),
         })
     end
 end
 
-local function onClientCommand(module, command, player, args)
-    if module ~= "NinjaLineages" then return end
-    if command == "abilityRequest" then
-        handleAbilityRequest(player, args)
-    end
+local function unlockMangekyoIfEligible(victim)
+    if not victim or not instanceof(victim, "IsoPlayer") then return end
+
+    local attacker = victim:getAttackedBy()
+    if not attacker or not instanceof(attacker, "IsoPlayer") then return end
+    if not NinjaLineages.hasSharingan(attacker) then return end
+    if NinjaLineages.getSharinganStage(attacker) < 3 then return end
+
+    local data = NinjaLineages.getNLData(attacker)
+    if data.mangekyoUnlocked then return end
+
+    data.mangekyoUnlocked = true
+    NinjaLineages.transmitPlayerData(attacker)
+    notifyMangekyoUnlocked(attacker)
+end
+local function everyOneMinute()
+    NinjaLineages.AbilityAuthority.updateAlarmSeals()
+
+    forEachOnlinePlayer(function(player)
+        NinjaLineages.AbilityAuthority.everyMinute(player)
+
+        if NinjaLineages.ServerPassives then
+            NinjaLineages.ServerPassives.everyMinute(player)
+        end
+    end)
 end
 
-local function forEachOnlinePlayer(callback)
-    local players = getOnlinePlayers and getOnlinePlayers()
-    if not players then return end
-    for i = 0, players:size() - 1 do
-        local player = players:get(i)
-        if player then callback(player) end
-    end
-end
 
-local function updateAbilities()
-    NinjaLineages.AbilityAuthority.pruneSeenRequests()
-    NinjaLineages.RinneganMechanics.update()
-    NinjaLineages.AbilityAuthority.updateWorld()
-    forEachOnlinePlayer(NinjaLineages.AbilityAuthority.updatePlayer)
-end
+NinjaLineages.addEventOnce(
+    "server.onCharacterDeath.unlockMangekyo",
+    Events.OnCharacterDeath,
+    unlockMangekyoIfEligible
+)
 
-Events.OnClientCommand.Add(onClientCommand)
-Events.OnTick.Add(updateAbilities)
+NinjaLineages.addEventOnce(
+    "server.onClientCommand",
+    Events.OnClientCommand,
+    onClientCommand
+)
+
+NinjaLineages.addEventOnce(
+    "server.onTick.updateAbilities",
+    Events.OnTick,
+    updateAbilities
+)
 
 if isServer and isServer() then
-    Events.EveryOneMinute.Add(function()
-        NinjaLineages.AbilityAuthority.updateAlarmSeals()
-        forEachOnlinePlayer(NinjaLineages.AbilityAuthority.everyMinute)
-    end)
+    NinjaLineages.addEventOnce(
+        "server.everyOneMinute",
+        Events.EveryOneMinute,
+        everyOneMinute
+    )
 end
