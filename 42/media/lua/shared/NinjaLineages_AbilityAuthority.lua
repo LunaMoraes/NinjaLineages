@@ -7,12 +7,15 @@ NinjaLineages.AbilityAuthority = NinjaLineages.AbilityAuthority or {}
 local Authority = NinjaLineages.AbilityAuthority
 
 local kamuiLocalState = setmetatable({}, { __mode = "k" })
+local KAMUI_ALPHA = 0.55
 
 local function readLocalKamuiState(player)
     local state = {
         wasCollidable = true,
         wasNoClip = false,
         wasGhostMode = false,
+        wasAlpha = 1,
+        wasTargetAlpha = 1,
     }
 
     local okCollidable, wasCollidable = pcall(function()
@@ -29,6 +32,16 @@ local function readLocalKamuiState(player)
         return player:isGhostMode()
     end)
     if okGhost then state.wasGhostMode = wasGhost == true end
+
+    local okAlpha, wasAlpha = pcall(function()
+        return player:getAlpha()
+    end)
+    if okAlpha and wasAlpha then state.wasAlpha = wasAlpha end
+
+    local okTargetAlpha, wasTargetAlpha = pcall(function()
+        return player:getTargetAlpha()
+    end)
+    if okTargetAlpha and wasTargetAlpha then state.wasTargetAlpha = wasTargetAlpha end
 
     return state
 end
@@ -47,6 +60,7 @@ local function maintainLocalKamuiNoClip(player)
         setForcedNoClip(player, true)
     end
     pcall(function() player:setGhostMode(true) end)
+    pcall(function() player:setAlphaAndTarget(KAMUI_ALPHA) end)
 end
 
 local function applyLocalKamuiNoClip(player, args)
@@ -62,6 +76,7 @@ local function applyLocalKamuiNoClip(player, args)
             setForcedNoClip(player, true)
         end
         pcall(function() player:setGhostMode(true) end)
+        pcall(function() player:setAlphaAndTarget(KAMUI_ALPHA) end)
         return
     end
 
@@ -77,6 +92,10 @@ local function applyLocalKamuiNoClip(player, args)
         setForcedNoClip(player, state.wasNoClip == true)
         pcall(function() player:setGhostMode(state.wasGhostMode == true) end)
         pcall(function() player:setCollidable(state.wasCollidable == true) end)
+        pcall(function()
+            player:setAlpha(state.wasAlpha)
+            player:setTargetAlpha(state.wasTargetAlpha)
+        end)
         kamuiLocalState[player] = nil
         return
     end

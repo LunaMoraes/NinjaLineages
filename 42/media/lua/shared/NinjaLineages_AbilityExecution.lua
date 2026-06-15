@@ -314,7 +314,7 @@ local function emitKamuiNoClipEvent(player, active, restoreX, restoreY, restoreZ
 
     if isServer and isServer() then
         sendServerCommand(player, "NinjaLineages", "abilityEvent", event)
-    elseif isClient and isClient() then
+    else
         NinjaLineages.AbilityAuthority.handleEvent(event)
     end
 end
