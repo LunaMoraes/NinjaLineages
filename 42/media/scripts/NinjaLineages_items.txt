@@ -185,13 +185,18 @@ module Base
 
     item NL_OdorConditioningMask
     {
-        DisplayCategory = Accessory,
+        DisplayCategory = ProtectiveGear,
         ItemType = base:clothing,
         Weight = 0.0,
         Icon = GasMask,
-        BodyLocation = base:mask,
+        BloodLocation = Head,
+        BodyLocation = base:maskeyes,
+        CanHaveHoles = false,
         Cosmetic = true,
-        Tags = base:scba;base:gasmask,
+        CorpseSicknessDefense = 100.0,
+        Tags = base:gasmask;base:isdisguise,
+        OnCreate = ItemCodeOnCreate.onCreateGasMask,
+        ConditionMax = 1,
         Hidden = true,
     }
 }

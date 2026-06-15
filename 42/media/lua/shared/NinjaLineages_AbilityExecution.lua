@@ -231,15 +231,35 @@ specializedExecutors.creation_rebirth = function(player, definition)
     return true
 end
 
+local function refreshOdorMask(item)
+    if not item then return end
+    pcall(function()
+        if item:getConditionMax() and item:getConditionMax() > 0 then
+            item:setCondition(item:getConditionMax())
+        end
+    end)
+    pcall(function() item:setUsedDelta(1.0) end)
+end
+
 local function wearOdorMask(player, data)
     local inv = player:getInventory()
     if not inv then return end
+
+    if data.odorMaskItemId then
+        local trackedItem = inv:getItemById(data.odorMaskItemId)
+        if trackedItem and trackedItem:getFullType() == "Base.NL_OdorConditioningMask" then
+            refreshOdorMask(trackedItem)
+            pcall(function() player:setWornItem(trackedItem:getBodyLocation(), trackedItem) end)
+            return
+        end
+    end
     
     local wornItems = player:getWornItems()
     if wornItems then
         for i = 0, wornItems:size() - 1 do
             local item = wornItems:getItemByIndex(i)
             if item and item:getFullType() == "Base.NL_OdorConditioningMask" then
+                refreshOdorMask(item)
                 data.odorMaskItemId = item:getID()
                 return
             end
@@ -248,6 +268,7 @@ local function wearOdorMask(player, data)
     
     local item = inv:AddItem("Base.NL_OdorConditioningMask")
     if item then
+        refreshOdorMask(item)
         pcall(function() player:setWornItem(item:getBodyLocation(), item) end)
         data.odorMaskItemId = item:getID()
     end
@@ -851,9 +872,7 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
             player:Say(getText("UI_NL_Ability_CorpseOdorConditioning_Deactivated"))
             NinjaLineages.transmitPlayerData(player)
         else
-            if not data.odorMaskItemId then
-                wearOdorMask(player, data)
-            end
+            wearOdorMask(player, data)
         end
     else
         if data.odorMaskItemId then
