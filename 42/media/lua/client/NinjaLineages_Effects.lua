@@ -281,9 +281,20 @@ local function onPlayerUpdate(player)
 
     NinjaLineages.HandSigns.update(player)
     NinjaLineages.AbilityAuthority.updatePending()
+    NinjaLineages.AbilityAuthority.maintainLocalKamuiNoClip(player)
     if not (isClient and isClient()) then
         NinjaLineages.AbilityAuthority.updatePlayer(player)
         if player:getPlayerNum() == 0 then NinjaLineages.AbilityAuthority.updateWorld() end
+    end
+end
+
+local function onTick()
+    if (isClient and isClient()) or (isServer and isServer()) then return end
+    if not getNumActivePlayers or not getSpecificPlayer then return end
+    for playerIndex = 0, getNumActivePlayers() - 1 do
+        NinjaLineages.AbilityAuthority.updateLocalKamuiPhaseMovement(
+            getSpecificPlayer(playerIndex)
+        )
     end
 end
 
@@ -344,6 +355,7 @@ end
 NinjaLineages.addEventOnce("client.effects.onCreatePlayer", Events.OnCreatePlayer, onCreatePlayer)
 NinjaLineages.addEventOnce("client.effects.onGameBoot.initKeybinds", Events.OnGameBoot, initKeybinds)
 NinjaLineages.addEventOnce("client.effects.onPlayerUpdate", Events.OnPlayerUpdate, onPlayerUpdate)
+NinjaLineages.addEventOnce("client.effects.onTick.kamuiPhase", Events.OnTick, onTick)
 NinjaLineages.addEventOnce("client.effects.onZombieUpdate", Events.OnZombieUpdate, onZombieUpdate)
 NinjaLineages.addEventOnce("client.effects.onHitZombie", Events.OnHitZombie, onHitZombie)
 NinjaLineages.addEventOnce("client.effects.onFillWorldObjectContextMenu.abilities", Events.OnFillWorldObjectContextMenu, addAbilityContextMenu)

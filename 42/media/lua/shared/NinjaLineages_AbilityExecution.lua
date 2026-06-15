@@ -13,6 +13,8 @@ local active = {}
 local boundZombies = {}
 local specializedExecutors = {}
 local ALARM_DATA_KEY = "NinjaLineagesAlarmSeals"
+local KAMUI_SP_STEP_DISTANCE = 0.055
+local kamuiMoveVector = Vector2.new()
 
 local function cooldownKey(definition)
     return Catalog.getCooldownKey(definition)
@@ -260,6 +262,138 @@ local function applyKamuiVisionPenalty(player)
     NinjaLineages.transmitPlayerData(player)
 end
 
+local function isSafeKamuiExitSquare(square)
+    if not square then return false end
+    if not square:TreatAsSolidFloor() then return false end
+    if square:isSolid() or square:isSolidTrans() then return false end
+    return square:isFree(false)
+end
+
+local function readKamuiFlags(player, state)
+    state.wasCollidable = true
+    state.wasGhostMode = false
+    state.wasGodMod = false
+    state.wasNoClip = false
+
+    local okCollidable, wasCollidable = pcall(function()
+        return player:isCollidable()
+    end)
+    if okCollidable then state.wasCollidable = wasCollidable == true end
+
+    local okGhost, wasGhost = pcall(function()
+        return player:isGhostMode()
+    end)
+    if okGhost then state.wasGhostMode = wasGhost == true end
+
+    local okGod, wasGod = pcall(function()
+        return player:isGodMod()
+    end)
+    if okGod then state.wasGodMod = wasGod == true end
+
+    local okNoClip, wasNoClip = pcall(function()
+        return player:isNoClip()
+    end)
+    if okNoClip then state.wasNoClip = wasNoClip == true end
+
+    state.kamuiLastSafeX = player:getX()
+    state.kamuiLastSafeY = player:getY()
+    state.kamuiLastSafeZ = player:getZ()
+end
+
+local function emitKamuiNoClipEvent(player, active, restoreX, restoreY, restoreZ)
+    if not player then return end
+
+    local event = {
+        kind = "kamui_noclip",
+        active = active == true,
+        casterOnlineId = player:getOnlineID(),
+        restoreX = restoreX,
+        restoreY = restoreY,
+        restoreZ = restoreZ,
+    }
+
+    if isServer and isServer() then
+        sendServerCommand(player, "NinjaLineages", "abilityEvent", event)
+    elseif isClient and isClient() then
+        NinjaLineages.AbilityAuthority.handleEvent(event)
+    end
+end
+
+local function applyKamuiFlags(player)
+    pcall(function() player:setGhostMode(true) end)
+    pcall(function() player:setGodMod(true, true) end)
+    if (isClient and isClient()) or (isServer and isServer()) then
+        pcall(function() player:setNoClip(true, true) end)
+    end
+
+    emitKamuiNoClipEvent(player, true)
+end
+
+local function restoreKamuiFlags(player, state)
+    local currentSquare = player:getSquare()
+    local restoreX, restoreY, restoreZ = player:getX(), player:getY(), player:getZ()
+    if not isSafeKamuiExitSquare(currentSquare) then
+        restoreX = state.kamuiLastSafeX or restoreX
+        restoreY = state.kamuiLastSafeY or restoreY
+        restoreZ = state.kamuiLastSafeZ or restoreZ
+        player:setX(restoreX)
+        player:setY(restoreY)
+        player:setZ(restoreZ)
+    end
+
+    pcall(function() player:setGhostMode(state.wasGhostMode == true) end)
+    pcall(function() player:setGodMod(state.wasGodMod == true, true) end)
+    pcall(function() player:setNoClip(state.wasNoClip == true, true) end)
+    pcall(function() player:setCollidable(state.wasCollidable == true) end)
+
+    emitKamuiNoClipEvent(player, false, restoreX, restoreY, restoreZ)
+    state.kamuiLastSafeX = nil
+    state.kamuiLastSafeY = nil
+    state.kamuiLastSafeZ = nil
+end
+
+local function placePhasedPlayer(player, x, y, z)
+    player:setX(x)
+    player:setY(y)
+    player:setZ(z)
+    pcall(function() player:setLastX(x) end)
+    pcall(function() player:setLastY(y) end)
+    pcall(function() player:setLastZ(z) end)
+    pcall(function() player:setCurrentSquareFromPosition(x, y, z) end)
+    pcall(function() player:setMovingSquareNow() end)
+end
+
+function NinjaLineages.AbilityAuthority.updateLocalKamuiPhaseMovement(player)
+    if not player or (isClient and isClient()) or (isServer and isServer()) then return end
+    local state = active[player]
+    if not state or not state.kamuiUntil or player:isDead() or player:getVehicle() then return end
+
+    local direction = player:getInputMoveVector(kamuiMoveVector)
+    if not direction then return end
+    local inputX, inputY = direction:getX(), direction:getY()
+    local dx = inputY + inputX
+    local dy = inputY - inputX
+    local lengthSquared = dx * dx + dy * dy
+    if lengthSquared <= 0.0001 then return end
+
+    local length = math.sqrt(lengthSquared)
+    dx, dy = dx / length, dy / length
+
+    local blocked = (dx < 0 and player:isCollidedW())
+        or (dx > 0 and player:isCollidedE())
+        or (dy < 0 and player:isCollidedN())
+        or (dy > 0 and player:isCollidedS())
+    if not blocked then return end
+
+    local nextX = player:getX() + dx * KAMUI_SP_STEP_DISTANCE
+    local nextY = player:getY() + dy * KAMUI_SP_STEP_DISTANCE
+    local z = player:getZ()
+    local targetSquare = getCell() and getCell():getGridSquare(nextX, nextY, z)
+    if not targetSquare or not targetSquare:TreatAsSolidFloor() then return end
+
+    placePhasedPlayer(player, nextX, nextY, z)
+end
+
 specializedExecutors.sharingan = function(player, definition)
     local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
     if not validRequirements then return false, requirementReason end
@@ -274,33 +408,32 @@ end
 specializedExecutors.kamui = function(player, definition)
     local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
     if not validRequirements then return false, requirementReason end
+
     local resolved = Catalog.resolveBalance(definition)
     active[player] = active[player] or {}
-    if active[player].kamuiUntil then
-        active[player].kamuiUntil = nil
-        player:setGhostMode(active[player].wasGhostMode == true)
-        player:setGodMod(active[player].wasGodMod == true)
-        pcall(function() player:setNoClip(active[player].wasNoClip == true) end)
+    local state = active[player]
+
+    if state.kamuiUntil then
+        state.kamuiUntil = nil
+        restoreKamuiFlags(player, state)
         NinjaLineages.Cooldowns.set(player, cooldownKey(definition), resolved.cooldown)
         return true, nil, nil, { messageKey = "UI_NL_Ability_Kamui_Cancelled" }
     end
+
     local valid, reason, remaining = validateCommit(player, definition, resolved)
     if not valid then return false, reason, remaining end
+
     if NinjaLineages.Chakra.getChakra(player) < resolved.minimumChakra then
         return false, "chakra"
     end
+
     local now = NinjaLineages.Utils.Time.gameMinutes()
-    active[player].kamuiUntil = now + resolved.duration
-    active[player].lastUpdateAt = now
-    local okGhost, wasGhost = pcall(function() return player:isGhostMode() end)
-    local okGod, wasGod = pcall(function() return player:isGodMod() end)
-    local okNoClip, wasNoClip = pcall(function() return player:isNoClip() end)
-    active[player].wasGhostMode = okGhost and wasGhost == true
-    active[player].wasGodMod = okGod and wasGod == true
-    active[player].wasNoClip = okNoClip and wasNoClip == true
-    player:setGhostMode(true)
-    player:setGodMod(true)
-    pcall(function() player:setNoClip(true) end)
+    state.kamuiUntil = now + resolved.duration
+    state.lastUpdateAt = now
+
+    readKamuiFlags(player, state)
+    applyKamuiFlags(player)
+
     return true
 end
 
@@ -562,6 +695,19 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
     end
 
     if state.kamuiUntil then
+        pcall(function() player:setGhostMode(true) end)
+        pcall(function() player:setGodMod(true, true) end)
+        if (isClient and isClient()) or (isServer and isServer()) then
+            pcall(function() player:setNoClip(true, true) end)
+        end
+
+        local square = player:getSquare()
+        if isSafeKamuiExitSquare(square) then
+            state.kamuiLastSafeX = player:getX()
+            state.kamuiLastSafeY = player:getY()
+            state.kamuiLastSafeZ = player:getZ()
+        end
+
         local chakra = NinjaLineages.Chakra.getChakra(player)
         local kamui = Catalog.resolveBalance("kamui")
         local kamuiElapsed = math.max(
@@ -572,9 +718,7 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
         NinjaLineages.Chakra.setChakra(player, chakra)
         if now >= state.kamuiUntil or chakra <= 0 then
             state.kamuiUntil = nil
-            player:setGhostMode(state.wasGhostMode == true)
-            player:setGodMod(state.wasGodMod == true)
-            pcall(function() player:setNoClip(state.wasNoClip == true) end)
+            restoreKamuiFlags(player, state)
             applyKamuiVisionPenalty(player)
             local kamuiDef = Catalog.get("kamui")
             local resolved = Catalog.resolveBalance(kamuiDef)
@@ -781,6 +925,11 @@ end
 
 function NinjaLineages.AbilityAuthority.resetPlayerActiveState(player)
     if not player then return end
+    local state = active[player]
+    if state and state.kamuiUntil then
+        state.kamuiUntil = nil
+        restoreKamuiFlags(player, state)
+    end
     active[player] = nil
 end
 
