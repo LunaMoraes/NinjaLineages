@@ -4,6 +4,6 @@ description=Adds Naruto mechanics to project zomboid.
 poster=42/poster.png
 icon=42/icon.png
 author=Luna
-modversion=2.1.2
+modversion=2.2.0
 versionMin=42.17.0
 require=MoodleFramework
