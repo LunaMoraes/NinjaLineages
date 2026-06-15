@@ -256,6 +256,14 @@ function Authority.handleEvent(args)
             pcall(function() player:playSound(NinjaLineages.Constants.Uchiha.Audio.DODGE_EFFECT) end)
             player:Say(getText("UI_NL_Ability_Sharingan_Evade"))
         end
+    elseif args.kind == "mangekyo_unlocked" then
+        local player = findLocalPlayer(args.casterOnlineId)
+        if player then
+            player:Say(getText("UI_NL_Unlock_MangekyoAwakened"))
+            if NinjaLineages.Moodles then
+                NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.9)
+            end
+        end
     end
 end
 
