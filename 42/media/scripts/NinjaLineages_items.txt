@@ -136,4 +136,62 @@ module Base
         Alcoholic = true,
         Hidden = true,
     }
+
+    item NL_Training_corpse_odor_conditioning { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_corpse_odor_conditioning_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_blood_extraction { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_blood_extraction_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_ocular_extraction { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_ocular_extraction_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+    item NL_Training_gene_extraction { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_gene_extraction_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
+
+    item NL_BloodSample
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        DisplayName = UI_item_NL_BloodSample,
+        Weight = 0.1,
+        Icon = NLBloodSample,
+    }
+
+    item NL_OcularTissueSample
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        DisplayName = UI_item_NL_OcularTissueSample,
+        Weight = 0.1,
+        Icon = NLOcularTissueSample,
+        HungerChange = 0,
+        Calories = 0,
+        Carbohydrates = 0,
+        Lipids = 0,
+        Proteins = 0,
+        DaysFresh = 2,
+        DaysTotal = 4,
+    }
+
+    item NL_GeneSample
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        DisplayName = UI_item_NL_GeneSample,
+        Weight = 0.1,
+        Icon = NLGeneSample,
+        HungerChange = 0,
+        Calories = 0,
+        Carbohydrates = 0,
+        Lipids = 0,
+        Proteins = 0,
+        DaysFresh = 3,
+        DaysTotal = 6,
+    }
+
+    item NL_OdorConditioningMask
+    {
+        DisplayCategory = Accessory,
+        ItemType = base:clothing,
+        Weight = 0.0,
+        Icon = GasMask,
+        BodyLocation = base:mask,
+        Cosmetic = true,
+        Tags = base:scba;base:gasmask,
+        Hidden = true,
+    }
 }

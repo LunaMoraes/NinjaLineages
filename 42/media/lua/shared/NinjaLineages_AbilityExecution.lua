@@ -231,6 +231,76 @@ specializedExecutors.creation_rebirth = function(player, definition)
     return true
 end
 
+local function wearOdorMask(player, data)
+    local inv = player:getInventory()
+    if not inv then return end
+    
+    local wornItems = player:getWornItems()
+    if wornItems then
+        for i = 0, wornItems:size() - 1 do
+            local item = wornItems:getItemByIndex(i)
+            if item and item:getFullType() == "Base.NL_OdorConditioningMask" then
+                data.odorMaskItemId = item:getID()
+                return
+            end
+        end
+    end
+    
+    local item = inv:AddItem("Base.NL_OdorConditioningMask")
+    if item then
+        pcall(function() player:setWornItem(item:getBodyLocation(), item) end)
+        data.odorMaskItemId = item:getID()
+    end
+end
+
+local function removeOdorMask(player, data)
+    if not data.odorMaskItemId then return end
+    local inv = player:getInventory()
+    if inv then
+        local item = inv:getItemById(data.odorMaskItemId)
+        if item then
+            pcall(function() player:removeWornItem(item) end)
+            inv:Remove(item)
+            pcall(function() sendRemoveItemFromContainer(inv, item) end)
+        else
+            local items = inv:getItems()
+            if items then
+                for i = 0, items:size() - 1 do
+                    local it = items:get(i)
+                    if it and it:getFullType() == "Base.NL_OdorConditioningMask" then
+                        pcall(function() player:removeWornItem(it) end)
+                        inv:Remove(it)
+                        pcall(function() sendRemoveItemFromContainer(inv, it) end)
+                        break
+                    end
+                end
+            end
+        end
+    end
+    data.odorMaskItemId = nil
+end
+
+specializedExecutors.corpse_odor_conditioning = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local data = NinjaLineages.getNLData(player)
+    if not data.corpseOdorConditioningActive and NinjaLineages.Chakra.getChakra(player) <= 0 then
+        return false, "chakra"
+    end
+    data.corpseOdorConditioningActive = not data.corpseOdorConditioningActive
+    
+    if data.corpseOdorConditioningActive then
+        wearOdorMask(player, data)
+    else
+        removeOdorMask(player, data)
+    end
+    
+    NinjaLineages.transmitPlayerData(player)
+    return true, nil, nil, {
+        messageKey = data.corpseOdorConditioningActive and "UI_NL_Ability_CorpseOdorConditioning_Cast" or "UI_NL_Ability_CorpseOdorConditioning_Deactivated"
+    }
+end
+
 local function toggleEye(player, lineage)
     local check = lineage == "sharingan" and NinjaLineages.hasSharingan or NinjaLineages.hasByakugan
     if not check(player) then return false, "lineage" end
@@ -767,6 +837,28 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
             data.kamuiVisionRecoverAt = nil
         end
         NinjaLineages.transmitPlayerData(player)
+    end
+
+    if data.corpseOdorConditioningActive then
+        local elapsed = math.max(0, now - previousUpdateAt)
+        local drain = Balance.getSustainedDrain("TRACE") * elapsed
+        local chakra = NinjaLineages.Chakra.getChakra(player)
+        chakra = math.max(0, chakra - drain)
+        NinjaLineages.Chakra.setChakra(player, chakra)
+        if chakra <= 0 then
+            data.corpseOdorConditioningActive = nil
+            removeOdorMask(player, data)
+            player:Say(getText("UI_NL_Ability_CorpseOdorConditioning_Deactivated"))
+            NinjaLineages.transmitPlayerData(player)
+        else
+            if not data.odorMaskItemId then
+                wearOdorMask(player, data)
+            end
+        end
+    else
+        if data.odorMaskItemId then
+            removeOdorMask(player, data)
+        end
     end
 end
 

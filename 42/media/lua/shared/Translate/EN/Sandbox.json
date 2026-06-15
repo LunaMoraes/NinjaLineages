@@ -15,5 +15,7 @@
     "Sandbox_NinjaLineages_NinjaXPCostMultiplier": "Jutsu Node Cost (%)",
     "Sandbox_NinjaLineages_NinjaXPCostMultiplier_tooltip": "Scales the Ninja XP required to unlock jutsu-tree nodes.",
     "Sandbox_NinjaLineages_DebugMode": "Debug Mode",
-    "Sandbox_NinjaLineages_DebugMode_tooltip": "Enables the debug menu options within Shinobi Training."
+    "Sandbox_NinjaLineages_DebugMode_tooltip": "Enables the debug menu options within Shinobi Training.",
+    "Sandbox_NinjaLineages_ZombieNinjaChance": "Zombie Ninja Mutation Chance (%)",
+    "Sandbox_NinjaLineages_ZombieNinjaChance_tooltip": "Chance for a zombie to mutate into a Zombie Ninja when it first becomes aggressive toward a human."
 }

@@ -4,6 +4,7 @@ require "NinjaLineages_RinneganMechanics"
 require "NinjaLineages_AbilityExecution"
 require "NinjaLineages_ProgressionServer"
 require "NinjaLineages_PassivesServer"
+require "NinjaLineages_GeneExperimentationServer"
 
 local function notifyMangekyoUnlocked(player)
     if not player then return end

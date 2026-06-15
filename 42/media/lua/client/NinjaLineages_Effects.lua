@@ -15,6 +15,7 @@ require "NinjaLineages_TreePassives"
 require "NinjaLineages_ChakraBandage"
 require "NinjaLineages_RadialMenu"
 require "NinjaLineages_JutsuTreeUI"
+require "NinjaLineages_GeneExperimentationClient"
 
 -- Load modular lineages (dynamic registries)
 require "client/lineages/NinjaLineages_Uchiha"

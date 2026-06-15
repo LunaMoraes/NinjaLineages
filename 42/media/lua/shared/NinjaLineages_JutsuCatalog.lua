@@ -417,6 +417,16 @@ Catalog.Definitions = {
         },
         executor = "shinra_tensei",
     },
+    {
+        id = "corpse_odor_conditioning",
+        category = "common",
+        node = { discipline = "gene_experimentation", rank = "GENIN", order = 10 },
+        balance = { sustainedDrain = "TRACE" },
+        executor = "corpse_odor_conditioning",
+    },
+    node("blood_extraction", "gene_experimentation", "GENIN", 20),
+    node("ocular_extraction", "gene_experimentation", "CHUNIN", 10, { "blood_extraction" }),
+    node("gene_extraction", "gene_experimentation", "JONIN", 10, { "ocular_extraction" }),
 }
 
 local rankOrder = { GENIN = 1, CHUNIN = 2, JONIN = 3 }
@@ -444,6 +454,7 @@ local specializedExecutors = {
     binding_roots = true,
     creation_rebirth = true,
     shinra_tensei = true,
+    corpse_odor_conditioning = true,
 }
 local specialRequirements = {
     mangekyo_unlocked = true,
