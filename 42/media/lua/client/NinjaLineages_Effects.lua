@@ -147,13 +147,13 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
             end
         end)
 
-        -- 3. Toggle All Disciplines Visibility
-        local visibilityText = getText("UI_NL_Debug_ToggleAllVisible") .. ": " .. (data and data.allDisciplinesVisible and "ON" or "OFF")
-        debugSubMenu:addOption(visibilityText, player, function(p)
-            if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugToggleAllVisible then
-                local enabled = NinjaLineages.Progression.requestDebugToggleAllVisible(p)
-                if not (isClient and isClient()) then
-                    p:Say("All Disciplines Visibility: " .. (enabled and "Enabled" or "Disabled"))
+        -- 3. Reveal All Disciplines
+        local visibilityText = getText("UI_NL_Debug_ToggleAllVisible")
+        local opt1 = debugSubMenu:addOption(visibilityText, player, function(p)
+            if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugSetAllVisible then
+                local requested = NinjaLineages.Progression.requestDebugSetAllVisible(p)
+                if requested and not (isClient and isClient()) then
+                    p:Say("All Disciplines Revealed!")
                     for _, ui in pairs(NLJutsuTreeUI.instances) do
                         if ui.screen == "selection" then
                             ui:createSelectionScreen()
@@ -162,14 +162,17 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
                 end
             end
         end)
+        if data and data.allDisciplinesVisible then
+            opt1.enable = false
+        end
 
-        -- 4. Toggle All Disciplines Unlocked
-        local unlockedText = getText("UI_NL_Debug_ToggleAllUnlocked") .. ": " .. (data and data.allDisciplinesUnlocked and "ON" or "OFF")
-        debugSubMenu:addOption(unlockedText, player, function(p)
-            if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugToggleAllUnlocked then
-                local enabled = NinjaLineages.Progression.requestDebugToggleAllUnlocked(p)
-                if not (isClient and isClient()) then
-                    p:Say("All Disciplines Unlocked: " .. (enabled and "Enabled" or "Disabled"))
+        -- 4. Unlock All Disciplines
+        local unlockedText = getText("UI_NL_Debug_ToggleAllUnlocked")
+        local opt2 = debugSubMenu:addOption(unlockedText, player, function(p)
+            if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugSetAllUnlocked then
+                local requested = NinjaLineages.Progression.requestDebugSetAllUnlocked(p)
+                if requested and not (isClient and isClient()) then
+                    p:Say("All Disciplines Unlocked!")
                     for _, ui in pairs(NLJutsuTreeUI.instances) do
                         if ui.screen == "selection" then
                             ui:createSelectionScreen()
@@ -178,6 +181,9 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
                 end
             end
         end)
+        if data and data.allDisciplinesUnlocked then
+            opt2.enable = false
+        end
 
         -- 5. Unlock Mangekyo (moved from Uchiha)
         if NinjaLineages.Uchiha and NinjaLineages.Uchiha.canUseKamuiTestUnlock and NinjaLineages.Uchiha.canUseKamuiTestUnlock(player) then
@@ -198,14 +204,14 @@ local function onDebugServerCommand(module, command, args)
     elseif args.action == "toggleBypass" then
         player:Say("Bypass Training: " .. (args.enabled and "Enabled" or "Disabled"))
     elseif args.action == "toggleAllVisible" then
-        player:Say("All Disciplines Visibility: " .. (args.enabled and "Enabled" or "Disabled"))
+        player:Say("All Disciplines Revealed!")
         for _, ui in pairs(NLJutsuTreeUI.instances) do
             if ui.screen == "selection" then
                 ui:createSelectionScreen()
             end
         end
     elseif args.action == "toggleAllUnlocked" then
-        player:Say("All Disciplines Unlocked: " .. (args.enabled and "Enabled" or "Disabled"))
+        player:Say("All Disciplines Unlocked!")
         for _, ui in pairs(NLJutsuTreeUI.instances) do
             if ui.screen == "selection" then
                 ui:createSelectionScreen()

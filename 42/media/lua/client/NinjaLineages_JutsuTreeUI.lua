@@ -105,7 +105,7 @@ function NLJutsuTreeUI:initialise()
 
             -- Draw a beautiful container box on the left side of the selection screen
             panel:drawRect(margin, statusY, leftWidth - margin, statusHeight, 0.92, 0.08, 0.08, 0.11)
-            panel:drawRectBorder(margin, statusY, leftWidth - margin, statusHeight, 1.0, 0.4, 0.15, 0.12)
+            panel:drawRectBorder(margin, statusY, leftWidth - margin, statusHeight, 0.6, 1.0, 1.0, 1.0)
             
             local boxX = margin + 15
             local boxY = statusY + 20
@@ -135,7 +135,7 @@ function NLJutsuTreeUI:initialise()
             if self.gridX and self.gridY and self.gridW and self.gridH then
                 local frameMargin = 10
                 panel:drawRect(self.gridX - frameMargin, self.gridY - frameMargin, self.gridW + (frameMargin * 2), self.gridH + (frameMargin * 2), 0.95, 0.03, 0.03, 0.04)
-                panel:drawRectBorder(self.gridX - frameMargin, self.gridY - frameMargin, self.gridW + (frameMargin * 2), self.gridH + (frameMargin * 2), 1.0, 0.25, 0.15, 0.12)
+                panel:drawRectBorder(self.gridX - frameMargin, self.gridY - frameMargin, self.gridW + (frameMargin * 2), self.gridH + (frameMargin * 2), 0.6, 1.0, 1.0, 1.0)
             end
 
             -- Draw page indicator text
@@ -250,35 +250,52 @@ function NLJutsuTreeUI:createSelectionScreen()
     self.selectedNode = nil
     self.currentPage = self.currentPage or 1
 
-    local w = self.contentPanel.width
+    -- Temporarily restore original width to calculate relative panels sizing
+    local origW = self.originalWidth or self.width
+    local leftWidth = math.floor(origW * 0.15)
+    local margin = math.floor(origW * 0.03)
+    local cardsX = leftWidth + math.floor(origW * 0.01)
+
     local h = self.contentPanel.height
-    local margin = math.floor(w * 0.03)
-    local leftWidth = math.floor(w * 0.15)
-    local cardsX = leftWidth + math.floor(w * 0.01)
+    local availableH = math.floor(h * 0.72) -- Adjusted from 0.76 to leave more room for title and controls
+    local cardGap = math.floor(origW * 0.008)
+
+    local cardHeightByH = math.floor((availableH - cardGap) / 2)
+    local cardWidth = math.floor(cardHeightByH / 2)
+    local gridW = (cardWidth * 3) + (cardGap * 2)
+
+    -- Dynamically resize the window width to perfectly fit: left panel + card grid + padding
+    local targetWidth = leftWidth + gridW + margin * 3
+    
+    local screenWidth = getPlayerScreenWidth(self.playerNum)
+    local newX = getPlayerScreenLeft(self.playerNum) + (screenWidth - targetWidth) / 2
+    self:setX(newX)
+    self:setWidth(targetWidth)
+    if self.contentPanel then
+        self.contentPanel:setWidth(targetWidth)
+    end
+
+    -- Re-fetch panel metrics based on the resized width
+    local w = self.contentPanel.width
+    margin = math.floor(w * 0.03)
+    leftWidth = math.floor(w * 0.15)
+    cardsX = leftWidth + math.floor(w * 0.01)
 
     local statusHeight = math.floor(h * 0.76)
     local statusY = math.floor((h - statusHeight) / 2)
 
-    -- 3 columns, 2 rows of cards layout math
     self.maxAreaW = w - cardsX - margin
-    self.maxAreaH = math.floor(h * 0.78)
-    local cardGap = math.floor(w * 0.008)
+    self.maxAreaH = availableH
     self.cardGap = cardGap
+    self.cardHeight = cardHeightByH
+    self.cardWidth = cardWidth
 
-    local cardWidthByW = math.floor((self.maxAreaW - (2 * cardGap)) / 3)
-    local cardHeightByW = cardWidthByW * 2
-
-    local cardHeightByH = math.floor((self.maxAreaH - cardGap) / 2)
-    local cardWidthByH = math.floor(cardHeightByH / 2)
-
-    self.cardHeight = math.min(cardHeightByW, cardHeightByH)
-    self.cardWidth = math.floor(self.cardHeight / 2)
-
-    self.gridW = (self.cardWidth * 3) + (cardGap * 2)
+    self.gridW = gridW
     self.gridH = (self.cardHeight * 2) + cardGap
 
     self.gridX = cardsX + math.floor((self.maxAreaW - self.gridW) / 2)
-    self.gridY = math.floor(h * 0.08) + math.floor((self.maxAreaH - self.gridH) / 2)
+    local gridAreaY = math.floor(h * 0.13) -- Pushed down from 0.09 to prevent overlap with title
+    self.gridY = gridAreaY + math.floor((availableH - self.gridH) / 2)
 
     local disciplineOrder = NinjaLineages.TreeDefinitions.DisciplineOrder
     local visibleDisciplines = {}
@@ -348,7 +365,7 @@ function NLJutsuTreeUI:createSelectionScreen()
             end
 
             -- 3. Draw border on top of the card image
-            local borderCol = btn.borderColor or { r = 0.34, g = 0.34, b = 0.42, a = 0.85 }
+            local borderCol = { r = 1, g = 1, b = 1, a = 0.6 }
             if btn.enable and (btn:isMouseOver() or btn.joypadFocused) then
                 borderCol = { r = 0.8, g = 0.65, b = 0.2, a = 1.0 } -- Gold hover border
             end
@@ -525,6 +542,17 @@ function NLJutsuTreeUI:updateSelectionButtons()
 end
 
 function NLJutsuTreeUI:createDisciplineScreen(disciplineId)
+    -- Restore original window size for the tree screen
+    if self.originalWidth then
+        local screenWidth = getPlayerScreenWidth(self.playerNum)
+        local origX = getPlayerScreenLeft(self.playerNum) + (screenWidth - self.originalWidth) / 2
+        self:setX(origX)
+        self:setWidth(self.originalWidth)
+        if self.contentPanel then
+            self.contentPanel:setWidth(self.originalWidth)
+        end
+    end
+
     self:clearControls()
     self.screen = "discipline"
     self.selectedDiscipline = disciplineId
@@ -712,6 +740,7 @@ function NLJutsuTreeUI:new(player)
     o.clearFrame = true
     o.joypadButtons = {}
     o.currentPage = 1
+    o.originalWidth = width
     return o
 end
 

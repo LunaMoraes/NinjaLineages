@@ -86,12 +86,12 @@ local function handleDebugToggleAllVisible(player)
     end
 
     local data = NinjaLineages.getNLData(player)
-    data.allDisciplinesVisible = data.allDisciplinesVisible ~= true
+    data.allDisciplinesVisible = true
     NinjaLineages.transmitPlayerData(player)
     sendState(player, "debugResult", {
         ok = true,
         action = "toggleAllVisible",
-        enabled = data.allDisciplinesVisible,
+        enabled = true,
     })
 end
 
@@ -102,12 +102,12 @@ local function handleDebugToggleAllUnlocked(player)
     end
 
     local data = NinjaLineages.getNLData(player)
-    data.allDisciplinesUnlocked = data.allDisciplinesUnlocked ~= true
+    data.allDisciplinesUnlocked = true
     NinjaLineages.transmitPlayerData(player)
     sendState(player, "debugResult", {
         ok = true,
         action = "toggleAllUnlocked",
-        enabled = data.allDisciplinesUnlocked,
+        enabled = true,
     })
 end
 

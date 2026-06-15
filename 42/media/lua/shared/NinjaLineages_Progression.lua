@@ -56,26 +56,26 @@ function Progression.requestDebugToggleBypass(player)
     return data.bypassTraining
 end
 
-function Progression.requestDebugToggleAllVisible(player)
+function Progression.requestDebugSetAllVisible(player)
     if isClient and isClient() then
         sendClientCommand(player, "NinjaLineages", "debugToggleAllVisible", {})
         return true
     end
     local data = NinjaLineages.getNLData(player)
-    data.allDisciplinesVisible = data.allDisciplinesVisible ~= true
+    data.allDisciplinesVisible = true
     NinjaLineages.transmitPlayerData(player)
-    return data.allDisciplinesVisible
+    return true
 end
 
-function Progression.requestDebugToggleAllUnlocked(player)
+function Progression.requestDebugSetAllUnlocked(player)
     if isClient and isClient() then
         sendClientCommand(player, "NinjaLineages", "debugToggleAllUnlocked", {})
         return true
     end
     local data = NinjaLineages.getNLData(player)
-    data.allDisciplinesUnlocked = data.allDisciplinesUnlocked ~= true
+    data.allDisciplinesUnlocked = true
     NinjaLineages.transmitPlayerData(player)
-    return data.allDisciplinesUnlocked
+    return true
 end
 
 function Progression.isDisciplineVisible(player, disciplineId)
