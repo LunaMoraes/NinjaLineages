@@ -281,6 +281,7 @@ specializedExecutors.kamui = function(player, definition)
         player:setGhostMode(active[player].wasGhostMode == true)
         player:setGodMod(active[player].wasGodMod == true)
         pcall(function() player:setNoClip(active[player].wasNoClip == true) end)
+        NinjaLineages.Cooldowns.set(player, cooldownKey(definition), resolved.cooldown)
         return true, nil, nil, { messageKey = "UI_NL_Ability_Kamui_Cancelled" }
     end
     local valid, reason, remaining = validateCommit(player, definition, resolved)
@@ -300,7 +301,6 @@ specializedExecutors.kamui = function(player, definition)
     player:setGhostMode(true)
     player:setGodMod(true)
     pcall(function() player:setNoClip(true) end)
-    NinjaLineages.Cooldowns.set(player, cooldownKey(definition), resolved.cooldown)
     return true
 end
 
@@ -576,6 +576,9 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
             player:setGodMod(state.wasGodMod == true)
             pcall(function() player:setNoClip(state.wasNoClip == true) end)
             applyKamuiVisionPenalty(player)
+            local kamuiDef = Catalog.get("kamui")
+            local resolved = Catalog.resolveBalance(kamuiDef)
+            NinjaLineages.Cooldowns.set(player, Catalog.getCooldownKey(kamuiDef), resolved.cooldown or 24)
         end
     end
 
@@ -631,6 +634,11 @@ function NinjaLineages.AbilityAuthority.updateWorld()
         else
             zombie:setVariable("AttackOutcome", "fail")
             pcall(function() zombie:setStaggerBack(true) end)
+        end
+    end
+    for zombie, _ in pairs(sharinganRolls) do
+        if not zombie or zombie:isDead() then
+            sharinganRolls[zombie] = nil
         end
     end
 end
@@ -769,4 +777,28 @@ end
 
 if not (isClient and isClient()) and Events and Events.OnInitGlobalModData then
     Events.OnInitGlobalModData.Add(NinjaLineages.AbilityAuthority.initAlarmSeals)
+end
+
+function NinjaLineages.AbilityAuthority.resetPlayerActiveState(player)
+    if not player then return end
+    active[player] = nil
+end
+
+local function handlePlayerReset(playerIndex, player)
+    if player then
+        NinjaLineages.AbilityAuthority.resetPlayerActiveState(player)
+    end
+end
+
+if Events then
+    if Events.OnCreatePlayer then
+        Events.OnCreatePlayer.Add(handlePlayerReset)
+    end
+    if Events.OnCharacterDeath then
+        Events.OnCharacterDeath.Add(function(character)
+            if instanceof(character, "IsoPlayer") then
+                NinjaLineages.AbilityAuthority.resetPlayerActiveState(character)
+            end
+        end)
+    end
 end

@@ -29,6 +29,7 @@ function Progression.getNinjaXP(player)
 end
 
 function Progression.setNinjaXP(player, amount)
+    if isClient and isClient() then return end
     local state = getState(player)
     state.ninjaXP = math.max(0, amount or 0)
     NinjaLineages.transmitPlayerData(player)
@@ -230,6 +231,7 @@ function Progression.getOrCreateTrainingItem(player, nodeId)
 end
 
 function Progression.unlockNode(player, nodeId, bypass)
+    if isClient and isClient() then return false, "client_unauthorized" end
     local definition = Trees.getNode(nodeId)
     if not definition then return false, "invalid" end
     if Progression.getNodeState(player, nodeId) ~= "available" then return false, "unavailable" end
@@ -253,6 +255,7 @@ function Progression.unlockNode(player, nodeId, bypass)
 end
 
 function Progression.completeTraining(player, nodeId, item)
+    if isClient and isClient() then return false, "client_unauthorized" end
     if Progression.getNodeState(player, nodeId) ~= "unlocked" then return false, "unavailable" end
     local definition = Trees.getNode(nodeId)
     if not item or item:getFullType() ~= definition.trainingItem then return false, "invalid_item" end

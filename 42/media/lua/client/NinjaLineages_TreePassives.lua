@@ -32,14 +32,6 @@ local function weaponPath(weapon)
     return nil
 end
 
-local function weaponPerks(weapon)
-    local path = weaponPath(weapon)
-    if path == "blade" then return { Perks.LongBlade, Perks.SmallBlade } end
-    if path == "blunt" then return { Perks.Blunt, Perks.SmallBlunt } end
-    if path == "polearm" then return { Perks.Axe, Perks.Spear } end
-    return {}
-end
-
 local function onWeaponHitXP(owner, weapon, hitObject, damage, hitCount)
     if not owner or hitCount <= 0 then return end
     local path = weaponPath(weapon)
@@ -47,15 +39,21 @@ local function onWeaponHitXP(owner, weapon, hitObject, damage, hitCount)
     local bonus = rankValue(owner, path)
     if bonus <= 0 then return end
     local amount = math.max(0, damage) * bonus
-    for _, perk in ipairs(weaponPerks(weapon)) do
-        if weapon:getScriptItem():containsWeaponCategory(
-                perk == Perks.LongBlade and WeaponCategory.LONG_BLADE
-                or perk == Perks.SmallBlade and WeaponCategory.SMALL_BLADE
-                or perk == Perks.Blunt and WeaponCategory.BLUNT
-                or perk == Perks.SmallBlunt and WeaponCategory.SMALL_BLUNT
-                or perk == Perks.Axe and WeaponCategory.AXE
-                or WeaponCategory.SPEAR) then
-            owner:getXp():AddXP(perk, amount)
+
+    local script = weapon:getScriptItem()
+    if script then
+        local categories = {
+            { category = WeaponCategory.LONG_BLADE, perk = Perks.LongBlade },
+            { category = WeaponCategory.SMALL_BLADE, perk = Perks.SmallBlade },
+            { category = WeaponCategory.BLUNT, perk = Perks.Blunt },
+            { category = WeaponCategory.SMALL_BLUNT, perk = Perks.SmallBlunt },
+            { category = WeaponCategory.AXE, perk = Perks.Axe },
+            { category = WeaponCategory.SPEAR, perk = Perks.Spear },
+        }
+        for _, item in ipairs(categories) do
+            if script:containsWeaponCategory(item.category) then
+                owner:getXp():AddXP(item.perk, amount)
+            end
         end
     end
 

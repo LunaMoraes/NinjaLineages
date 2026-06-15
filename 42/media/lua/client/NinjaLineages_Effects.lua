@@ -13,6 +13,7 @@ require "NinjaLineages_Meditation"
 require "NinjaLineages_Training"
 require "NinjaLineages_TreePassives"
 require "NinjaLineages_ChakraBandage"
+require "NinjaLineages_RadialMenu"
 require "NinjaLineages_JutsuTreeUI"
 
 -- Load modular lineages (dynamic registries)
@@ -105,6 +106,10 @@ local function useSelectedAbility(player)
     local ability = getSelectedAbility(player, abilities)
     NinjaLineages.HandSigns.activateAbility(player, ability)
 end
+
+NinjaLineages.Effects = NinjaLineages.Effects or {}
+NinjaLineages.Effects.getAvailableAbilities = getAvailableAbilities
+NinjaLineages.Effects.selectAbility = selectAbility
 
 local function addAbilityContextMenu(playerNum, context, worldObjects, test)
     local player = getSpecificPlayer(playerNum)
@@ -222,119 +227,6 @@ end
 
 Events.OnServerCommand.Add(onDebugServerCommand)
 
-local showAbilityRadial = nil
-local showCategoryRadial = nil
-
-showCategoryRadial = function(player, disciplineId, list)
-    local menu = getPlayerRadialMenu(player:getPlayerNum())
-    menu:clear()
-
-    menu:setX(getPlayerScreenLeft(player:getPlayerNum()) + getPlayerScreenWidth(player:getPlayerNum()) / 2 - menu:getWidth() / 2)
-    menu:setY(getPlayerScreenTop(player:getPlayerNum()) + getPlayerScreenHeight(player:getPlayerNum()) / 2 - menu:getHeight() / 2)
-
-    menu:addSlice(getText("UI_NL_Tree_Back") or "Back", getTexture("media/ui/NLJutsu.png"), function(p)
-        showAbilityRadial(p)
-    end, player)
-
-    for _, ability in ipairs(list) do
-        local sequence = NinjaLineages.HandSigns.formatSequence(ability)
-        local text = ability.name .. "\n" .. sequence
-        local command = selectAbility
-        if NinjaLineages.HandSigns.isClassic() and not ability.sealFree then
-            text = text .. "\n" .. getText("UI_NL_HandSigns_ClassicDisabled")
-            command = nil
-        end
-        menu:addSlice(
-            text,
-            getTexture(ability.texture) or getTexture(ability.fallbackTexture),
-            command,
-            player,
-            ability
-        )
-    end
-
-    menu:addToUIManager()
-end
-
-showAbilityRadial = function(player)
-    local abilities = getAvailableAbilities(player)
-    if #abilities < 2 then return false end
-
-    local menu = getPlayerRadialMenu(player:getPlayerNum())
-    menu:clear()
-    if menu:isReallyVisible() then
-        if menu.joyfocus then
-            setJoypadFocus(player:getPlayerNum(), nil)
-        end
-        menu:undisplay()
-        return true
-    end
-
-    local lineageAbilities = {}
-    local categorized = {}
-    local disciplines = NinjaLineages.TreeDefinitions.Disciplines
-    local disciplineOrder = NinjaLineages.TreeDefinitions.DisciplineOrder or {
-        "genjutsu", "ninjutsu", "taijutsu", "kenjutsu", "medical", "fuinjutsu", "chakra_transformation"
-    }
-
-    for _, discId in ipairs(disciplineOrder) do
-        categorized[discId] = {}
-    end
-
-    for _, ability in ipairs(abilities) do
-        local discId = nil
-        if ability.nodeId then
-            local node = NinjaLineages.TreeDefinitions.getNode(ability.nodeId)
-            if node and node.discipline then
-                discId = node.discipline
-            end
-        end
-
-        if discId and categorized[discId] then
-            table.insert(categorized[discId], ability)
-        else
-            table.insert(lineageAbilities, ability)
-        end
-    end
-
-    menu:setX(getPlayerScreenLeft(player:getPlayerNum()) + getPlayerScreenWidth(player:getPlayerNum()) / 2 - menu:getWidth() / 2)
-    menu:setY(getPlayerScreenTop(player:getPlayerNum()) + getPlayerScreenHeight(player:getPlayerNum()) / 2 - menu:getHeight() / 2)
-
-    for _, discId in ipairs(disciplineOrder) do
-        local list = categorized[discId]
-        if #list > 0 then
-            local def = disciplines[discId]
-            local discName = def and def.name and getText(def.name) or discId
-            local icon = getTexture(list[1].texture) or getTexture(list[1].fallbackTexture)
-            menu:addSlice(discName, icon, function(p)
-                showCategoryRadial(p, discId, list)
-            end, player)
-        end
-    end
-
-    for _, ability in ipairs(lineageAbilities) do
-        local sequence = NinjaLineages.HandSigns.formatSequence(ability)
-        local text = ability.name .. "\n" .. sequence
-        local command = selectAbility
-        if NinjaLineages.HandSigns.isClassic() and not ability.sealFree then
-            text = text .. "\n" .. getText("UI_NL_HandSigns_ClassicDisabled")
-            command = nil
-        end
-        menu:addSlice(
-            text,
-            getTexture(ability.texture) or getTexture(ability.fallbackTexture),
-            command,
-            player,
-            ability
-        )
-    end
-
-    menu:addToUIManager()
-    getSoundManager():playUISound("UIVehicleMenuOpen")
-    menu.sounds.undisplay = "UIVehicleMenuClose"
-    return true
-end
-
 local function onKeyStartPressed(key)
     local player = getSpecificPlayer(0)
     if not player or player:isDead() then return end
@@ -347,7 +239,9 @@ local function onKeyStartPressed(key)
     end
 
     if getCore():isKey("Ninja Ability Radial", key) then
-        showAbilityRadial(player)
+        if NinjaLineages.RadialMenu and NinjaLineages.RadialMenu.showAbilityRadial then
+            NinjaLineages.RadialMenu.showAbilityRadial(player)
+        end
     end
 end
 

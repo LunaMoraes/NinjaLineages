@@ -100,7 +100,6 @@ end
 
 -- Helper to transmit player modData in multiplayer
 function NinjaLineages.transmitPlayerData(player)
-    if isClient and isClient() then return end
     if player and player.transmitModData then
         pcall(function() player:transmitModData() end)
     end

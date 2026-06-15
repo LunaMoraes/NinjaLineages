@@ -153,8 +153,8 @@ local function applyDamage(player, state)
     end
 
     local travelRatio = math.min(1, state.maxTravel / radius)
-    local damage = NinjaLineages.JutsuCatalog.resolveBalance("shinra_tensei").damage
-    local minDamage, maxDamage = damage.min, damage.max
+    local damageConfig = NinjaLineages.JutsuCatalog.resolveBalance("shinra_tensei").damage
+    local minDamage, maxDamage = damageConfig.min, damageConfig.max
     local damage = minDamage + ((maxDamage - minDamage) * travelRatio)
     NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
 end

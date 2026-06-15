@@ -51,7 +51,28 @@ local function refundUzumakiDamage(player)
     if not bodyDamage then return end
 
     local ok, currentGeneral = pcall(function() return bodyDamage:getHealth() end)
-    if ok and data.generalHealth and currentGeneral and currentGeneral < data.generalHealth then
+    local damageRefunded = false
+
+    local parts = bodyDamage:getBodyParts()
+    if parts and data.parts then
+        for i = 0, parts:size() - 1 do
+            local part = parts:get(i)
+            local previous = data.parts[i]
+            if previous and part then
+                local okPart, currentPartHealth = pcall(function() return part:getHealth() end)
+                if okPart and currentPartHealth and previous.health and currentPartHealth < previous.health then
+                    local lost = previous.health - currentPartHealth
+                    local refund = lost * consts.Uzumaki.Passive.DAMAGE_REFUND
+                    if refund > 0 then
+                        NinjaLineages.Utils.Healing.healPart(bodyDamage, part, { health = refund })
+                        damageRefunded = true
+                    end
+                end
+            end
+        end
+    end
+
+    if not damageRefunded and ok and data.generalHealth and currentGeneral and currentGeneral < data.generalHealth then
         pcall(function() bodyDamage:AddGeneralHealth((data.generalHealth - currentGeneral) * consts.Uzumaki.Passive.DAMAGE_REFUND) end)
     end
 
