@@ -147,7 +147,23 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
             end
         end)
 
-        -- 3. Unlock Mangekyo (moved from Uchiha)
+        -- 3. Toggle All Disciplines Visibility
+        local visibilityText = getText("UI_NL_Debug_ToggleAllVisible") .. ": " .. (data and data.allDisciplinesVisible and "ON" or "OFF")
+        debugSubMenu:addOption(visibilityText, player, function(p)
+            if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugToggleAllVisible then
+                local enabled = NinjaLineages.Progression.requestDebugToggleAllVisible(p)
+                if not (isClient and isClient()) then
+                    p:Say("All Disciplines Visibility: " .. (enabled and "Enabled" or "Disabled"))
+                    for _, ui in pairs(NLJutsuTreeUI.instances) do
+                        if ui.screen == "selection" then
+                            ui:createSelectionScreen()
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- 4. Unlock Mangekyo (moved from Uchiha)
         if NinjaLineages.Uchiha and NinjaLineages.Uchiha.canUseKamuiTestUnlock and NinjaLineages.Uchiha.canUseKamuiTestUnlock(player) then
             debugSubMenu:addOption(getText("UI_NL_Ability_Kamui_TestUnlock"), player, NinjaLineages.Uchiha.unlockKamuiForSinglePlayerTest)
         end
@@ -165,6 +181,13 @@ local function onDebugServerCommand(module, command, args)
         player:Say("Added " .. tostring(args.amount or 0) .. " Ninja XP!")
     elseif args.action == "toggleBypass" then
         player:Say("Bypass Training: " .. (args.enabled and "Enabled" or "Disabled"))
+    elseif args.action == "toggleAllVisible" then
+        player:Say("All Disciplines Visibility: " .. (args.enabled and "Enabled" or "Disabled"))
+        for _, ui in pairs(NLJutsuTreeUI.instances) do
+            if ui.screen == "selection" then
+                ui:createSelectionScreen()
+            end
+        end
     end
 end
 

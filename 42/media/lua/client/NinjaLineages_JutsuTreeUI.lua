@@ -140,7 +140,8 @@ function NLJutsuTreeUI:initialise()
 
             -- Draw page indicator text
             if self.controlX and self.controlY and self.arrowWidth and self.indicatorW and self.arrowHeight then
-                local totalPages = math.max(1, math.ceil(#NinjaLineages.TreeDefinitions.DisciplineOrder / 6))
+                local totalDisciplines = self.visibleDisciplines and #self.visibleDisciplines or #NinjaLineages.TreeDefinitions.DisciplineOrder
+                local totalPages = math.max(1, math.ceil(totalDisciplines / 6))
                 local pageText = tostring(self.currentPage) .. " / " .. tostring(totalPages)
                 local font = UIFont.Medium
                 local textWidth = getTextManager():MeasureStringX(font, pageText)
@@ -280,16 +281,24 @@ function NLJutsuTreeUI:createSelectionScreen()
     self.gridY = math.floor(h * 0.08) + math.floor((self.maxAreaH - self.gridH) / 2)
 
     local disciplineOrder = NinjaLineages.TreeDefinitions.DisciplineOrder
-    local totalPages = math.max(1, math.ceil(#disciplineOrder / 6))
+    local visibleDisciplines = {}
+    for _, id in ipairs(disciplineOrder) do
+        if NinjaLineages.Progression.isDisciplineVisible(self.player, id) then
+            table.insert(visibleDisciplines, id)
+        end
+    end
+    self.visibleDisciplines = visibleDisciplines
+
+    local totalPages = math.max(1, math.ceil(#visibleDisciplines / 6))
     if self.currentPage > totalPages then self.currentPage = totalPages end
     if self.currentPage < 1 then self.currentPage = 1 end
 
     local startIndex = (self.currentPage - 1) * 6 + 1
-    local endIndex = math.min(startIndex + 5, #disciplineOrder)
+    local endIndex = math.min(startIndex + 5, #visibleDisciplines)
 
     self.cardButtons = {}
     for index = startIndex, endIndex do
-        local disciplineId = disciplineOrder[index]
+        local disciplineId = visibleDisciplines[index]
         local definition = NinjaLineages.TreeDefinitions.Disciplines[disciplineId]
         local title = translated(definition.name, definition.nameFallback)
         if definition.locked then title = title .. "\n" .. text("UI_NL_Tree_Locked") end
@@ -484,7 +493,8 @@ function NLJutsuTreeUI:onPrevPage()
 end
 
 function NLJutsuTreeUI:onNextPage()
-    local totalPages = math.max(1, math.ceil(#NinjaLineages.TreeDefinitions.DisciplineOrder / 6))
+    local totalDisciplines = self.visibleDisciplines and #self.visibleDisciplines or #NinjaLineages.TreeDefinitions.DisciplineOrder
+    local totalPages = math.max(1, math.ceil(totalDisciplines / 6))
     if self.currentPage < totalPages then
         self.currentPage = self.currentPage + 1
         self:createSelectionScreen()

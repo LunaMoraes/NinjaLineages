@@ -37,11 +37,18 @@ Catalog.Disciplines = {
         description = "UI_NL_Discipline_Fuinjutsu_Desc",
         card = "media/ui/jutsuTree/cards/fuinjutsu.png",
     },
-    chakra_transformation = {
-        name = "UI_NL_Discipline_ChakraTransformation",
-        description = "UI_NL_Discipline_ChakraTransformation_Desc",
+    sennin_mode = {
+        name = "UI_NL_Discipline_SenninMode",
+        description = "UI_NL_Discipline_SenninMode_Desc",
         card = "media/ui/jutsuTree/cards/chakra_transformation.png",
         locked = true,
+    },
+    kinjutsu = {
+        name = "UI_NL_Discipline_Kinjutsu",
+        description = "UI_NL_Discipline_Kinjutsu_Desc",
+        card = "media/ui/jutsuTree/cards/fuinjutsu.png",
+        locked = true,
+        hidden = true,
     },
 }
 
@@ -52,7 +59,8 @@ Catalog.DisciplineOrder = {
     "kenjutsu",
     "medical",
     "fuinjutsu",
-    "chakra_transformation",
+    "sennin_mode",
+    "kinjutsu",
 }
 
 local function node(id, discipline, rank, order, prerequisites, effectType)

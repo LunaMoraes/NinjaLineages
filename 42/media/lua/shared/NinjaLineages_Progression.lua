@@ -56,6 +56,32 @@ function Progression.requestDebugToggleBypass(player)
     return data.bypassTraining
 end
 
+function Progression.requestDebugToggleAllVisible(player)
+    if isClient and isClient() then
+        sendClientCommand(player, "NinjaLineages", "debugToggleAllVisible", {})
+        return true
+    end
+    local data = NinjaLineages.getNLData(player)
+    data.allDisciplinesVisible = data.allDisciplinesVisible ~= true
+    NinjaLineages.transmitPlayerData(player)
+    return data.allDisciplinesVisible
+end
+
+function Progression.isDisciplineVisible(player, disciplineId)
+    local definition = NinjaLineages.TreeDefinitions.Disciplines[disciplineId]
+    if not definition then return false end
+    if not definition.hidden then return true end
+
+    local data = NinjaLineages.getNLData(player)
+    if data.visibleDisciplines and data.visibleDisciplines[disciplineId] then
+        return true
+    end
+    if data.allDisciplinesVisible or data.bypassTraining then
+        return true
+    end
+    return false
+end
+
 local function currentDay()
     local minutes = NinjaLineages.Utils and NinjaLineages.Utils.Time.gameMinutes() or 0
     return math.floor(minutes / (24 * 60))

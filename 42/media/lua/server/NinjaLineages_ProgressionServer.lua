@@ -79,6 +79,22 @@ local function handleDebugToggleBypass(player)
     })
 end
 
+local function handleDebugToggleAllVisible(player)
+    if not canUseDebugCommands(player) then
+        sendState(player, "debugResult", { ok = false, action = "toggleAllVisible" })
+        return
+    end
+
+    local data = NinjaLineages.getNLData(player)
+    data.allDisciplinesVisible = data.allDisciplinesVisible ~= true
+    NinjaLineages.transmitPlayerData(player)
+    sendState(player, "debugResult", {
+        ok = true,
+        action = "toggleAllVisible",
+        enabled = data.allDisciplinesVisible,
+    })
+end
+
 local function onClientCommand(module, command, player, args)
     if module ~= "NinjaLineages" then return end
     if command == "awardNinjaXP" then
@@ -91,6 +107,8 @@ local function onClientCommand(module, command, player, args)
         handleDebugAddXP(player, args)
     elseif command == "debugToggleBypass" then
         handleDebugToggleBypass(player)
+    elseif command == "debugToggleAllVisible" then
+        handleDebugToggleAllVisible(player)
     end
 end
 
