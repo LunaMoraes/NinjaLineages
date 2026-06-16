@@ -150,16 +150,16 @@ module Base
     {
         DisplayCategory = Material,
         ItemType = base:normal,
-        DisplayName = Zombie Ninja Blood Sample,
+        DisplayName = Ninja Blood Sample,
         Weight = 0.1,
         Icon = NLBloodSample,
     }
 
     item NL_OcularTissueSample
     {
-        DisplayCategory = Food,
+        DisplayCategory = Material,
         ItemType = base:food,
-        DisplayName = Zombie Ninja Ocular Tissue,
+        DisplayName = Ninja Ocular Tissue,
         Weight = 0.1,
         Icon = NLOcularTissueSample,
         HungerChange = 0,
@@ -173,9 +173,9 @@ module Base
 
     item NL_GeneSample
     {
-        DisplayCategory = Food,
+        DisplayCategory = Material,
         ItemType = base:food,
-        DisplayName = Zombie Ninja Gene Sample,
+        DisplayName = Ninja Gene Sample,
         Weight = 0.1,
         Icon = NLGeneSample,
         HungerChange = 0,
