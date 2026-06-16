@@ -235,6 +235,8 @@ local function startZombieDash(zombie)
     local dist = math.sqrt(dx * dx + dy * dy)
     if dist <= 0 then return end
     
+    zombie:addLineChatElement("..dAsH..")
+    
     local dirX = dx / dist
     local dirY = dy / dist
     
