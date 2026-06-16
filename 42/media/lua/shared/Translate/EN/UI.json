@@ -275,5 +275,6 @@
     "UI_NL_ExtractOcularOption": "Extract Ocular Tissue",
     "UI_NL_ExtractGeneOption": "Extract Gene Sample",
     "UI_NL_AutopsyComplete": "You found abnormal chakra pathways in the corpse.",
-    "UI_NL_GeneExperimentationRevealed": "A dead shinobi body reveals a new path of study."
+    "UI_NL_GeneExperimentationRevealed": "You sense chakra lingering in the corpse.",
+    "UI_NL_GeneExperimentationUnlocked": "Gene Experimentation unlocked."
 }

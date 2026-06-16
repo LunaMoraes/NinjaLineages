@@ -6,6 +6,15 @@ NinjaLineages.GeneExperimentationServer = NinjaLineages.GeneExperimentationServe
 
 local ServerLogic = NinjaLineages.GeneExperimentationServer
 
+local function notifyPlayer(player, textKey)
+    if not player or not textKey then return end
+    if isServer and isServer() then
+        sendServerCommand(player, "NinjaLineages", "geneExperimentationMessage", { textKey = textKey })
+    else
+        player:Say(getText(textKey))
+    end
+end
+
 -- Retrieve a zombie by its online ID
 function ServerLogic.getZombieByOnlineID(onlineID)
     if not onlineID then return nil end
@@ -99,7 +108,7 @@ function ServerLogic.completeExperiment(player, corpse, actionId)
         NinjaLineages.transmitPlayerData(player)
         
         -- Send feedback message
-        sendServerCommand(player, "NinjaLineages", "geneExperimentationMessage", { textKey = "UI_NL_AutopsyComplete" })
+        notifyPlayer(player, "UI_NL_GeneExperimentationUnlocked")
     
     elseif actionId == "Extract Blood Sample" then
         if not NinjaLineages.Progression.isCompleted(player, "blood_extraction") then return end

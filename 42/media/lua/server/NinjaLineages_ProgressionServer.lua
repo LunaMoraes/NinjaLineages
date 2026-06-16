@@ -8,6 +8,15 @@ local function sendState(player, command, payload)
     sendServerCommand(player, "NinjaLineages", command, payload or {})
 end
 
+local function notifyPlayer(player, textKey)
+    if not player or not textKey then return end
+    if isServer and isServer() then
+        sendState(player, "geneExperimentationMessage", { textKey = textKey })
+    else
+        player:Say(getText(textKey))
+    end
+end
+
 local function canUseDebugCommands(player)
     if not (SandboxVars
             and SandboxVars.NinjaLineages
@@ -118,9 +127,7 @@ local function revealGeneExperimentation(player)
 
     data.visibleDisciplines.gene_experimentation = true
     NinjaLineages.transmitPlayerData(player)
-    sendState(player, "geneExperimentationMessage", {
-        textKey = "UI_NL_GeneExperimentationRevealed",
-    })
+    notifyPlayer(player, "UI_NL_GeneExperimentationRevealed")
     return true
 end
 
