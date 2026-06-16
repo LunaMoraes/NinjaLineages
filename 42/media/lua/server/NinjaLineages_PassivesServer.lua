@@ -107,6 +107,7 @@ function Passives.applyByakugan(player)
         end
 
         changed = removeTrackedByakuganSight(player, data) or changed
+        NinjaLineages.Utils.Inventory.refreshWornItemModifiers(player)
         changed = removeOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED) or changed
         changed = removeOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING) or changed
     end

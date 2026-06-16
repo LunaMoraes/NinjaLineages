@@ -35,7 +35,10 @@ end
 
 function NinjaLineages.Utils.Inventory.removeWornItem(player, item)
     if not player or not item then return false end
-    local ok = pcall(function() player:removeWornItem(item) end)
+    local ok = pcall(function() player:removeWornItem(item, false) end)
+    if not ok then
+        ok = pcall(function() player:removeWornItem(item) end)
+    end
     refreshWornItemModifiers(player)
     return ok == true
 end
@@ -58,7 +61,7 @@ function NinjaLineages.Utils.Inventory.removeWornItemsByType(player, itemTypes)
     for i = wornItems:size() - 1, 0, -1 do
         local wornItem = wornItems:getItemByIndex(i)
         if matchesItemType(wornItem, itemTypes) then
-            pcall(function() player:removeWornItem(wornItem) end)
+            NinjaLineages.Utils.Inventory.removeWornItem(player, wornItem)
             changed = true
         end
     end
@@ -68,15 +71,20 @@ end
 
 function NinjaLineages.Utils.Inventory.removeInventoryItems(player, itemTypes)
     local inv = player:getInventory()
-    if not inv then return end
+    if not inv then return false end
+    local changed = false
     for _, itemType in ipairs(itemTypes) do
         local item = inv:getItemFromType(itemType)
         while item do
+            NinjaLineages.Utils.Inventory.removeWornItem(player, item)
             inv:Remove(item)
             pcall(function() sendRemoveItemFromContainer(inv, item) end)
+            changed = true
             item = inv:getItemFromType(itemType)
         end
     end
+    if changed then refreshWornItemModifiers(player) end
+    return changed
 end
 
 function NinjaLineages.Utils.Inventory.getFirstInventoryItem(player, fullType)

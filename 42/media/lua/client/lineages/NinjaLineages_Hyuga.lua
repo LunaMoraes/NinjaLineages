@@ -8,6 +8,18 @@ local function getWornByakuganSight(player)
     return NinjaLineages.Utils.Inventory.getWornItemByType(player, { "Base.NL_ByakuganSight" })
 end
 
+local function getInventoryByakuganSight(player)
+    local inventory = player and player:getInventory()
+    if not inventory then return nil end
+    return inventory:getItemFromType("Base.NL_ByakuganSight")
+end
+
+local function removeByakuganSight(player)
+    local changed = NinjaLineages.Utils.Inventory.removeWornItemsByType(player, { "Base.NL_ByakuganSight" })
+    changed = NinjaLineages.Utils.Inventory.removeInventoryItems(player, { "Base.NL_ByakuganSight" }) or changed
+    return changed
+end
+
 local function applyByakugan(player)
     if not player then return end
 
@@ -27,7 +39,7 @@ local function applyByakugan(player)
         if not equipped then
             local inventory = player:getInventory()
             if inventory then
-                local item = inventory:AddItem("Base.NL_ByakuganSight")
+                local item = getInventoryByakuganSight(player) or inventory:AddItem("Base.NL_ByakuganSight")
                 if item then
                     NinjaLineages.Utils.Inventory.wearItem(player, item)
                     data.byakuganSightItemId = item:getID()
@@ -64,21 +76,8 @@ local function applyByakugan(player)
         changed = true
     end
 
-    local equipped = getWornByakuganSight(player)
-    if equipped then
-        NinjaLineages.Utils.Inventory.removeWornItem(player, equipped)
-        changed = true
-    end
-
-    local inventory = player:getInventory()
-    if inventory and data.byakuganSightItemId then
-        local item = inventory:getItemById(data.byakuganSightItemId)
-        if item then
-            inventory:Remove(item)
-            pcall(function() sendRemoveItemFromContainer(inventory, item) end)
-            changed = true
-        end
-    end
+    changed = removeByakuganSight(player) or changed
+    NinjaLineages.Utils.Inventory.refreshWornItemModifiers(player)
     data.byakuganSightItemId = nil
     data.byakuganAddedSightItem = nil
 
