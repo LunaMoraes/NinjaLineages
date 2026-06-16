@@ -18,11 +18,11 @@ require "NinjaLineages_JutsuTreeUI"
 require "NinjaLineages_GeneExperimentationClient"
 
 -- Load modular lineages (dynamic registries)
-require "client/lineages/NinjaLineages_Uchiha"
-require "client/lineages/NinjaLineages_Hyuga"
-require "client/lineages/NinjaLineages_Senju"
-require "client/lineages/NinjaLineages_Rinnegan"
-require "client/lineages/NinjaLineages_Uzumaki"
+require "lineages/NinjaLineages_Uchiha"
+require "lineages/NinjaLineages_Hyuga"
+require "lineages/NinjaLineages_Senju"
+require "lineages/NinjaLineages_Rinnegan"
+require "lineages/NinjaLineages_Uzumaki"
 
 NinjaLineages.JutsuCatalog.registerSelectableAbilities()
 
