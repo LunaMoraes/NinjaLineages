@@ -29,12 +29,18 @@ local function applyByakugan(player)
             if inventory then
                 local item = inventory:AddItem("Base.NL_ByakuganSight")
                 if item then
-                    player:setWornItem(item:getBodyLocation(), item)
+                    NinjaLineages.Utils.Inventory.wearItem(player, item)
                     data.byakuganSightItemId = item:getID()
                     data.byakuganAddedSightItem = true
                     changed = true
                 end
             end
+        else
+            NinjaLineages.Utils.Inventory.wearItem(player, equipped)
+            if data.byakuganSightItemId ~= equipped:getID() then
+                changed = true
+            end
+            data.byakuganSightItemId = equipped:getID()
         end
 
         if not player:hasTrait(CharacterTrait.EAGLE_EYED) then
@@ -60,7 +66,7 @@ local function applyByakugan(player)
 
     local equipped = getWornByakuganSight(player)
     if equipped then
-        player:setWornItem(equipped:getBodyLocation(), nil)
+        NinjaLineages.Utils.Inventory.removeWornItem(player, equipped)
         changed = true
     end
 

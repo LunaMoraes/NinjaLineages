@@ -63,9 +63,9 @@ function Progression.requestDebugSetAllVisible(player)
         return true
     end
     local data = NinjaLineages.getNLData(player)
-    data.allDisciplinesVisible = true
+    data.allDisciplinesVisible = data.allDisciplinesVisible ~= true
     NinjaLineages.transmitPlayerData(player)
-    return true
+    return data.allDisciplinesVisible
 end
 
 function Progression.requestDebugSetAllUnlocked(player)
@@ -74,9 +74,9 @@ function Progression.requestDebugSetAllUnlocked(player)
         return true
     end
     local data = NinjaLineages.getNLData(player)
-    data.allDisciplinesUnlocked = true
+    data.allDisciplinesUnlocked = data.allDisciplinesUnlocked ~= true
     NinjaLineages.transmitPlayerData(player)
-    return true
+    return data.allDisciplinesUnlocked
 end
 
 function Progression.isDisciplineVisible(player, disciplineId)
@@ -88,7 +88,7 @@ function Progression.isDisciplineVisible(player, disciplineId)
     if data.visibleDisciplines and data.visibleDisciplines[disciplineId] then
         return true
     end
-    if data.allDisciplinesVisible or data.bypassTraining then
+    if data.allDisciplinesVisible then
         return true
     end
     return false
@@ -99,7 +99,7 @@ function Progression.isDisciplineLocked(player, disciplineId)
     if not definition then return true end
     
     local data = NinjaLineages.getNLData(player)
-    if data.bypassTraining or data.allDisciplinesUnlocked then
+    if data.allDisciplinesUnlocked then
         return false
     end
     if data.unlockedDisciplines and data.unlockedDisciplines[disciplineId] then

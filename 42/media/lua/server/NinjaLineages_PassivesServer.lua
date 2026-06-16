@@ -45,7 +45,7 @@ local function removeTrackedByakuganSight(player, data)
     local changed = false
     local equipped = getWornByakuganSight(player)
     if equipped then
-        pcall(function() player:setWornItem(equipped:getBodyLocation(), nil) end)
+        NinjaLineages.Utils.Inventory.removeWornItem(player, equipped)
         changed = true
     end
 
@@ -67,8 +67,10 @@ end
 local function ensureByakuganSight(player, data)
     local equipped = getWornByakuganSight(player)
     if equipped then
+        NinjaLineages.Utils.Inventory.wearItem(player, equipped)
+        local hadId = data.byakuganSightItemId
         data.byakuganSightItemId = equipped:getID()
-        return false
+        return hadId ~= data.byakuganSightItemId
     end
 
     local inv = player:getInventory()
@@ -77,7 +79,7 @@ local function ensureByakuganSight(player, data)
     local item = inv:AddItem("Base.NL_ByakuganSight")
     if not item then return false end
 
-    pcall(function() player:setWornItem(item:getBodyLocation(), item) end)
+    NinjaLineages.Utils.Inventory.wearItem(player, item)
     data.byakuganSightItemId = item:getID()
     data.byakuganAddedSightItem = true
     return true

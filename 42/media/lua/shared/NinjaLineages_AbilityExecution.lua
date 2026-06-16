@@ -249,7 +249,7 @@ local function wearOdorMask(player, data)
         local trackedItem = inv:getItemById(data.odorMaskItemId)
         if trackedItem and trackedItem:getFullType() == "Base.NL_OdorConditioningMask" then
             refreshOdorMask(trackedItem)
-            pcall(function() player:setWornItem(trackedItem:getBodyLocation(), trackedItem) end)
+            NinjaLineages.Utils.Inventory.wearItem(player, trackedItem)
             return
         end
     end
@@ -260,6 +260,7 @@ local function wearOdorMask(player, data)
             local item = wornItems:getItemByIndex(i)
             if item and item:getFullType() == "Base.NL_OdorConditioningMask" then
                 refreshOdorMask(item)
+                NinjaLineages.Utils.Inventory.wearItem(player, item)
                 data.odorMaskItemId = item:getID()
                 return
             end
@@ -269,18 +270,18 @@ local function wearOdorMask(player, data)
     local item = inv:AddItem("Base.NL_OdorConditioningMask")
     if item then
         refreshOdorMask(item)
-        pcall(function() player:setWornItem(item:getBodyLocation(), item) end)
+        NinjaLineages.Utils.Inventory.wearItem(player, item)
         data.odorMaskItemId = item:getID()
     end
 end
 
 local function removeOdorMask(player, data)
-    if not data.odorMaskItemId then return end
     local inv = player:getInventory()
     if inv then
-        local item = inv:getItemById(data.odorMaskItemId)
+        NinjaLineages.Utils.Inventory.removeWornItemsByType(player, { "Base.NL_OdorConditioningMask" })
+        local item = data.odorMaskItemId and inv:getItemById(data.odorMaskItemId) or nil
         if item then
-            pcall(function() player:removeWornItem(item) end)
+            NinjaLineages.Utils.Inventory.removeWornItem(player, item)
             inv:Remove(item)
             pcall(function() sendRemoveItemFromContainer(inv, item) end)
         else
@@ -289,7 +290,7 @@ local function removeOdorMask(player, data)
                 for i = 0, items:size() - 1 do
                     local it = items:get(i)
                     if it and it:getFullType() == "Base.NL_OdorConditioningMask" then
-                        pcall(function() player:removeWornItem(it) end)
+                        NinjaLineages.Utils.Inventory.removeWornItem(player, it)
                         inv:Remove(it)
                         pcall(function() sendRemoveItemFromContainer(inv, it) end)
                         break

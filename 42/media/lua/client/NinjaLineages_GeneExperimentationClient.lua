@@ -91,7 +91,6 @@ end
 
 function NLCorpseExperimentAction:start()
     self:setActionAnim("Loot")
-    self:setOverrideHandDriven(true)
 end
 
 function NLCorpseExperimentAction:stop()
@@ -392,5 +391,6 @@ end
 -- Event Registrations
 NinjaLineages.addEventOnce("client.geneExperimentation.onFillWorldObjectContextMenu", Events.OnFillWorldObjectContextMenu, addGeneExperimentationContextMenu)
 NinjaLineages.addEventOnce("client.geneExperimentation.onZombieUpdate", Events.OnZombieUpdate, onZombieUpdate)
+NinjaLineages.addEventOnce("client.geneExperimentation.onZombieDead", Events.OnZombieDead, rememberZombieNinjaDeath)
 NinjaLineages.addEventOnce("client.geneExperimentation.onDeadBodySpawn", Events.OnDeadBodySpawn, markSpawnedZombieNinjaCorpse)
 NinjaLineages.addEventOnce("client.geneExperimentation.onServerCommand", Events.OnServerCommand, onServerCommand)

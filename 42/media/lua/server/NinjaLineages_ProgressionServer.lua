@@ -86,12 +86,12 @@ local function handleDebugToggleAllVisible(player)
     end
 
     local data = NinjaLineages.getNLData(player)
-    data.allDisciplinesVisible = true
+    data.allDisciplinesVisible = data.allDisciplinesVisible ~= true
     NinjaLineages.transmitPlayerData(player)
     sendState(player, "debugResult", {
         ok = true,
         action = "toggleAllVisible",
-        enabled = true,
+        enabled = data.allDisciplinesVisible,
     })
 end
 
@@ -102,13 +102,26 @@ local function handleDebugToggleAllUnlocked(player)
     end
 
     local data = NinjaLineages.getNLData(player)
-    data.allDisciplinesUnlocked = true
+    data.allDisciplinesUnlocked = data.allDisciplinesUnlocked ~= true
     NinjaLineages.transmitPlayerData(player)
     sendState(player, "debugResult", {
         ok = true,
         action = "toggleAllUnlocked",
-        enabled = true,
+        enabled = data.allDisciplinesUnlocked,
     })
+end
+
+local function revealGeneExperimentation(player)
+    local data = NinjaLineages.getNLData(player)
+    data.visibleDisciplines = data.visibleDisciplines or {}
+    if data.visibleDisciplines.gene_experimentation == true then return false end
+
+    data.visibleDisciplines.gene_experimentation = true
+    NinjaLineages.transmitPlayerData(player)
+    sendState(player, "geneExperimentationMessage", {
+        textKey = "UI_NL_GeneExperimentationRevealed",
+    })
+    return true
 end
 
 local function onClientCommand(module, command, player, args)
@@ -135,6 +148,10 @@ local function onZombieDead(zombie)
     if attacker and instanceof(attacker, "IsoPlayer") then
         local reward = NinjaLineages.Balance.Progression.NinjaXP.KILL
         NinjaLineages.Progression.awardXP(attacker, "kill", reward, true)
+        local modData = zombie:getModData()
+        if modData and modData.isZombieNinja == true then
+            revealGeneExperimentation(attacker)
+        end
         sendState(attacker, "progressionUpdated")
     end
 end

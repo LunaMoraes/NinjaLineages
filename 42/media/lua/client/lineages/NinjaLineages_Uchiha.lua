@@ -59,6 +59,7 @@ local function applyKamuiVisionItem(player)
     local equipped = NinjaLineages.Utils.Inventory.getWornItemByType(player, consts.Uchiha.Vision.ITEMS)
     local desiredType = level > 0 and consts.Uchiha.Vision.ITEMS[level] or nil
     if equipped and desiredType and equipped:getFullType() == desiredType then
+        NinjaLineages.Utils.Inventory.wearItem(player, equipped)
         if level == 1 then
             NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.4)
         elseif level == 2 then
@@ -70,21 +71,23 @@ local function applyKamuiVisionItem(player)
     end
 
     if equipped then
-        player:setWornItem(equipped:getBodyLocation(), nil)
+        NinjaLineages.Utils.Inventory.removeWornItem(player, equipped)
     end
 
     if level <= 0 then
+        NinjaLineages.Utils.Inventory.removeWornItemsByType(player, consts.Uchiha.Vision.ITEMS)
         NinjaLineages.Utils.Inventory.removeInventoryItems(player, consts.Uchiha.Vision.ITEMS)
         NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.5)
         return
     end
 
+    NinjaLineages.Utils.Inventory.removeWornItemsByType(player, consts.Uchiha.Vision.ITEMS)
     NinjaLineages.Utils.Inventory.removeInventoryItems(player, consts.Uchiha.Vision.ITEMS)
     local inv = player:getInventory()
     if not inv then return end
     local item = inv:AddItem(desiredType)
     if item then
-        player:setWornItem(item:getBodyLocation(), item)
+        NinjaLineages.Utils.Inventory.wearItem(player, item)
     end
 
     if level == 1 then
