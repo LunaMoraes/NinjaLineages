@@ -294,6 +294,12 @@ local function onZombieUpdate(zombie)
         return
     end
     
+    -- Prevent dashing while downed, falling, or getting up
+    if zombie:isKnockedDown() or zombie:isFalling() or zombie:isProne() or zombie:isGettingUp() then
+        zombieMovements[zombie] = nil
+        return
+    end
+    
     -- 1. Aggression / Mutation Check
     local target = zombie:getTarget()
     if target and instanceof(target, "IsoPlayer") then
@@ -320,8 +326,8 @@ local function onZombieUpdate(zombie)
             if distance >= 2.0 and distance <= 6.0 then
                 local now = NinjaLineages.Utils.Time.gameMinutes()
                 local lastDash = modData.lastZombieDashTime or 0
-                -- 10 seconds cooldown = 0.16 in-game minutes
-                if now - lastDash >= 0.16 then
+                -- 2 minutes cooldown = 2.0 in-game minutes
+                if now - lastDash >= 2.0 then
                     if isClient and isClient() then
                         sendClientCommand(getPlayer(), "NinjaLineages", "zombieDashRequest", { zombieId = zombie:getOnlineID() })
                     else
