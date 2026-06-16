@@ -35,9 +35,12 @@ end
 
 function NinjaLineages.Utils.Inventory.removeWornItem(player, item)
     if not player or not item then return false end
-    local ok = pcall(function() player:removeWornItem(item, false) end)
+    local ok = pcall(function() player:getWornItems():remove(item) end)
     if not ok then
-        ok = pcall(function() player:removeWornItem(item) end)
+        ok = pcall(function() player:removeWornItem(item, false) end)
+        if not ok then
+            ok = pcall(function() player:removeWornItem(item) end)
+        end
     end
     refreshWornItemModifiers(player)
     return ok == true
