@@ -10,6 +10,7 @@ module Base
         Cosmetic = true,
         VisionModifier = 4.0,
         HearingModifier = 4.0,
+        Hidden = true,
     }
 
     item NL_KamuiVision_L1
@@ -21,6 +22,7 @@ module Base
         BodyLocation = base:zeddmg,
         Cosmetic = true,
         VisionModifier = 0.75,
+        Hidden = true,
     }
 
     item NL_KamuiVision_L2
@@ -32,6 +34,7 @@ module Base
         BodyLocation = base:zeddmg,
         Cosmetic = true,
         VisionModifier = 0.5,
+        Hidden = true,
     }
 
     item NL_KamuiVision_L3
@@ -43,6 +46,7 @@ module Base
         BodyLocation = base:zeddmg,
         Cosmetic = true,
         VisionModifier = 0.25,
+        Hidden = true,
     }
 
     item NL_AlarmSeal
