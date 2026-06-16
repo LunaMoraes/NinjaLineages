@@ -7,6 +7,34 @@ NinjaLineages.GeneExperimentationClient = NinjaLineages.GeneExperimentationClien
 
 local ClientLogic = NinjaLineages.GeneExperimentationClient
 local zombieMovements = {}
+local recentZombieNinjaDeaths = {}
+
+local function getDeathKey(x, y, z)
+    return tostring(math.floor(x or 0)) .. ":" .. tostring(math.floor(y or 0)) .. ":" .. tostring(math.floor(z or 0))
+end
+
+local function rememberZombieNinjaDeath(zombie)
+    if not zombie then return end
+    local modData = zombie:getModData()
+    if not modData or modData.isZombieNinja ~= true then return end
+    recentZombieNinjaDeaths[getDeathKey(zombie:getX(), zombie:getY(), zombie:getZ())] = NinjaLineages.Utils.Time.gameMinutes()
+end
+
+local function markSpawnedZombieNinjaCorpse(body)
+    if not body or not instanceof(body, "IsoDeadBody") then return end
+    local key = getDeathKey(body:getX(), body:getY(), body:getZ())
+    local deathAt = recentZombieNinjaDeaths[key]
+    if not deathAt then return end
+    if NinjaLineages.Utils.Time.gameMinutes() - deathAt > 10 then
+        recentZombieNinjaDeaths[key] = nil
+        return
+    end
+
+    local modData = body:getModData()
+    modData.zombieNinjaRolled = true
+    modData.isZombieNinja = true
+    recentZombieNinjaDeaths[key] = nil
+end
 
 -- Helper functions for corpse identification
 local function getCorpseIdentifier(corpse)
@@ -147,36 +175,54 @@ local function addGeneExperimentationContextMenu(playerNum, context, worldObject
     
     if not corpse then return end
     
+    markSpawnedZombieNinjaCorpse(corpse)
     local modData = corpse:getModData()
     if not modData.isZombieNinja or modData.experimented then return end
     
-    -- Add sub-menu options based on player progression
-    local subMenu = nil
+    -- Add surgery options based on player progression.
+    local surgeryOptions = {}
     
     -- Crude Chakra Autopsy option
     if NinjaLineages.Progression.isDisciplineLocked(player, "gene_experimentation") then
-        subMenu = NinjaLineages.UI.getOrCreateWorldSubMenu(context)
-        subMenu:addOption(getText("UI_NL_CorpseAutopsyOption"), player, startExperimentAction, corpse, "Crude Chakra Autopsy")
+        table.insert(surgeryOptions, {
+            label = getText("UI_NL_CorpseAutopsyOption"),
+            actionId = "Crude Chakra Autopsy",
+        })
     else
         -- Check unlocked extraction nodes
-        local showMenu = false
         local canExtractBlood = NinjaLineages.Progression.isCompleted(player, "blood_extraction")
         local canExtractOcular = NinjaLineages.Progression.isCompleted(player, "ocular_extraction")
         local canExtractGene = NinjaLineages.Progression.isCompleted(player, "gene_extraction")
         
-        if canExtractBlood or canExtractOcular or canExtractGene then
-            subMenu = NinjaLineages.UI.getOrCreateWorldSubMenu(context)
-            
-            if canExtractBlood then
-                subMenu:addOption(getText("UI_NL_ExtractBloodOption"), player, startExperimentAction, corpse, "Extract Blood Sample")
-            end
-            if canExtractOcular then
-                subMenu:addOption(getText("UI_NL_ExtractOcularOption"), player, startExperimentAction, corpse, "Extract Ocular Tissue")
-            end
-            if canExtractGene then
-                subMenu:addOption(getText("UI_NL_ExtractGeneOption"), player, startExperimentAction, corpse, "Extract Gene Sample")
-            end
+        if canExtractBlood then
+            table.insert(surgeryOptions, {
+                label = getText("UI_NL_ExtractBloodOption"),
+                actionId = "Extract Blood Sample",
+            })
         end
+        if canExtractOcular then
+            table.insert(surgeryOptions, {
+                label = getText("UI_NL_ExtractOcularOption"),
+                actionId = "Extract Ocular Tissue",
+            })
+        end
+        if canExtractGene then
+            table.insert(surgeryOptions, {
+                label = getText("UI_NL_ExtractGeneOption"),
+                actionId = "Extract Gene Sample",
+            })
+        end
+    end
+
+    if #surgeryOptions == 0 then return end
+
+    local shinobiSubMenu = NinjaLineages.UI.getOrCreateWorldSubMenu(context)
+    if not shinobiSubMenu then return end
+    local surgeriesSubMenu = NinjaLineages.UI.getOrCreateSubMenu(shinobiSubMenu, getText("UI_NL_CorpseSurgeriesMenu"))
+    if not surgeriesSubMenu then return end
+
+    for _, surgeryOption in ipairs(surgeryOptions) do
+        surgeriesSubMenu:addOption(surgeryOption.label, player, startExperimentAction, corpse, surgeryOption.actionId)
     end
 end
 
@@ -244,6 +290,7 @@ end
 -- Zombie Update loop (aggression checking + dash update)
 local function onZombieUpdate(zombie)
     if not zombie or zombie:isDead() then
+        rememberZombieNinjaDeath(zombie)
         zombieMovements[zombie] = nil
         return
     end
@@ -345,4 +392,5 @@ end
 -- Event Registrations
 NinjaLineages.addEventOnce("client.geneExperimentation.onFillWorldObjectContextMenu", Events.OnFillWorldObjectContextMenu, addGeneExperimentationContextMenu)
 NinjaLineages.addEventOnce("client.geneExperimentation.onZombieUpdate", Events.OnZombieUpdate, onZombieUpdate)
+NinjaLineages.addEventOnce("client.geneExperimentation.onDeadBodySpawn", Events.OnDeadBodySpawn, markSpawnedZombieNinjaCorpse)
 NinjaLineages.addEventOnce("client.geneExperimentation.onServerCommand", Events.OnServerCommand, onServerCommand)
