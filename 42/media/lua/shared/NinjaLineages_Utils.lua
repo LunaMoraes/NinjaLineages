@@ -133,9 +133,10 @@ end
 
 local function canPlayerSeeZombie(player, zombie)
     if not player or not zombie then return false end
-    local ok, visible = pcall(function() return player:CanSee(zombie) end)
-    if ok then return visible == true end
-    ok, visible = pcall(function() return zombie:isSeen(player) end)
+    local square = zombie:getSquare()
+    if not square then return false end
+    local playerNum = player.getPlayerNum and player:getPlayerNum() or 0
+    local ok, visible = pcall(function() return square:getCanSee(playerNum) end)
     if ok then return visible == true end
     return false
 end
