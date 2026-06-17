@@ -87,7 +87,7 @@ showAbilityRadial = function(player)
         if #list > 0 then
             local def = disciplines[discId]
             local discName = def and def.name and getText(def.name) or discId
-            local icon = getTexture(list[1].texture) or getTexture(list[1].fallbackTexture)
+            local icon = getTexture("media/ui/jutsuTree/nodes/" .. discId .. ".png") or getTexture(list[1].fallbackTexture)
             menu:addSlice(discName, icon, function(p)
                 showCategoryRadial(p, discId, list)
             end, player)
