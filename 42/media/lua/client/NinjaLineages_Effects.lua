@@ -227,7 +227,7 @@ local function onDebugServerCommand(module, command, args)
     end
 end
 
-Events.OnServerCommand.Add(onDebugServerCommand)
+NinjaLineages.addEventOnce("client.effects.onServerCommand.debug", Events.OnServerCommand, onDebugServerCommand)
 
 local function onKeyStartPressed(key)
     local player = getSpecificPlayer(0)

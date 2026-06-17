@@ -163,5 +163,5 @@ local function onZombieDead(zombie)
     end
 end
 
-Events.OnClientCommand.Add(onClientCommand)
-Events.OnZombieDead.Add(onZombieDead)
+NinjaLineages.addEventOnce("server.progression.onClientCommand", Events.OnClientCommand, onClientCommand)
+NinjaLineages.addEventOnce("server.progression.onZombieDead", Events.OnZombieDead, onZombieDead)

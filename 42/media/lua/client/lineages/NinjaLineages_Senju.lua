@@ -47,10 +47,12 @@ NinjaLineages.registerCreatePlayer("senju.init", function(player)
     updateCreationRebirthUnlock(player)
 end)
 
-Events.LevelPerk.Add(function(player, perk)
+local function onLevelPerkSenju(player, perk)
     local chakraControl = Perks.FromString("ChakraControl")
     if perk == chakraControl then updateCreationRebirthUnlock(player) end
-end)
+end
+
+NinjaLineages.addEventOnce("client.senju.levelPerk", Events.LevelPerk, onLevelPerkSenju)
 
 NinjaLineages.registerEveryMinute("senju.passive", function(player, elapsedMinutes)
     if not NinjaLineages.hasSenju(player) then return end

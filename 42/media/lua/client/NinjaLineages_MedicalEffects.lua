@@ -64,4 +64,4 @@ local function renderLines()
     end
 end
 
-Events.OnPostRender.Add(renderLines)
+NinjaLineages.addEventOnce("client.medicalEffects.onPostRender", Events.OnPostRender, renderLines)

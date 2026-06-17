@@ -785,4 +785,4 @@ function NLJutsuTreeUI.onServerCommand(module, command, args)
     end
 end
 
-Events.OnServerCommand.Add(NLJutsuTreeUI.onServerCommand)
+NinjaLineages.addEventOnce("client.jutsuTreeUI.onServerCommand", Events.OnServerCommand, NLJutsuTreeUI.onServerCommand)

@@ -237,5 +237,5 @@ end
 
 -- Use the foraging system's initialization hook
 if Events.preAddSkillDefs then
-    Events.preAddSkillDefs.Add(addForageSkillDefs)
+    NinjaLineages.addEventOnce("shared.traits.preAddSkillDefs", Events.preAddSkillDefs, addForageSkillDefs)
 end

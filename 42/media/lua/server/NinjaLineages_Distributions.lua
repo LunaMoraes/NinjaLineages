@@ -32,4 +32,4 @@ local function addCreationRebirthScroll()
     end
 end
 
-Events.OnPostDistributionMerge.Add(addCreationRebirthScroll)
+NinjaLineages.addEventOnce("server.distributions.onPostDistributionMerge", Events.OnPostDistributionMerge, addCreationRebirthScroll)

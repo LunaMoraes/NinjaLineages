@@ -55,4 +55,4 @@ NinjaLineages.registerPlayerUpdate("rinnegan.shinraTenseiPush", function()
     end
 end)
 
-Events.OnPostRender.Add(renderPulses)
+NinjaLineages.addEventOnce("client.rinnegan.onPostRender", Events.OnPostRender, renderPulses)
