@@ -197,7 +197,7 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
             local currentHunger = stats:get(CharacterStat.HUNGER)
             local currentThirst = stats:get(CharacterStat.THIRST)
 
-            if currentHunger > 0 or currentThirst > 0 then
+            if currentHunger > 0.01 or currentThirst > 0.01 then
                 local step = resolved.costStep or 5
                 if NinjaLineages.Chakra.getChakra(player) >= step then
                     NinjaLineages.Chakra.spendChakra(player, step)

@@ -447,7 +447,7 @@ specializedExecutors.calorie_control = function(player, definition)
     if not validRequirements then return false, requirementReason end
 
     local stats = player:getStats()
-    if stats:get(CharacterStat.HUNGER) <= 0 and stats:get(CharacterStat.THIRST) <= 0 then
+    if stats:get(CharacterStat.HUNGER) <= 0.01 and stats:get(CharacterStat.THIRST) <= 0.01 then
         return false, "nourishing"
     end
 
