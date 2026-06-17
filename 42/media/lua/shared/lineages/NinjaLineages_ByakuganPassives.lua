@@ -12,7 +12,9 @@ local function isLivePlayer(player)
 end
 
 local function getWornByakuganSight(player)
-    return NinjaLineages.Utils.Inventory.getWornItemByType(player, { "Base.NL_ByakuganSight" })
+    return NinjaLineages.Utils.Inventory.findWornItem(player, function(item)
+        return item:getFullType() == "Base.NL_ByakuganSight"
+    end)
 end
 
 local function addOwnedTrait(player, data, markerKey, trait)
@@ -102,7 +104,6 @@ function ByakuganPassives.applyByakugan(player)
         end
 
         changed = removeTrackedByakuganSight(player, data) or changed
-        NinjaLineages.Utils.Inventory.refreshWornItemModifiers(player)
         changed = removeOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED) or changed
         changed = removeOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING) or changed
     end

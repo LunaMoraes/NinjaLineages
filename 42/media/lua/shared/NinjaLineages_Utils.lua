@@ -4,32 +4,23 @@ NinjaLineages.Utils = NinjaLineages.Utils or {}
 -- 1. Inventory Helpers
 NinjaLineages.Utils.Inventory = NinjaLineages.Utils.Inventory or {}
 
-local function matchesItemType(item, itemTypes)
-    if not item then return false end
-    local fullType = item:getFullType()
-    local typeName = item:getType()
-    for _, itemType in ipairs(itemTypes) do
-        if fullType == itemType or typeName == itemType:gsub("^Base%.", "") then
-            return true
+function NinjaLineages.Utils.Inventory.findWornItem(player, predicate)
+    if not player or not predicate then return nil end
+    local wornItems = player:getWornItems()
+    if not wornItems then return nil end
+
+    for i = 0, wornItems:size() - 1 do
+        local item = wornItems:getItemByIndex(i)
+        if item and predicate(item) then
+            return item
         end
     end
-    return false
-end
-
-local function refreshWornItemModifiers(player)
-    if not player then return end
-    pcall(function() player:updateWornItemsVisionModifier() end)
-    pcall(function() player:updateWornItemsHearingModifier() end)
-end
-
-function NinjaLineages.Utils.Inventory.refreshWornItemModifiers(player)
-    refreshWornItemModifiers(player)
+    return nil
 end
 
 function NinjaLineages.Utils.Inventory.wearItem(player, item)
     if not player or not item then return false end
     local ok = pcall(function() player:setWornItem(item:getBodyLocation(), item) end)
-    refreshWornItemModifiers(player)
     return ok == true
 end
 
@@ -42,34 +33,7 @@ function NinjaLineages.Utils.Inventory.removeWornItem(player, item)
             ok = pcall(function() player:removeWornItem(item) end)
         end
     end
-    refreshWornItemModifiers(player)
     return ok == true
-end
-
-function NinjaLineages.Utils.Inventory.getWornItemByType(player, itemTypes)
-    local wornItems = player:getWornItems()
-    if not wornItems then return nil end
-    for i = 0, wornItems:size() - 1 do
-        local wornItem = wornItems:getItemByIndex(i)
-        if matchesItemType(wornItem, itemTypes) then return wornItem end
-    end
-    return nil
-end
-
-function NinjaLineages.Utils.Inventory.removeWornItemsByType(player, itemTypes)
-    local wornItems = player:getWornItems()
-    if not wornItems then return false end
-
-    local changed = false
-    for i = wornItems:size() - 1, 0, -1 do
-        local wornItem = wornItems:getItemByIndex(i)
-        if matchesItemType(wornItem, itemTypes) then
-            NinjaLineages.Utils.Inventory.removeWornItem(player, wornItem)
-            changed = true
-        end
-    end
-    if changed then refreshWornItemModifiers(player) end
-    return changed
 end
 
 function NinjaLineages.Utils.Inventory.removeInventoryItems(player, itemTypes)
@@ -86,7 +50,6 @@ function NinjaLineages.Utils.Inventory.removeInventoryItems(player, itemTypes)
             item = inv:getItemFromType(itemType)
         end
     end
-    if changed then refreshWornItemModifiers(player) end
     return changed
 end
 

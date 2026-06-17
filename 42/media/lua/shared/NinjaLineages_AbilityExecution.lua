@@ -256,17 +256,14 @@ local function wearOdorMask(player, data)
         end
     end
     
-    local wornItems = player:getWornItems()
-    if wornItems then
-        for i = 0, wornItems:size() - 1 do
-            local item = wornItems:getItemByIndex(i)
-            if item and item:getFullType() == "Base.NL_OdorConditioningMask" then
-                refreshOdorMask(item)
-                NinjaLineages.Utils.Inventory.wearItem(player, item)
-                data.odorMaskItemId = item:getID()
-                return
-            end
-        end
+    local wornItem = NinjaLineages.Utils.Inventory.findWornItem(player, function(item)
+        return item:getFullType() == "Base.NL_OdorConditioningMask"
+    end)
+    if wornItem then
+        refreshOdorMask(wornItem)
+        NinjaLineages.Utils.Inventory.wearItem(player, wornItem)
+        data.odorMaskItemId = wornItem:getID()
+        return
     end
     
     local item = inv:AddItem("Base.NL_OdorConditioningMask")
@@ -280,7 +277,12 @@ end
 local function removeOdorMask(player, data)
     local inv = player:getInventory()
     if inv then
-        NinjaLineages.Utils.Inventory.removeWornItemsByType(player, { "Base.NL_OdorConditioningMask" })
+        local wornItem = NinjaLineages.Utils.Inventory.findWornItem(player, function(item)
+            return item:getFullType() == "Base.NL_OdorConditioningMask"
+        end)
+        if wornItem then
+            NinjaLineages.Utils.Inventory.removeWornItem(player, wornItem)
+        end
         local item = data.odorMaskItemId and inv:getItemById(data.odorMaskItemId) or nil
         if item then
             NinjaLineages.Utils.Inventory.removeWornItem(player, item)

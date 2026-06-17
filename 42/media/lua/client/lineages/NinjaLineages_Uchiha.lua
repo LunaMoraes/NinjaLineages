@@ -11,6 +11,15 @@ NinjaLineages.Uchiha = NinjaLineages.Uchiha or {}
 local consts = NinjaLineages.Constants
 local observedSharinganStages = setmetatable({}, { __mode = "k" })
 
+local function isKamuiVisionItem(item)
+    if not item then return false end
+    local fullType = item:getFullType()
+    for _, itemType in ipairs(consts.Uchiha.Vision.ITEMS) do
+        if fullType == itemType then return true end
+    end
+    return false
+end
+
 local function updateSharinganProgress(player)
     if not NinjaLineages.hasSharingan(player) then return end
 
@@ -57,7 +66,7 @@ end
 local function applyKamuiVisionItem(player)
     local data = NinjaLineages.getNLData(player)
     local level = data.kamuiVisionLevel or 0
-    local equipped = NinjaLineages.Utils.Inventory.getWornItemByType(player, consts.Uchiha.Vision.ITEMS)
+    local equipped = NinjaLineages.Utils.Inventory.findWornItem(player, isKamuiVisionItem)
     local desiredType = level > 0 and consts.Uchiha.Vision.ITEMS[level] or nil
     if equipped and desiredType and equipped:getFullType() == desiredType then
         NinjaLineages.Utils.Inventory.wearItem(player, equipped)
@@ -76,13 +85,19 @@ local function applyKamuiVisionItem(player)
     end
 
     if level <= 0 then
-        NinjaLineages.Utils.Inventory.removeWornItemsByType(player, consts.Uchiha.Vision.ITEMS)
+        equipped = NinjaLineages.Utils.Inventory.findWornItem(player, isKamuiVisionItem)
+        if equipped then
+            NinjaLineages.Utils.Inventory.removeWornItem(player, equipped)
+        end
         NinjaLineages.Utils.Inventory.removeInventoryItems(player, consts.Uchiha.Vision.ITEMS)
         NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.5)
         return
     end
 
-    NinjaLineages.Utils.Inventory.removeWornItemsByType(player, consts.Uchiha.Vision.ITEMS)
+    equipped = NinjaLineages.Utils.Inventory.findWornItem(player, isKamuiVisionItem)
+    if equipped then
+        NinjaLineages.Utils.Inventory.removeWornItem(player, equipped)
+    end
     NinjaLineages.Utils.Inventory.removeInventoryItems(player, consts.Uchiha.Vision.ITEMS)
     local inv = player:getInventory()
     if not inv then return end
