@@ -142,6 +142,9 @@ function HandSigns.activateAbility(player, ability)
         player:Say(getText("UI_NL_HandSigns_ClassicDisabled"))
         return false
     end
+    if ability.action then
+        return ability.action(player)
+    end
     return NinjaLineages.AbilityAuthority.request(player, ability.id, {})
 end
 
@@ -198,6 +201,10 @@ function HandSigns.handleClassicSign(player, signId)
         if sequenceEquals(state.signs, ability.handSigns) then
             state.signs = {}
             classicInputs[player] = state
+            if ability.action then
+                ability.action(player, { skipSeal = true })
+                return true
+            end
             NinjaLineages.AbilityAuthority.request(player, ability.id, {}, { skipSeal = true })
             return true
         end

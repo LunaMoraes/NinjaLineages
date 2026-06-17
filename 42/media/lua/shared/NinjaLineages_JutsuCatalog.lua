@@ -706,8 +706,13 @@ function Catalog.toAbility(definition)
         costTier = type(balance.cost) == "table" and balance.cost.tier or balance.cost,
         cooldownTier = type(balance.cooldown) == "table" and balance.cooldown.tier or balance.cooldown,
         condition = function(player) return Catalog.isAvailable(player, definition) end,
-        action = function(player)
-            return NinjaLineages.AbilityAuthority.request(player, definition.id, buildTargetArgs(player))
+        action = function(player, presentation)
+            return NinjaLineages.AbilityAuthority.request(
+                player,
+                definition.id,
+                buildTargetArgs(player),
+                presentation
+            )
         end,
     }
 end
