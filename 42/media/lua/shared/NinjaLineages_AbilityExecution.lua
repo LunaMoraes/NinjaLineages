@@ -547,7 +547,7 @@ local function gentleFist(zombie, attacker, bodyPartType, weapon)
 end
 
 if not (isClient and isClient()) and Events and Events.OnHitZombie then
-    Events.OnHitZombie.Add(gentleFist)
+    NinjaLineages.addEventOnce("shared.abilityExecution.onHitZombie", Events.OnHitZombie, gentleFist)
 end
 
 local sharinganRolls = {}
@@ -579,7 +579,7 @@ local function sharinganEvade(zombie)
 end
 
 if not (isClient and isClient()) and Events and Events.OnZombieUpdate then
-    Events.OnZombieUpdate.Add(sharinganEvade)
+    NinjaLineages.addEventOnce("shared.abilityExecution.onZombieUpdate", Events.OnZombieUpdate, sharinganEvade)
 end
 
 function NinjaLineages.AbilityAuthority.updatePlayer(player)
@@ -930,7 +930,7 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
 end
 
 if not (isClient and isClient()) and Events and Events.OnInitGlobalModData then
-    Events.OnInitGlobalModData.Add(NinjaLineages.AbilityAuthority.initAlarmSeals)
+    NinjaLineages.addEventOnce("shared.abilityExecution.onInitGlobalModData", Events.OnInitGlobalModData, NinjaLineages.AbilityAuthority.initAlarmSeals)
 end
 
 function NinjaLineages.AbilityAuthority.resetPlayerActiveState(player)
@@ -949,15 +949,17 @@ local function handlePlayerReset(playerIndex, player)
     end
 end
 
+local function handleCharacterDeath(character)
+    if instanceof(character, "IsoPlayer") then
+        NinjaLineages.AbilityAuthority.resetPlayerActiveState(character)
+    end
+end
+
 if Events then
     if Events.OnCreatePlayer then
-        Events.OnCreatePlayer.Add(handlePlayerReset)
+        NinjaLineages.addEventOnce("shared.abilityExecution.onCreatePlayer", Events.OnCreatePlayer, handlePlayerReset)
     end
     if Events.OnCharacterDeath then
-        Events.OnCharacterDeath.Add(function(character)
-            if instanceof(character, "IsoPlayer") then
-                NinjaLineages.AbilityAuthority.resetPlayerActiveState(character)
-            end
-        end)
+        NinjaLineages.addEventOnce("shared.abilityExecution.onCharacterDeath", Events.OnCharacterDeath, handleCharacterDeath)
     end
 end

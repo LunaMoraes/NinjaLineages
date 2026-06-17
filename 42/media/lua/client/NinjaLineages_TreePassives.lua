@@ -119,6 +119,8 @@ local function everyMinute(player, elapsedMinutes)
     end
 end
 
-Events.OnWeaponHitXp.Add(onWeaponHitXP)
+if Events and Events.OnWeaponHitXp then
+    NinjaLineages.addEventOnce("client.treePassives.onWeaponHitXp", Events.OnWeaponHitXp, onWeaponHitXP)
+end
 NinjaLineages.registerHitZombie("treePassives.hitZombie", onHitZombie)
 NinjaLineages.registerEveryMinute("treePassives.everyMinute", everyMinute)
