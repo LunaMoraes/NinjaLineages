@@ -117,6 +117,48 @@ function NinjaLineages.Utils.Zombies.collectInRadius(player, radius)
     return targets
 end
 
+function NinjaLineages.Utils.Zombies.getByOnlineID(onlineID)
+    if onlineID == nil then return nil end
+    local zombies = getCell() and getCell():getZombieList()
+    if not zombies then return nil end
+    onlineID = tonumber(onlineID)
+    for i = 0, zombies:size() - 1 do
+        local zombie = zombies:get(i)
+        if zombie and zombie.getOnlineID and zombie:getOnlineID() == onlineID then
+            return zombie
+        end
+    end
+    return nil
+end
+
+local function canPlayerSeeZombie(player, zombie)
+    if not player or not zombie then return false end
+    local ok, visible = pcall(function() return player:CanSee(zombie) end)
+    if ok then return visible == true end
+    ok, visible = pcall(function() return zombie:isSeen(player) end)
+    if ok then return visible == true end
+    return false
+end
+
+function NinjaLineages.Utils.Zombies.collectClosestVisible(player, radius, maxTargets)
+    local targets = {}
+    if not player or not radius then return targets end
+
+    for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, radius)) do
+        if canPlayerSeeZombie(player, entry.zombie) then
+            table.insert(targets, entry)
+        end
+    end
+
+    table.sort(targets, function(a, b) return a.distance < b.distance end)
+
+    maxTargets = tonumber(maxTargets)
+    if maxTargets and maxTargets > 0 then
+        while #targets > maxTargets do table.remove(targets) end
+    end
+    return targets
+end
+
 function NinjaLineages.Utils.Zombies.collectInFacingCone(player, targetingTier)
     local config = NinjaLineages.Balance.getTargeting(targetingTier)
     local targets = {}

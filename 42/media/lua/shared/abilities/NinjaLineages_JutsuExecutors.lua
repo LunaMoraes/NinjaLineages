@@ -74,6 +74,43 @@ local function rollDamage(resolved)
     return minimum + ((ZombRand(0, 1001) / 1000) * (maximum - minimum))
 end
 
+local function isZombieInRange(player, zombie, range)
+    return player and zombie and not zombie:isDead() and zombie:DistTo(player) <= range
+end
+
+local function resolveRequestedZombies(player, targeting, args)
+    local targets = {}
+    if not player or not targeting then return targets end
+
+    local hasRequestedTargets = args and (args.targetIds ~= nil or args.targetZombies ~= nil)
+    local maxTargets = targeting.maxTargets or 1
+    for _, zombie in ipairs((args and args.targetZombies) or {}) do
+        if #targets >= maxTargets then break end
+        if isZombieInRange(player, zombie, targeting.range) then
+            table.insert(targets, { zombie = zombie, distance = zombie:DistTo(player) })
+        end
+    end
+
+    for _, zombieId in ipairs((args and args.targetIds) or {}) do
+        if #targets >= maxTargets then break end
+        local zombie = NinjaLineages.Utils.Zombies.getByOnlineID(zombieId)
+        if isZombieInRange(player, zombie, targeting.range) then
+            table.insert(targets, { zombie = zombie, distance = zombie:DistTo(player) })
+        end
+    end
+
+    if #targets == 0
+            and not hasRequestedTargets
+            and not (NinjaLineages.isClient and NinjaLineages.isClient()) then
+        return NinjaLineages.Utils.Zombies.collectClosestVisible(
+            player,
+            targeting.range,
+            targeting.maxTargets
+        )
+    end
+    return targets
+end
+
 local function executeGenericEffect(player, definition, resolved)
     local effect = definition.effect
     local data = NinjaLineages.getNLData(player)
@@ -443,14 +480,15 @@ specializedExecutors.katon = function(player, definition)
 end
 
 
-specializedExecutors.chakra_needle = function(player, definition)
+specializedExecutors.chakra_needle = function(player, definition, args)
     local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
     if not validRequirements then return false, requirementReason end
     local resolved = Catalog.resolveBalance(definition)
     local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
     if not valid then return false, reason, remaining end
 
-    local target = NinjaLineages.Utils.Zombies.getFacingTarget(player, resolved.targeting)
+    local targets = resolveRequestedZombies(player, resolved.targeting, args)
+    local target = targets[1] and targets[1].zombie or nil
     if not target then return false, "no_target" end
 
     NinjaLineages.Utils.Combat.applyZombieDamage(player, target, rollDamage(resolved))
@@ -472,18 +510,18 @@ specializedExecutors.chakra_needle = function(player, definition)
     }
 end
 
-specializedExecutors.nervous_system_shock = function(player, definition)
+specializedExecutors.nervous_system_shock = function(player, definition, args)
     local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
     if not validRequirements then return false, requirementReason end
     local resolved = Catalog.resolveBalance(definition)
     local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
     if not valid then return false, reason, remaining end
 
-    local targets = NinjaLineages.Utils.Zombies.collectInFacingCone(player, resolved.targeting)
+    local targets = resolveRequestedZombies(player, resolved.targeting, args)
     if #targets == 0 then return false, "no_target" end
 
     local lines = {}
-    local maxTargets = math.min(2, #targets)
+    local maxTargets = math.min(resolved.targeting.maxTargets or #targets, #targets)
     for i = 1, maxTargets do
         local zombie = targets[i].zombie
         NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, rollDamage(resolved))

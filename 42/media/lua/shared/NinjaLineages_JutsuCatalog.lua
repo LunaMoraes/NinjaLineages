@@ -1,4 +1,5 @@
 require "NinjaLineages_Balance"
+require "NinjaLineages_Utils"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.JutsuCatalog = NinjaLineages.JutsuCatalog or {}
@@ -280,7 +281,7 @@ Catalog.Definitions = {
         node = { discipline = "medical", rank = "GENIN", order = 10 },
         handSigns = { "snake", "ram", "bird" },
         balance = {
-            cost = "STANDARD", cooldown = "SHORT", targeting = "NARROW",
+            cost = "STANDARD", cooldown = "SHORT", targeting = "STANDARD",
             damage = "LIGHT", control = "GENIN",
         },
         executor = "chakra_needle",
@@ -659,6 +660,37 @@ end
 function Catalog.toAbility(definition)
     local view = presentation(definition)
     local balance = definition.balance or {}
+
+    local function buildTargetArgs(player)
+        if definition.executor ~= "chakra_needle"
+                and definition.executor ~= "nervous_system_shock" then
+            return {}
+        end
+
+        local resolved = Catalog.resolveBalance(definition)
+        local targeting = resolved and resolved.targeting
+        if not targeting then return {} end
+
+        local targets = NinjaLineages.Utils.Zombies.collectClosestVisible(
+            player,
+            targeting.range,
+            targeting.maxTargets
+        )
+        local args = { targetIds = {} }
+        if not (NinjaLineages.isClient and NinjaLineages.isClient()) then
+            args.targetZombies = {}
+        end
+
+        for _, entry in ipairs(targets) do
+            local zombie = entry.zombie
+            if zombie and zombie.getOnlineID then
+                table.insert(args.targetIds, zombie:getOnlineID())
+                if args.targetZombies then table.insert(args.targetZombies, zombie) end
+            end
+        end
+        return args
+    end
+
     return {
         id = definition.id,
         lineage = definition.category,
@@ -675,7 +707,7 @@ function Catalog.toAbility(definition)
         cooldownTier = type(balance.cooldown) == "table" and balance.cooldown.tier or balance.cooldown,
         condition = function(player) return Catalog.isAvailable(player, definition) end,
         action = function(player)
-            return NinjaLineages.AbilityAuthority.request(player, definition.id, {})
+            return NinjaLineages.AbilityAuthority.request(player, definition.id, buildTargetArgs(player))
         end,
     }
 end
