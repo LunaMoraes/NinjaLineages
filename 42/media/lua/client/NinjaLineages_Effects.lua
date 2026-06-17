@@ -135,7 +135,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         debugSubMenu:addOption(getText("UI_NL_Debug_AddXP"), player, function(p)
             if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugAddXP then
                 local requested = NinjaLineages.Progression.requestDebugAddXP(p, 1000)
-                if requested and not (isClient and isClient()) then
+                if requested and not NinjaLineages.isClient() then
                     p:Say("Added 1000 Ninja XP!")
                 end
             end
@@ -147,7 +147,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         debugSubMenu:addOption(bypassText, player, function(p)
             if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugToggleBypass then
                 local enabled = NinjaLineages.Progression.requestDebugToggleBypass(p)
-                if not (isClient and isClient()) then
+                if not NinjaLineages.isClient() then
                     p:Say("Bypass Training: " .. (enabled and "Enabled" or "Disabled"))
                 end
             end
@@ -158,7 +158,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         local opt1 = debugSubMenu:addOption(visibilityText, player, function(p)
             if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugSetAllVisible then
                 local requested = NinjaLineages.Progression.requestDebugSetAllVisible(p)
-                if requested and not (isClient and isClient()) then
+                if requested and not NinjaLineages.isClient() then
                     p:Say("All Disciplines Revealed!")
                     for _, ui in pairs(NLJutsuTreeUI.instances) do
                         if ui.screen == "selection" then
@@ -177,7 +177,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         local opt2 = debugSubMenu:addOption(unlockedText, player, function(p)
             if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugSetAllUnlocked then
                 local requested = NinjaLineages.Progression.requestDebugSetAllUnlocked(p)
-                if requested and not (isClient and isClient()) then
+                if requested and not NinjaLineages.isClient() then
                     p:Say("All Disciplines Unlocked!")
                     for _, ui in pairs(NLJutsuTreeUI.instances) do
                         if ui.screen == "selection" then
@@ -283,14 +283,14 @@ local function onPlayerUpdate(player)
     NinjaLineages.HandSigns.update(player)
     NinjaLineages.AbilityAuthority.updatePending()
     NinjaLineages.AbilityAuthority.maintainLocalKamuiNoClip(player)
-    if not (isClient and isClient()) then
+    if not NinjaLineages.isClient() then
         NinjaLineages.AbilityAuthority.updatePlayer(player)
         if player:getPlayerNum() == 0 then NinjaLineages.AbilityAuthority.updateWorld() end
     end
 end
 
 local function onTick()
-    if (isClient and isClient()) or (isServer and isServer()) then return end
+    if NinjaLineages.isClient() or NinjaLineages.isServer() then return end
     if not getNumActivePlayers or not getSpecificPlayer then return end
     for playerIndex = 0, getNumActivePlayers() - 1 do
         NinjaLineages.AbilityAuthority.updateLocalKamuiPhaseMovement(
@@ -321,7 +321,7 @@ local function updatePlayerMinute(player)
     lastMinuteUpdateAt[player] = now
     if elapsed <= 0 then return end
 
-    if not (isClient and isClient()) then
+    if not NinjaLineages.isClient() then
         NinjaLineages.AbilityAuthority.everyMinute(player)
     end
 
@@ -329,7 +329,7 @@ local function updatePlayerMinute(player)
 end
 
 local function everyOneMinute()
-    if not (isClient and isClient()) then
+    if not NinjaLineages.isClient() then
         NinjaLineages.AbilityAuthority.updateAlarmSeals()
     end
     if getNumActivePlayers and getSpecificPlayer then

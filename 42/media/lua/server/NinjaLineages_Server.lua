@@ -105,7 +105,7 @@ NinjaLineages.addEventOnce(
     updateAbilities
 )
 
-if isServer and isServer() then
+if NinjaLineages.isServer() then
     NinjaLineages.addEventOnce(
         "server.everyOneMinute",
         Events.EveryOneMinute,

@@ -3,6 +3,14 @@ require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 
+function NinjaLineages.isClient()
+    return isClient and isClient()
+end
+
+function NinjaLineages.isServer()
+    return isServer and isServer()
+end
+
 NinjaLineages.TRAIT_BYAKUGAN = "NinjaLineages:byakugan"
 NinjaLineages.TRAIT_SHARINGAN = "NinjaLineages:sharingan"
 NinjaLineages.TRAIT_SENJU = "NinjaLineages:senju"

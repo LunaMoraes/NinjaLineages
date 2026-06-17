@@ -29,7 +29,7 @@ function Progression.getNinjaXP(player)
 end
 
 function Progression.setNinjaXP(player, amount)
-    if isClient and isClient() then return end
+    if NinjaLineages.isClient() then return end
     local state = getState(player)
     state.ninjaXP = math.max(0, amount or 0)
     NinjaLineages.transmitPlayerData(player)
@@ -38,7 +38,7 @@ end
 function Progression.requestDebugAddXP(player, amount)
     amount = math.max(0, tonumber(amount) or 0)
     if amount <= 0 then return false end
-    if isClient and isClient() then
+    if NinjaLineages.isClient() then
         sendClientCommand(player, "NinjaLineages", "debugAddNinjaXP", { amount = amount })
         return true
     end
@@ -47,7 +47,7 @@ function Progression.requestDebugAddXP(player, amount)
 end
 
 function Progression.requestDebugToggleBypass(player)
-    if isClient and isClient() then
+    if NinjaLineages.isClient() then
         sendClientCommand(player, "NinjaLineages", "debugToggleBypass", {})
         return true
     end
@@ -58,7 +58,7 @@ function Progression.requestDebugToggleBypass(player)
 end
 
 function Progression.requestDebugSetAllVisible(player)
-    if isClient and isClient() then
+    if NinjaLineages.isClient() then
         sendClientCommand(player, "NinjaLineages", "debugToggleAllVisible", {})
         return true
     end
@@ -69,7 +69,7 @@ function Progression.requestDebugSetAllVisible(player)
 end
 
 function Progression.requestDebugSetAllUnlocked(player)
-    if isClient and isClient() then
+    if NinjaLineages.isClient() then
         sendClientCommand(player, "NinjaLineages", "debugToggleAllUnlocked", {})
         return true
     end
@@ -123,7 +123,7 @@ end
 
 function Progression.awardXP(player, source, rawAmount, authoritative)
     if not player or rawAmount <= 0 then return 0 end
-    if isClient and isClient() and authoritative ~= true then
+    if NinjaLineages.isClient() and authoritative ~= true then
         sendClientCommand(player, "NinjaLineages", "awardNinjaXP", {
             source = source,
             amount = rawAmount,
@@ -154,7 +154,7 @@ end
 function Progression.requestUnlock(player, nodeId)
     local data = NinjaLineages.getNLData(player)
     local bypass = (data and data.bypassTraining == true)
-    if isClient and isClient() then
+    if NinjaLineages.isClient() then
         sendClientCommand(player, "NinjaLineages", "unlockNode", { nodeId = nodeId, bypass = bypass })
         return true
     end
@@ -162,7 +162,7 @@ function Progression.requestUnlock(player, nodeId)
 end
 
 function Progression.requestCompleteTraining(player, nodeId, item)
-    if isClient and isClient() then
+    if NinjaLineages.isClient() then
         sendClientCommand(player, "NinjaLineages", "completeTraining", {
             nodeId = nodeId,
             itemId = item and item:getID() or -1,
@@ -231,7 +231,7 @@ function Progression.getOrCreateTrainingItem(player, nodeId)
 end
 
 function Progression.unlockNode(player, nodeId, bypass)
-    if isClient and isClient() then return false, "client_unauthorized" end
+    if NinjaLineages.isClient() then return false, "client_unauthorized" end
     local definition = Trees.getNode(nodeId)
     if not definition then return false, "invalid" end
     if Progression.getNodeState(player, nodeId) ~= "available" then return false, "unavailable" end
@@ -255,7 +255,7 @@ function Progression.unlockNode(player, nodeId, bypass)
 end
 
 function Progression.completeTraining(player, nodeId, item)
-    if isClient and isClient() then return false, "client_unauthorized" end
+    if NinjaLineages.isClient() then return false, "client_unauthorized" end
     if Progression.getNodeState(player, nodeId) ~= "unlocked" then return false, "unavailable" end
     local definition = Trees.getNode(nodeId)
     if not item or item:getFullType() ~= definition.trainingItem then return false, "invalid_item" end

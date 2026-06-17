@@ -50,7 +50,7 @@ end
 function KamuiState.applyFlags(player)
     pcall(function() player:setGhostMode(true) end)
     pcall(function() player:setGodMod(true, true) end)
-    if (isClient and isClient()) or (isServer and isServer()) then
+    if NinjaLineages.isClient() or NinjaLineages.isServer() then
         pcall(function() player:setNoClip(true, true) end)
     end
 end
@@ -65,7 +65,7 @@ function KamuiState.emitEvent(player, active, restoreX, restoreY, restoreZ)
         restoreY = restoreY,
         restoreZ = restoreZ,
     }
-    if isServer and isServer() then
+    if NinjaLineages.isServer() then
         sendServerCommand(player, "NinjaLineages", "abilityEvent", event)
     else
         NinjaLineages.AbilityAuthority.handleEvent(event)
@@ -100,7 +100,7 @@ end
 
 function KamuiState.maintain(player)
     if not player or not kamuiLocalState[player] then return end
-    if (isClient and isClient()) or (isServer and isServer()) then
+    if NinjaLineages.isClient() or NinjaLineages.isServer() then
         setForcedNoClip(player, true)
     end
     pcall(function() player:setGhostMode(true) end)
@@ -115,7 +115,7 @@ function KamuiState.applyLocal(player, args)
         if not kamuiLocalState[player] then
             kamuiLocalState[player] = KamuiState.save(player)
         end
-        if (isClient and isClient()) or (isServer and isServer()) then
+        if NinjaLineages.isClient() or NinjaLineages.isServer() then
             setForcedNoClip(player, true)
         end
         pcall(function() player:setGhostMode(true) end)

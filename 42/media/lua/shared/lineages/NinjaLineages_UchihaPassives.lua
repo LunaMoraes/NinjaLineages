@@ -7,7 +7,7 @@ local UchihaPassives = NinjaLineages.UchihaPassives
 
 function UchihaPassives.notifyMangekyoUnlocked(player)
     if not player then return end
-    if isServer and isServer() then
+    if NinjaLineages.isServer() then
         sendServerCommand(player, "NinjaLineages", "abilityEvent", {
             kind = "mangekyo_unlocked",
             casterOnlineId = player:getOnlineID(),

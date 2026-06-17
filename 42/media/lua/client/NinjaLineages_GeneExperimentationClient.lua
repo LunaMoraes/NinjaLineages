@@ -55,7 +55,7 @@ function NLCorpseExperimentAction:stop()
 end
 
 function NLCorpseExperimentAction:perform()
-    if isClient and isClient() then
+    if NinjaLineages.isClient() then
         sendClientCommand(self.character, "NinjaLineages", "completeCorpseExperiment", {
             corpse = self.corpseId,
             actionId = self.actionId
@@ -264,7 +264,7 @@ local function onZombieUpdate(zombie)
     if target and instanceof(target, "IsoPlayer") and target:isLocalPlayer() then
         local modData = zombie:getModData()
         if not modData.zombieNinjaRolled then
-            if isClient and isClient() then
+            if NinjaLineages.isClient() then
                 sendClientCommand(target, "NinjaLineages", "rollZombieNinja", { zombieId = zombie:getOnlineID() })
                 modData.zombieNinjaRolled = true
             else
@@ -287,7 +287,7 @@ local function onZombieUpdate(zombie)
                 local lastDash = modData.lastZombieDashTime or 0
                 -- 2 minutes cooldown = 2.0 in-game minutes
                 if now - lastDash >= 2.0 then
-                    if isClient and isClient() then
+                    if NinjaLineages.isClient() then
                         sendClientCommand(target, "NinjaLineages", "zombieDashRequest", { zombieId = zombie:getOnlineID() })
                     else
                         -- Singleplayer

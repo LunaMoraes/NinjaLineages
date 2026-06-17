@@ -104,8 +104,8 @@ local function updateKamuiVisionPresentation(player)
 end
 
 local function isSinglePlayerGame()
-    if isClient and isClient() then return false end
-    if isServer and isServer() then return false end
+    if NinjaLineages.isClient() then return false end
+    if NinjaLineages.isServer() then return false end
     return true
 end
 

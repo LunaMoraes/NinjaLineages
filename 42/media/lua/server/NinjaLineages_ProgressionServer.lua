@@ -10,7 +10,7 @@ end
 
 local function notifyPlayer(player, textKey)
     if not player or not textKey then return end
-    if isServer and isServer() then
+    if NinjaLineages.isServer() then
         sendState(player, "geneExperimentationMessage", { textKey = textKey })
     else
         player:Say(getText(textKey))

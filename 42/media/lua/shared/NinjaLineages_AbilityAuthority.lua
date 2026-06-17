@@ -65,7 +65,7 @@ function Authority.request(player, actionId, args, presentation)
         skipSeal = presentation and presentation.skipSeal == true,
     }
 
-    if isClient and isClient() then
+    if NinjaLineages.isClient() then
         sendClientCommand(player, "NinjaLineages", "abilityRequest", {
             requestId = requestId,
             actionId = actionId,

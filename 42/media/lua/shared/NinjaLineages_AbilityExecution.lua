@@ -359,7 +359,7 @@ end
 -- (Kamui state helpers now in NinjaLineages.KamuiState)
 
 function NinjaLineages.AbilityAuthority.updateLocalKamuiPhaseMovement(player)
-    if not player or (isClient and isClient()) or (isServer and isServer()) then return end
+    if not player or NinjaLineages.isClient() or NinjaLineages.isServer() then return end
     local state = active[player]
     if not state or not state.kamuiUntil or player:isDead() or player:getVehicle() then return end
 
@@ -546,7 +546,7 @@ local function gentleFist(zombie, attacker, bodyPartType, weapon)
     NinjaLineages.Utils.Combat.applyZombieDamage(attacker, zombie, Balance.rollDamage("LIGHT"))
 end
 
-if not (isClient and isClient()) and Events and Events.OnHitZombie then
+if not NinjaLineages.isClient() and Events and Events.OnHitZombie then
     NinjaLineages.addEventOnce("shared.abilityExecution.onHitZombie", Events.OnHitZombie, gentleFist)
 end
 
@@ -578,7 +578,7 @@ local function sharinganEvade(zombie)
     end
 end
 
-if not (isClient and isClient()) and Events and Events.OnZombieUpdate then
+if not NinjaLineages.isClient() and Events and Events.OnZombieUpdate then
     NinjaLineages.addEventOnce("shared.abilityExecution.onZombieUpdate", Events.OnZombieUpdate, sharinganEvade)
 end
 
@@ -687,7 +687,7 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
     if state.kamuiUntil then
         pcall(function() player:setGhostMode(true) end)
         pcall(function() player:setGodMod(true, true) end)
-        if (isClient and isClient()) or (isServer and isServer()) then
+        if NinjaLineages.isClient() or NinjaLineages.isServer() then
             pcall(function() player:setNoClip(true, true) end)
         end
 
@@ -825,7 +825,7 @@ local function notifyAlarmOwner(username)
         kind = "alarm_triggered",
         casterOnlineId = owner:getOnlineID(),
     }
-    if isServer and isServer() then
+    if NinjaLineages.isServer() then
         sendServerCommand(owner, "NinjaLineages", "abilityEvent", event)
     else
         NinjaLineages.AbilityAuthority.handleEvent(event)
@@ -929,7 +929,7 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
     NinjaLineages.Chakra.setChakra(player, chakra)
 end
 
-if not (isClient and isClient()) and Events and Events.OnInitGlobalModData then
+if not NinjaLineages.isClient() and Events and Events.OnInitGlobalModData then
     NinjaLineages.addEventOnce("shared.abilityExecution.onInitGlobalModData", Events.OnInitGlobalModData, NinjaLineages.AbilityAuthority.initAlarmSeals)
 end
 

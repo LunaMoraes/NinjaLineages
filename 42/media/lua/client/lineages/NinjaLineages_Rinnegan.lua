@@ -50,7 +50,7 @@ local function renderPulses()
 end
 
 NinjaLineages.registerPlayerUpdate("rinnegan.shinraTenseiPush", function()
-    if not (isClient and isClient()) then
+    if not NinjaLineages.isClient() then
         mechanics.update()
     end
 end)

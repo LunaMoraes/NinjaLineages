@@ -189,7 +189,7 @@ end
 
 function NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
     if not zombie or zombie:isDead() then return end
-    if isClient and isClient() then
+    if NinjaLineages.isClient() then
         return false
     end
 
@@ -205,7 +205,7 @@ function NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
 end
 
 function NinjaLineages.Utils.Combat.addWorldSound(player, x, y, z, radius, volume)
-    if isClient and isClient() then
+    if NinjaLineages.isClient() then
         return false
     end
     addSound(player, x, y, z, radius, volume)

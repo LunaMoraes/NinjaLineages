@@ -81,7 +81,7 @@ end
 
 function ByakuganPassives.applyByakugan(player)
     if not isLivePlayer(player) then return end
-    if isClient and isClient() then return end
+    if NinjaLineages.isClient() then return end
 
     local data = NinjaLineages.getNLData(player)
     if not data then return end
