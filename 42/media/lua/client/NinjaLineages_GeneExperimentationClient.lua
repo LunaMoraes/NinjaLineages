@@ -261,11 +261,11 @@ local function onZombieUpdate(zombie)
     
     -- 1. Aggression / Mutation Check
     local target = zombie:getTarget()
-    if target and instanceof(target, "IsoPlayer") then
+    if target and instanceof(target, "IsoPlayer") and target:isLocalPlayer() then
         local modData = zombie:getModData()
         if not modData.zombieNinjaRolled then
             if isClient and isClient() then
-                sendClientCommand(getPlayer(), "NinjaLineages", "rollZombieNinja", { zombieId = zombie:getOnlineID() })
+                sendClientCommand(target, "NinjaLineages", "rollZombieNinja", { zombieId = zombie:getOnlineID() })
                 modData.zombieNinjaRolled = true
             else
                 -- Singleplayer
@@ -288,7 +288,7 @@ local function onZombieUpdate(zombie)
                 -- 2 minutes cooldown = 2.0 in-game minutes
                 if now - lastDash >= 2.0 then
                     if isClient and isClient() then
-                        sendClientCommand(getPlayer(), "NinjaLineages", "zombieDashRequest", { zombieId = zombie:getOnlineID() })
+                        sendClientCommand(target, "NinjaLineages", "zombieDashRequest", { zombieId = zombie:getOnlineID() })
                     else
                         -- Singleplayer
                         modData.lastZombieDashTime = now
@@ -346,7 +346,13 @@ local function onServerCommand(module, command, args)
             corpse:getModData().experimented = true
         end
     elseif command == "geneExperimentationMessage" then
-        local player = getPlayer()
+        local player = nil
+        if args and args.casterOnlineId and getPlayerByOnlineID then
+            player = getPlayerByOnlineID(args.casterOnlineId)
+        end
+        if not player then
+            player = getPlayer()
+        end
         if player and args and args.textKey then
             player:Say(getText(args.textKey))
         end

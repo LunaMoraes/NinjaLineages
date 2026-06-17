@@ -21,20 +21,6 @@ local function addPulse(x, y, z)
 end
 NinjaLineages.Rinnegan.addPulse = addPulse
 
-local function sayCastError(player, reason, remaining)
-    if reason == "lineage" then
-        player:Say(getText("UI_NL_Error_LineageRequired", "Rinnegan"))
-    elseif reason == "cooldown" then
-        player:Say(getText(
-            "UI_NL_Error_AbilityOnCooldown",
-            getText("UI_NL_Ability_ShinraTensei_Name"),
-            tostring(remaining)
-        ))
-    elseif reason == "chakra" then
-        player:Say(getText("UI_NL_Error_NotEnoughChakra_ShinraTensei"))
-    end
-end
-
 local function renderPulses()
     local now = NinjaLineages.Utils.Time.realMilliseconds()
     local pulseConsts = consts.Rinnegan.ShinraTensei

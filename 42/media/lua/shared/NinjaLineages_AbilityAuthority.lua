@@ -245,7 +245,13 @@ function Authority.handleEvent(args)
             and NinjaLineages.Rinnegan
             and NinjaLineages.Rinnegan.addPulse then
         NinjaLineages.Rinnegan.addPulse(args.x, args.y, args.z)
-        local caster = findLocalPlayer(args.casterOnlineId)
+        local caster = nil
+        if args.casterOnlineId and getPlayerByOnlineID then
+            caster = getPlayerByOnlineID(args.casterOnlineId)
+        end
+        if not caster then
+            caster = findLocalPlayer(args.casterOnlineId)
+        end
         if caster then
             pcall(function()
                 caster:playerVoiceSound(NinjaLineages.Constants.Rinnegan.ShinraTensei.ACTIVATION_VOICE)

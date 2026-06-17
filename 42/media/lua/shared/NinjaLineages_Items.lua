@@ -12,15 +12,16 @@ RecipeCodeOnTest = RecipeCodeOnTest or {}
 
 local CREATION_REBIRTH_SCROLL = "Base.NL_CreationRebirthScroll"
 
-function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(item, result)
-    local player = nil
-    pcall(function()
-        if getPlayer then player = getPlayer() end
-    end)
+function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(item, result, player)
     if not player then
         pcall(function()
-            if getSpecificPlayer then player = getSpecificPlayer(0) end
+            if getPlayer then player = getPlayer() end
         end)
+        if not player then
+            pcall(function()
+                if getSpecificPlayer then player = getSpecificPlayer(0) end
+            end)
+        end
     end
     if not player then return false end
     local resultType = result and result:getFullType() or ""

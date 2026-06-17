@@ -10,7 +10,10 @@ local ServerLogic = NinjaLineages.GeneExperimentationServer
 local function notifyPlayer(player, textKey)
     if not player or not textKey then return end
     if isServer and isServer() then
-        sendServerCommand(player, "NinjaLineages", "geneExperimentationMessage", { textKey = textKey })
+        sendServerCommand(player, "NinjaLineages", "geneExperimentationMessage", {
+            textKey = textKey,
+            casterOnlineId = player:getOnlineID()
+        })
     else
         player:Say(getText(textKey))
     end
