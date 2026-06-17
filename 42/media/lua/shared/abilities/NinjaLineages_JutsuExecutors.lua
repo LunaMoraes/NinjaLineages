@@ -173,8 +173,12 @@ local function executeGenericEffect(player, definition, resolved)
         local count = 0
         for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(primary, resolved.targeting.clusterRadius)) do
             if count >= resolved.targeting.maxTargets then break end
-            NinjaLineages.Utils.Combat.applyZombieDamage(player, entry.zombie, rollDamage(resolved))
-            NinjaLineages.Utils.Combat.applyControlTier(entry.zombie, resolved.control.tier)
+            NinjaLineages.Utils.Combat.applyDamageAndControl(
+                player,
+                entry.zombie,
+                rollDamage(resolved),
+                resolved.control.tier
+            )
             count = count + 1
         end
     elseif effect.kind == "shadow_close" then
@@ -208,8 +212,12 @@ local function executeGenericEffect(player, definition, resolved)
     elseif effect.kind == "target_damage" then
         local target = NinjaLineages.Utils.Zombies.getFacingTarget(player, resolved.targeting)
         if not target then return false, "no_target" end
-        NinjaLineages.Utils.Combat.applyZombieDamage(player, target, rollDamage(resolved))
-        NinjaLineages.Utils.Combat.applyControlTier(target, resolved.control.tier)
+        NinjaLineages.Utils.Combat.applyDamageAndControl(
+            player,
+            target,
+            rollDamage(resolved),
+            resolved.control.tier
+        )
     else
         return false, "server_error"
     end
@@ -461,8 +469,12 @@ specializedExecutors.katon = function(player, definition)
     end
 
     for _, entry in ipairs(targets) do
-        NinjaLineages.Utils.Combat.applyZombieDamage(player, entry.zombie, rollDamage(resolved))
-        NinjaLineages.Utils.Combat.applyControlTier(entry.zombie, resolved.control.tier)
+        NinjaLineages.Utils.Combat.applyDamageAndControl(
+            player,
+            entry.zombie,
+            rollDamage(resolved),
+            resolved.control.tier
+        )
     end
 
     local squares = NinjaLineages.Utils.Geometry.collectConeSquares(
@@ -491,8 +503,12 @@ specializedExecutors.chakra_needle = function(player, definition, args)
     local target = targets[1] and targets[1].zombie or nil
     if not target then return false, "no_target" end
 
-    NinjaLineages.Utils.Combat.applyZombieDamage(player, target, rollDamage(resolved))
-    NinjaLineages.Utils.Combat.applyControlTier(target, resolved.control.tier)
+    NinjaLineages.Utils.Combat.applyDamageAndControl(
+        player,
+        target,
+        rollDamage(resolved),
+        resolved.control.tier
+    )
 
     commit(player, definition, resolved, cost)
     NinjaLineages.transmitPlayerData(player)
@@ -524,8 +540,12 @@ specializedExecutors.nervous_system_shock = function(player, definition, args)
     local maxTargets = math.min(resolved.targeting.maxTargets or #targets, #targets)
     for i = 1, maxTargets do
         local zombie = targets[i].zombie
-        NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, rollDamage(resolved))
-        NinjaLineages.Utils.Combat.applyControlTier(zombie, resolved.control.tier)
+        NinjaLineages.Utils.Combat.applyDamageAndControl(
+            player,
+            zombie,
+            rollDamage(resolved),
+            resolved.control.tier
+        )
         table.insert(lines, {
             toX = zombie:getX(),
             toY = zombie:getY(),
