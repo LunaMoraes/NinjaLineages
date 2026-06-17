@@ -194,8 +194,8 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
                 and state.nextCalorieTick < state.calorieControlUntil do
 
             local stats = player:getStats()
-            local currentHunger = stats:getHunger()
-            local currentThirst = stats:getThirst()
+            local currentHunger = stats:get(CharacterStat.HUNGER)
+            local currentThirst = stats:get(CharacterStat.THIRST)
 
             if currentHunger > 0 or currentThirst > 0 then
                 local step = resolved.costStep or 5
@@ -205,8 +205,8 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
                     local hungerRestore = step * NinjaLineages.Constants.CalorieControl.CHAKRA_TO_HUNGER
                     local thirstRestore = step * NinjaLineages.Constants.CalorieControl.CHAKRA_TO_THIRST
 
-                    stats:setHunger(math.max(0, currentHunger - hungerRestore))
-                    stats:setThirst(math.max(0, currentThirst - thirstRestore))
+                    stats:set(CharacterStat.HUNGER, math.max(0, currentHunger - hungerRestore))
+                    stats:set(CharacterStat.THIRST, math.max(0, currentThirst - thirstRestore))
                 else
                     state.calorieControlUntil = now
                     break
