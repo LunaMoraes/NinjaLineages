@@ -99,13 +99,19 @@ local function collectEmptyScrolls(player)
     for i = 0, items:size() - 1 do
         local item = items:get(i)
         if NinjaLineages.ScrollUtils.isSealedScroll(item) then
-            local scrollInv = getScrollInventory(item)
+            local scrollInv = NinjaLineages.ScrollUtils.getScrollInventory(item)
             if scrollInv and scrollInv:getItems():size() == 0 then
                 table.insert(scrolls, item)
             end
         end
     end
     return scrolls
+end
+
+if not NinjaLineages.isClient() then
+    NinjaLineages.registerPlayerUpdate("uzumaki.update", NinjaLineages.UzumakiPassives.applyUzumakiBleedSlow)
+    NinjaLineages.registerPlayerGetDamage("uzumaki.getDamage", NinjaLineages.UzumakiPassives.refundUzumakiDamage)
+    NinjaLineages.registerCreatePlayer("uzumaki.init", NinjaLineages.UzumakiPassives.captureUzumakiHealthState)
 end
 
 local function addStorageSealContextMenu(playerNum, context, items)

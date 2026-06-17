@@ -3,6 +3,7 @@ require "NinjaLineages_Utils"
 require "NinjaLineages_Moodles"
 require "NinjaLineages_UI"
 require "NinjaLineages_Balance"
+require "lineages/NinjaLineages_UchihaPassives"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uchiha = NinjaLineages.Uchiha or {}
@@ -144,3 +145,10 @@ NinjaLineages.registerCreatePlayer("uchiha.init", function(player)
     updateSharinganMoodle(player)
 end)
 
+if not NinjaLineages.isClient() and Events.OnCharacterDeath then
+    NinjaLineages.addEventOnce(
+        "client.uchiha.onCharacterDeath.unlockMangekyoSPOnly",
+        Events.OnCharacterDeath,
+        NinjaLineages.UchihaPassives.unlockMangekyoIfEligible
+    )
+end

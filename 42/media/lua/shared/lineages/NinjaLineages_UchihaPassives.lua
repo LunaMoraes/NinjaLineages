@@ -12,6 +12,8 @@ function UchihaPassives.notifyMangekyoUnlocked(player)
             kind = "mangekyo_unlocked",
             casterOnlineId = player:getOnlineID(),
         })
+    elseif not NinjaLineages.isClient() then
+        player:Say(getText("UI_NL_Unlock_MangekyoAwakened"))
     end
 end
 
