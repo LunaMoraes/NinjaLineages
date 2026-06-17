@@ -280,6 +280,14 @@ function Authority.handleEvent(args)
                 NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.9)
             end
         end
+    elseif args.kind == "chakra_needle_line" then
+        if NinjaLineages.MedicalEffects and NinjaLineages.MedicalEffects.addLine then
+            NinjaLineages.MedicalEffects.addLine(args)
+        end
+    elseif args.kind == "nervous_system_shock_lines" then
+        if NinjaLineages.MedicalEffects and NinjaLineages.MedicalEffects.addLines then
+            NinjaLineages.MedicalEffects.addLines(args)
+        end
     elseif args.kind == "katon_fire" then
         if NinjaLineages.isServer() or not NinjaLineages.isClient() then
             local cell = getCell()

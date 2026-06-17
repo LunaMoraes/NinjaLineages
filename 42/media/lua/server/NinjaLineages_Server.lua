@@ -33,6 +33,12 @@ local function handleAbilityRequest(player, args)
             casterOnlineId = player:getOnlineID(),
         })
     end
+
+    if result.ok and result.state and result.state.event then
+        local event = result.state.event
+        event.casterOnlineId = event.casterOnlineId or player:getOnlineID()
+        sendServerCommand("NinjaLineages", "abilityEvent", event)
+    end
 end
 
 local function onClientCommand(module, command, player, args)

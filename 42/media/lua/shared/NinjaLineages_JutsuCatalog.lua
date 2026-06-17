@@ -274,27 +274,33 @@ Catalog.Definitions = {
     {
         id = "chakra_needle",
         category = "common",
+        presentation = {
+            icon = "media/ui/jutsuTree/nodes/chakra_needle.png",
+        },
         node = { discipline = "medical", rank = "GENIN", order = 10 },
         handSigns = { "snake", "ram", "bird" },
         balance = {
             cost = "STANDARD", cooldown = "SHORT", targeting = "NARROW",
             damage = "LIGHT", control = "GENIN",
         },
-        effect = { kind = "target_damage" },
+        executor = "chakra_needle",
     },
     {
         id = "nervous_system_shock",
         category = "common",
+        presentation = {
+            icon = "media/ui/jutsuTree/nodes/chakra_needle.png",
+        },
         node = {
             discipline = "medical", rank = "CHUNIN", order = 10,
             prerequisites = { "chakra_needle", "cell_stimulation" },
         },
         handSigns = { "snake", "dragon", "ram" },
         balance = {
-            cost = "ADVANCED", cooldown = "LONG", targeting = "NARROW",
-            damage = "LIGHT", control = "JONIN",
+            cost = "ADVANCED", cooldown = "LONG", targeting = "SMALL_CLUSTER",
+            damage = "MODERATE", control = "JONIN",
         },
-        effect = { kind = "target_damage" },
+        executor = "nervous_system_shock",
     },
     {
         id = "field_surgery",
@@ -470,6 +476,8 @@ local specializedExecutors = {
     corpse_odor_conditioning = true,
     katon = true,
     calorie_control = true,
+    chakra_needle = true,
+    nervous_system_shock = true,
 }
 local specialRequirements = {
     mangekyo_unlocked = true,

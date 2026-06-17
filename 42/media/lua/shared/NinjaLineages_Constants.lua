@@ -96,6 +96,19 @@ NinjaLineages.Constants.Uzumaki = {
     },
 }
 
+NinjaLineages.Constants.Medical = {
+    ChakraNeedle = {
+        VISUAL_DURATION_MS = 400,
+        THICKNESS = 2.0,
+        COLOR = { R = 0.25, G = 0.55, B = 1.0 },
+    },
+    NervousSystemShock = {
+        VISUAL_DURATION_MS = 400,
+        THICKNESS = 2.5,
+        COLOR = { R = 0.65, G = 0.25, B = 0.85 },
+    },
+}
+
 NinjaLineages.Constants.CalorieControl = {
     CHAKRA_TO_HUNGER = 0.005,  -- 1% hunger (0.01) restored per 2 chakra spent (200 chakra = 100% hunger)
     CHAKRA_TO_THIRST = 0.01,   -- 1% thirst (0.01) restored per 1 chakra spent (100 chakra = 100% thirst)

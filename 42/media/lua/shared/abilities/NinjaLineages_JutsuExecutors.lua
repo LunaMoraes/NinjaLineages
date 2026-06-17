@@ -442,6 +442,73 @@ specializedExecutors.katon = function(player, definition)
     }
 end
 
+
+specializedExecutors.chakra_needle = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+
+    local target = NinjaLineages.Utils.Zombies.getFacingTarget(player, resolved.targeting)
+    if not target then return false, "no_target" end
+
+    NinjaLineages.Utils.Combat.applyZombieDamage(player, target, rollDamage(resolved))
+    NinjaLineages.Utils.Combat.applyControlTier(target, resolved.control.tier)
+
+    commit(player, definition, resolved, cost)
+    NinjaLineages.transmitPlayerData(player)
+    return true, nil, nil, {
+        event = {
+            kind = "chakra_needle_line",
+            fromX = player:getX(),
+            fromY = player:getY(),
+            fromZ = math.floor(player:getZ()),
+            toX = target:getX(),
+            toY = target:getY(),
+            toZ = math.floor(target:getZ()),
+            casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
+        },
+    }
+end
+
+specializedExecutors.nervous_system_shock = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+
+    local targets = NinjaLineages.Utils.Zombies.collectInFacingCone(player, resolved.targeting)
+    if #targets == 0 then return false, "no_target" end
+
+    local lines = {}
+    local maxTargets = math.min(2, #targets)
+    for i = 1, maxTargets do
+        local zombie = targets[i].zombie
+        NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, rollDamage(resolved))
+        NinjaLineages.Utils.Combat.applyControlTier(zombie, resolved.control.tier)
+        table.insert(lines, {
+            toX = zombie:getX(),
+            toY = zombie:getY(),
+            toZ = math.floor(zombie:getZ()),
+        })
+    end
+
+    commit(player, definition, resolved, cost)
+    NinjaLineages.transmitPlayerData(player)
+    return true, nil, nil, {
+        event = {
+            kind = "nervous_system_shock_lines",
+            fromX = player:getX(),
+            fromY = player:getY(),
+            fromZ = math.floor(player:getZ()),
+            lines = lines,
+            casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
+        },
+    }
+end
+
 specializedExecutors.calorie_control = function(player, definition)
     local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
     if not validRequirements then return false, requirementReason end
