@@ -70,6 +70,9 @@ end
 local function updateAbilities()
     NinjaLineages.AbilityAuthority.pruneSeenRequests()
     NinjaLineages.RinneganMechanics.update()
+    if NinjaLineages.CombatRuntime then
+        NinjaLineages.CombatRuntime.update()
+    end
     NinjaLineages.AbilityAuthority.updateWorld()
 
     forEachOnlinePlayer(function(player)

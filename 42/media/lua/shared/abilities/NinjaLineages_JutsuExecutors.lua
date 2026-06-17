@@ -4,6 +4,8 @@ require "NinjaLineages_AbilityAuthority"
 require "NinjaLineages_JutsuCatalog"
 require "NinjaLineages_RinneganMechanics"
 require "NinjaLineages_Utils"
+require "combat/NinjaLineages_Targeting"
+require "combat/NinjaLineages_CombatRuntime"
 require "lineages/NinjaLineages_KamuiState"
 require "disciplines/NinjaLineages_ScrollUtils"
 
@@ -499,29 +501,47 @@ specializedExecutors.chakra_needle = function(player, definition, args)
     local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
     if not valid then return false, reason, remaining end
 
-    local targets = resolveRequestedZombies(player, resolved.targeting, args)
-    local target = targets[1] and targets[1].zombie or nil
+    local targets = NinjaLineages.Targeting.resolveRequestedTargets(player, resolved.targeting, args)
+    local target = targets[1]
     if not target then return false, "no_target" end
 
-    NinjaLineages.Utils.Combat.applyDamageAndControl(
-        player,
-        target,
-        rollDamage(resolved),
-        resolved.control.tier
-    )
+    -- Create homing projectile; damage is applied server-side when it reaches the target
+    local projectileConfig = {
+        casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
+        abilityId = definition.id,
+        trackingType = "homing",
+        originX = player:getX(),
+        originY = player:getY(),
+        originZ = math.floor(player:getZ()),
+        targetKind = target.kind,
+        targetOnlineId = target.onlineId,
+        targetX = target.x,
+        targetY = target.y,
+        speed = 20,
+        damagePayload = {
+            damage = rollDamage(resolved),
+            controlTier = resolved.control and resolved.control.tier or nil,
+        },
+        collisionMask = NinjaLineages.Collision.Masks.jutsu_projectile,
+    }
+
+    NinjaLineages.CombatRuntime.createProjectile(projectileConfig)
 
     commit(player, definition, resolved, cost)
     NinjaLineages.transmitPlayerData(player)
+
     return true, nil, nil, {
         event = {
             kind = "chakra_needle_line",
             fromX = player:getX(),
             fromY = player:getY(),
             fromZ = math.floor(player:getZ()),
-            toX = target:getX(),
-            toY = target:getY(),
-            toZ = math.floor(target:getZ()),
+            toX = target.x,
+            toY = target.y,
+            toZ = math.floor(target.z),
             casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
+            startGameMinutes = NinjaLineages.Utils.Time.gameMinutes(),
+            speed = 20,
         },
     }
 end

@@ -193,29 +193,6 @@ function NinjaLineages.Utils.Combat.randomDamage(minDamage, maxDamage)
     return minDamage + (damageRoll * (maxDamage - minDamage))
 end
 
-local function notifyZombieDamagePresentation(player, zombie, damage)
-    if not player or not zombie or not triggerEvent then return end
-    pcall(function() triggerEvent("OnWeaponHitCharacter", player, zombie, nil, damage or 0) end)
-end
-
-function NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
-    if not zombie or zombie:isDead() then return end
-    if NinjaLineages.isClient() then
-        return false
-    end
-
-    pcall(function() zombie:setAttackedBy(player) end)
-    local ok, health = pcall(function() return zombie:getHealth() end)
-    if ok and health then
-        local newHealth = math.max(0, health - damage)
-        notifyZombieDamagePresentation(player, zombie, damage)
-        pcall(function() zombie:setHealth(newHealth) end)
-        if newHealth <= 0 then
-            pcall(function() zombie:Kill(player) end)
-        end
-    end
-end
-
 function NinjaLineages.Utils.Combat.addWorldSound(player, x, y, z, radius, volume)
     if NinjaLineages.isClient() then
         return false
@@ -249,7 +226,7 @@ function NinjaLineages.Utils.Combat.applyControlTier(zombie, tier)
 end
 
 function NinjaLineages.Utils.Combat.applyDamageAndControl(player, zombie, damage, controlTier)
-    NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
+    NinjaLineages.Damage.applyZombieDamage(player, zombie, damage)
     NinjaLineages.Utils.Combat.applyControlTier(zombie, controlTier)
 end
 

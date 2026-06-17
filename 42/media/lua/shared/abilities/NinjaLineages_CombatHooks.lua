@@ -22,7 +22,7 @@ local function gentleFist(zombie, attacker, bodyPartType, weapon)
     local cost = Balance.getCost("TRIVIAL")
     if not NinjaLineages.Chakra.spendChakra(attacker, cost) then return end
     NinjaLineages.Utils.Combat.staggerZombie(zombie, { knockdown = true, position = "FRONT" })
-    NinjaLineages.Utils.Combat.applyZombieDamage(attacker, zombie, Balance.rollDamage("LIGHT"))
+    NinjaLineages.Damage.applyZombieDamage(attacker, zombie, Balance.rollDamage("LIGHT"))
 end
 
 if not NinjaLineages.isClient() and Events and Events.OnHitZombie then

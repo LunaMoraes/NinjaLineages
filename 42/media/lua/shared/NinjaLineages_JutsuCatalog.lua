@@ -285,6 +285,12 @@ Catalog.Definitions = {
             damage = "LIGHT", control = "GENIN",
         },
         executor = "chakra_needle",
+        projectile = {
+            trackingType = "homing",
+            visual = "chakra_needle_line",
+            collisionMask = "jutsu_projectile",
+            targetPriority = "zombie_then_hostile_player",
+        },
     },
     {
         id = "nervous_system_shock",
@@ -479,6 +485,7 @@ local specializedExecutors = {
     calorie_control = true,
     chakra_needle = true,
     nervous_system_shock = true,
+    projectile_jutsu = true,
 }
 local specialRequirements = {
     mangekyo_unlocked = true,

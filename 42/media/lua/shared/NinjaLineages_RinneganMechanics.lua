@@ -148,7 +148,7 @@ local function applyDamage(player, state)
     local radius = mechanics.getRadius()
     if state.startDistance <= radius / 2 then
         local ok, health = pcall(function() return zombie:getHealth() end)
-        NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, ok and health or 1000)
+        NinjaLineages.Damage.applyZombieDamage(player, zombie, ok and health or 1000)
         return
     end
 
@@ -156,7 +156,7 @@ local function applyDamage(player, state)
     local damageConfig = NinjaLineages.JutsuCatalog.resolveBalance("shinra_tensei").damage
     local minDamage, maxDamage = damageConfig.min, damageConfig.max
     local damage = minDamage + ((maxDamage - minDamage) * travelRatio)
-    NinjaLineages.Utils.Combat.applyZombieDamage(player, zombie, damage)
+    NinjaLineages.Damage.applyZombieDamage(player, zombie, damage)
 end
 
 local function finishPush(state)

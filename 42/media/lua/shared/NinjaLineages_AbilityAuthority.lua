@@ -281,8 +281,12 @@ function Authority.handleEvent(args)
             end
         end
     elseif args.kind == "chakra_needle_line" then
-        if NinjaLineages.MedicalEffects and NinjaLineages.MedicalEffects.addLine then
-            NinjaLineages.MedicalEffects.addLine(args)
+        if NinjaLineages.MedicalEffects then
+            if args.startGameMinutes and NinjaLineages.MedicalEffects.addProjectile then
+                NinjaLineages.MedicalEffects.addProjectile(args)
+            elseif NinjaLineages.MedicalEffects.addLine then
+                NinjaLineages.MedicalEffects.addLine(args)
+            end
         end
     elseif args.kind == "nervous_system_shock_lines" then
         if NinjaLineages.MedicalEffects and NinjaLineages.MedicalEffects.addLines then
