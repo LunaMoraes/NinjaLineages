@@ -1,8 +1,8 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Chakra"
-require "NinjaLineages_UzumakiPassives"
-require "NinjaLineages_ByakuganPassives"
+require "lineages/NinjaLineages_UzumakiPassives"
+require "lineages/NinjaLineages_ByakuganPassives"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.ServerPassives = NinjaLineages.ServerPassives or {}

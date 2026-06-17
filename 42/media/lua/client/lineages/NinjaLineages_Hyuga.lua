@@ -1,6 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
-require "NinjaLineages_ByakuganPassives"
+require "lineages/NinjaLineages_ByakuganPassives"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Hyuga = NinjaLineages.Hyuga or {}

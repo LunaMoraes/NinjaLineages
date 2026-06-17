@@ -1,7 +1,7 @@
 require "TimedActions/ISBaseTimedAction"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Utils"
-require "NinjaLineages_CorpseUtils"
+require "disciplines/NinjaLineages_CorpseUtils"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.GeneExperimentationClient = NinjaLineages.GeneExperimentationClient or {}

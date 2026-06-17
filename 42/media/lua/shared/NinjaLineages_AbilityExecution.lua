@@ -5,8 +5,8 @@ require "NinjaLineages_Balance"
 require "NinjaLineages_JutsuCatalog"
 require "NinjaLineages_RinneganMechanics"
 require "NinjaLineages_Items"
-require "NinjaLineages_KamuiState"
-require "NinjaLineages_ScrollUtils"
+require "lineages/NinjaLineages_KamuiState"
+require "disciplines/NinjaLineages_ScrollUtils"
 
 local Authority = NinjaLineages.AbilityAuthority
 local Balance = NinjaLineages.Balance

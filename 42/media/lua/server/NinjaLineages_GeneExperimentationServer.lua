@@ -1,6 +1,6 @@
 require "NinjaLineages_Progression"
 require "NinjaLineages_Utils"
-require "NinjaLineages_CorpseUtils"
+require "disciplines/NinjaLineages_CorpseUtils"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.GeneExperimentationServer = NinjaLineages.GeneExperimentationServer or {}

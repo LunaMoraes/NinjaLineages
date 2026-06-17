@@ -5,8 +5,8 @@ require "NinjaLineages_Balance"
 require "NinjaLineages_HandSigns"
 require "NinjaLineages_Progression"
 require "NinjaLineages_AbilityAuthority"
-require "NinjaLineages_UzumakiPassives"
-require "NinjaLineages_ScrollUtils"
+require "lineages/NinjaLineages_UzumakiPassives"
+require "disciplines/NinjaLineages_ScrollUtils"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uzumaki = NinjaLineages.Uzumaki or {}

@@ -2,7 +2,7 @@ require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Chakra"
 require "NinjaLineages_Progression"
-require "NinjaLineages_ScrollUtils"
+require "disciplines/NinjaLineages_ScrollUtils"
 require "TimedActions/ISReadABook"
 
 NinjaLineages = NinjaLineages or {}

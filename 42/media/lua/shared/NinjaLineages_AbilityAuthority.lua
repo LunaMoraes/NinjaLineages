@@ -1,6 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_JutsuCatalog"
-require "NinjaLineages_KamuiState"
+require "lineages/NinjaLineages_KamuiState"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.AbilityAuthority = NinjaLineages.AbilityAuthority or {}
