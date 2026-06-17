@@ -75,7 +75,6 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
     end
 
     syncTrait("quietStepEndTime", "addedGracefulByJutsu", CharacterTrait.GRACEFUL)
-    syncTrait("chakraGripEndTime", "addedStrongByJutsu", CharacterTrait.STRONG)
     if data.veilPresenceEndTime and now < data.veilPresenceEndTime then
         if not player:hasTrait(CharacterTrait.GRACEFUL) then
             player:getCharacterTraits():add(CharacterTrait.GRACEFUL)
@@ -182,6 +181,48 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
         if now >= state.creationRebirthUntil then
             state.creationRebirthUntil = nil
             state.nextRebirthTick = nil
+        end
+    end
+
+    if state.calorieControlUntil then
+        local calorieDef = Catalog.get("calorie_control")
+        local resolved = Catalog.resolveBalance(calorieDef)
+        local processUntil = math.min(now, state.calorieControlUntil)
+
+        while state.nextCalorieTick
+                and state.nextCalorieTick <= processUntil
+                and state.nextCalorieTick < state.calorieControlUntil do
+
+            local stats = player:getStats()
+            local currentHunger = stats:getHunger()
+            local currentThirst = stats:getThirst()
+
+            if currentHunger > 0 or currentThirst > 0 then
+                local step = resolved.costStep or 5
+                if NinjaLineages.Chakra.getChakra(player) >= step then
+                    NinjaLineages.Chakra.spendChakra(player, step)
+
+                    local hungerRestore = step * NinjaLineages.Constants.CalorieControl.CHAKRA_TO_HUNGER
+                    local thirstRestore = step * NinjaLineages.Constants.CalorieControl.CHAKRA_TO_THIRST
+
+                    stats:setHunger(math.max(0, currentHunger - hungerRestore))
+                    stats:setThirst(math.max(0, currentThirst - thirstRestore))
+                else
+                    state.calorieControlUntil = now
+                    break
+                end
+            else
+                state.calorieControlUntil = now
+                break
+            end
+
+            state.nextCalorieTick = state.nextCalorieTick + resolved.tickInterval
+        end
+
+        if now >= state.calorieControlUntil then
+            state.calorieControlUntil = nil
+            state.nextCalorieTick = nil
+            player:Say(getText("UI_NL_Ability_calorie_control_Deactivated"))
         end
     end
 

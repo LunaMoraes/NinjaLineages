@@ -280,6 +280,18 @@ function Authority.handleEvent(args)
                 NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.9)
             end
         end
+    elseif args.kind == "katon_fire" then
+        if NinjaLineages.isServer() or not NinjaLineages.isClient() then
+            local cell = getCell()
+            if cell and args.squares then
+                for _, sq in ipairs(args.squares) do
+                    local square = cell:getGridSquare(sq.x, sq.y, sq.z)
+                    if square then
+                        IsoFireManager.StartFire(cell, square, true, 100, 500)
+                    end
+                end
+            end
+        end
     end
 end
 

@@ -401,6 +401,69 @@ specializedExecutors.kamui = function(player, definition)
     return true
 end
 
+specializedExecutors.katon = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+
+    local config = resolved.targeting
+    local targets = {}
+    for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, config.range)) do
+        local zombie = entry.zombie
+        local dx = zombie:getX() - player:getX()
+        local dy = zombie:getY() - player:getY()
+        local length = math.sqrt((dx * dx) + (dy * dy))
+        if length > 0 then
+            local dot = ((dx / length) * player:getForwardDirection():getX()) + ((dy / length) * player:getForwardDirection():getY())
+            if dot >= config.minDot then
+                table.insert(targets, entry)
+            end
+        end
+    end
+
+    for _, entry in ipairs(targets) do
+        NinjaLineages.Utils.Combat.applyZombieDamage(player, entry.zombie, rollDamage(resolved))
+        NinjaLineages.Utils.Combat.applyControlTier(entry.zombie, resolved.control.tier)
+    end
+
+    local squares = NinjaLineages.Utils.Geometry.collectConeSquares(
+        player, resolved.radius, config.minDot
+    )
+
+    commit(player, definition, resolved, cost)
+    NinjaLineages.transmitPlayerData(player)
+    return true, nil, nil, {
+        event = {
+            kind = "katon_fire",
+            squares = squares,
+        },
+    }
+end
+
+specializedExecutors.calorie_control = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+
+    local stats = player:getStats()
+    if stats:getHunger() <= 0 and stats:getThirst() <= 0 then
+        return false, "nourishing"
+    end
+
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+
+    active[player] = active[player] or {}
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    active[player].calorieControlUntil = now + resolved.duration
+    active[player].nextCalorieTick = now
+
+    commit(player, definition, resolved, cost)
+    return true
+end
+
 function NinjaLineages.AbilityAuthority.updateLocalKamuiPhaseMovement(player)
     if not player or NinjaLineages.isClient() or NinjaLineages.isServer() then return end
     local state = active[player]

@@ -153,12 +153,21 @@ Catalog.Definitions = {
         effect = { kind = "restore_focus" },
     },
     {
-        id = "chakra_grip",
+        id = "calorie_control",
         category = "common",
+        presentation = {
+            icon = "media/ui/jutsuTree/nodes/calorie_control.png",
+        },
         node = { discipline = "ninjutsu", rank = "GENIN", order = 20 },
         handSigns = { "dog", "ox", "horse" },
-        balance = { cost = "BASIC", cooldown = "SHORT", duration = "STANDARD" },
-        effect = { kind = "timed_state", stateField = "chakraGripEndTime", durationScale = true },
+        balance = {
+            cost = "BASIC",
+            cooldown = "LONG",
+            duration = "SHORT",
+            tickInterval = "RAPID_TICK",
+            costStep = "STANDARD",
+        },
+        executor = "calorie_control",
     },
     {
         id = "physical_reinforcement",
@@ -169,25 +178,29 @@ Catalog.Definitions = {
         effect = { kind = "timed_state", stateField = "reinforcementEndTime", durationScale = true },
     },
     {
-        id = "chakra_burst",
+        id = "katon",
         category = "common",
+        presentation = {
+            icon = "media/ui/jutsuTree/nodes/katon.png",
+        },
         node = {
             discipline = "ninjutsu", rank = "CHUNIN", order = 10,
-            prerequisites = { "physical_reinforcement", "chakra_grip" },
+            prerequisites = { "physical_reinforcement", "calorie_control" },
         },
         handSigns = { "ox", "tiger", "ram" },
         balance = {
-            cost = "ADVANCED", cooldown = "LONG", targeting = "NARROW",
+            cost = "ADVANCED", cooldown = "LONG",
+            radius = "SMALL", targeting = "NARROW",
             damage = "MODERATE", control = "JONIN",
         },
-        effect = { kind = "target_damage" },
+        executor = "katon",
     },
     {
         id = "pressure_point_pulse",
         category = "common",
         node = {
             discipline = "ninjutsu", rank = "CHUNIN", order = 20,
-            prerequisites = { "chakra_focus", "chakra_grip" },
+            prerequisites = { "chakra_focus", "calorie_control" },
         },
         handSigns = { "ram", "ox", "snake" },
         balance = {
@@ -201,7 +214,7 @@ Catalog.Definitions = {
         category = "common",
         node = {
             discipline = "ninjutsu", rank = "JONIN", order = 10,
-            prerequisites = { "chakra_burst", "pressure_point_pulse" },
+            prerequisites = { "katon", "pressure_point_pulse" },
         },
         handSigns = { "bird", "rat", "tiger" },
         balance = {
@@ -455,6 +468,8 @@ local specializedExecutors = {
     creation_rebirth = true,
     shinra_tensei = true,
     corpse_odor_conditioning = true,
+    katon = true,
+    calorie_control = true,
 }
 local specialRequirements = {
     mangekyo_unlocked = true,

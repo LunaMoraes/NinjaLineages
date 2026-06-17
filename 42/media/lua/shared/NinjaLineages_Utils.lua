@@ -352,6 +352,34 @@ function NinjaLineages.Utils.Healing.healPart(bodyDamage, bodypart, options)
 end
 
 
+-- 4.5. Geometry Helpers
+NinjaLineages.Utils.Geometry = NinjaLineages.Utils.Geometry or {}
+
+function NinjaLineages.Utils.Geometry.collectConeSquares(player, radius, minDot)
+    local squares = {}
+    if not player then return squares end
+    local forward = player:getForwardDirection()
+    if not forward then return squares end
+    local fx, fy = forward:getX(), forward:getY()
+    local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
+    local iRadius = math.ceil(radius)
+    for dx = -iRadius, iRadius do
+        for dy = -iRadius, iRadius do
+            if dx ~= 0 or dy ~= 0 then
+                local len = math.sqrt(dx*dx + dy*dy)
+                if len <= radius then
+                    local dot = (dx/len)*fx + (dy/len)*fy
+                    if dot >= minDot then
+                        table.insert(squares, { x = math.floor(px)+dx, y = math.floor(py)+dy, z = pz })
+                    end
+                end
+            end
+        end
+    end
+    return squares
+end
+
+
 -- 5. Centralized Cooldown Service
 NinjaLineages.Cooldowns = NinjaLineages.Cooldowns or {}
 

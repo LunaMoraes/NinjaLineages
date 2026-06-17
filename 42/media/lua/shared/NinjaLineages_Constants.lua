@@ -95,3 +95,8 @@ NinjaLineages.Constants.Uzumaki = {
         UNSEAL_TIME = 80,
     },
 }
+
+NinjaLineages.Constants.CalorieControl = {
+    CHAKRA_TO_HUNGER = 0.005,  -- 1% hunger (0.01) restored per 2 chakra spent (200 chakra = 100% hunger)
+    CHAKRA_TO_THIRST = 0.01,   -- 1% thirst (0.01) restored per 1 chakra spent (100 chakra = 100% thirst)
+}
