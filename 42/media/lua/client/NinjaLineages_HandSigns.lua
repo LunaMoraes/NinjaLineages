@@ -10,6 +10,7 @@ NinjaLineages.HandSigns = NinjaLineages.HandSigns or {}
 local HandSigns = NinjaLineages.HandSigns
 local classicInputs = {}
 local activeSequences = {}
+local SHIPPUDEN_SEQUENCE_DELAY_MS = 100
 
 HandSigns.Definitions = {
     monkey = { nameKey = "UI_NL_HandSign_Monkey", emote = "nl_handseal_monkey" },
@@ -102,7 +103,7 @@ function HandSigns.startSequence(player, signs)
         activeSequences[player] = {
             signs = sequence,
             nextIndex = 2,
-            nextAt = NinjaLineages.Utils.Time.realMilliseconds() + 400,
+            nextAt = NinjaLineages.Utils.Time.realMilliseconds() + SHIPPUDEN_SEQUENCE_DELAY_MS,
         }
     end
     return true
@@ -131,7 +132,7 @@ function HandSigns.update(player)
     if sequence.nextIndex > #sequence.signs then
         activeSequences[player] = nil
     else
-        sequence.nextAt = now + 400
+        sequence.nextAt = now + SHIPPUDEN_SEQUENCE_DELAY_MS
     end
 end
 
