@@ -5,111 +5,13 @@ require "NinjaLineages_Balance"
 require "NinjaLineages_HandSigns"
 require "NinjaLineages_Progression"
 require "NinjaLineages_AbilityAuthority"
+require "NinjaLineages_UzumakiPassives"
+require "NinjaLineages_ScrollUtils"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uzumaki = NinjaLineages.Uzumaki or {}
 
 local consts = NinjaLineages.Constants
-
-local uzumakiHealthState = {}
-
-local function getBodyPartSnapshot(player)
-    local snapshot = {}
-    local bodyDamage = player and player:getBodyDamage()
-    local parts = bodyDamage and bodyDamage:getBodyParts()
-    if not parts then return snapshot end
-    for i = 0, parts:size() - 1 do
-        local part = parts:get(i)
-        local health = 100
-        local bleed = 0
-        pcall(function() health = part:getHealth() end)
-        pcall(function() bleed = part:getBleedingTime() end)
-        snapshot[i] = { health = health, bleed = bleed }
-    end
-    return snapshot
-end
-
-local function captureUzumakiHealthState(player)
-    local bodyDamage = player and player:getBodyDamage()
-    if not bodyDamage then return end
-    local data = uzumakiHealthState[player] or {}
-    pcall(function() data.generalHealth = bodyDamage:getHealth() end)
-    data.parts = getBodyPartSnapshot(player)
-    data.lastPassiveAt = NinjaLineages.Utils.Time.gameMinutes()
-    uzumakiHealthState[player] = data
-end
-
-local function refundUzumakiDamage(player)
-    if not NinjaLineages.hasUzumaki(player) then return end
-    local data = uzumakiHealthState[player]
-    if not data then
-        captureUzumakiHealthState(player)
-        return
-    end
-
-    local bodyDamage = player:getBodyDamage()
-    if not bodyDamage then return end
-
-    local ok, currentGeneral = pcall(function() return bodyDamage:getHealth() end)
-    local damageRefunded = false
-
-    local parts = bodyDamage:getBodyParts()
-    if parts and data.parts then
-        for i = 0, parts:size() - 1 do
-            local part = parts:get(i)
-            local previous = data.parts[i]
-            if previous and part then
-                local okPart, currentPartHealth = pcall(function() return part:getHealth() end)
-                if okPart and currentPartHealth and previous.health and currentPartHealth < previous.health then
-                    local lost = previous.health - currentPartHealth
-                    local refund = lost * consts.Uzumaki.Passive.DAMAGE_REFUND
-                    if refund > 0 then
-                        NinjaLineages.Utils.Healing.healPart(bodyDamage, part, { health = refund })
-                        damageRefunded = true
-                    end
-                end
-            end
-        end
-    end
-
-    if not damageRefunded and ok and data.generalHealth and currentGeneral and currentGeneral < data.generalHealth then
-        pcall(function() bodyDamage:AddGeneralHealth((data.generalHealth - currentGeneral) * consts.Uzumaki.Passive.DAMAGE_REFUND) end)
-    end
-
-    captureUzumakiHealthState(player)
-end
-
-local function applyUzumakiBleedSlow(player)
-    if not NinjaLineages.hasUzumaki(player) then
-        uzumakiHealthState[player] = nil
-        return
-    end
-
-    local now = NinjaLineages.Utils.Time.gameMinutes()
-    local data = uzumakiHealthState[player]
-    if not data then
-        captureUzumakiHealthState(player)
-        return
-    end
-    if data.lastPassiveAt and now < data.lastPassiveAt + consts.Uzumaki.Passive.TICK_MINUTES then return end
-
-    local bodyDamage = player:getBodyDamage()
-    local parts = bodyDamage and bodyDamage:getBodyParts()
-    if not parts then return end
-
-    for i = 0, parts:size() - 1 do
-        local previous = data.parts and data.parts[i]
-        local part = parts:get(i)
-        if previous and part then
-            local okBleed, currentBleed = pcall(function() return part:getBleedingTime() end)
-            if okBleed and currentBleed and currentBleed > 0 and previous.bleed and currentBleed < previous.bleed then
-                local restored = currentBleed + ((previous.bleed - currentBleed) * consts.Uzumaki.Passive.BLEED_REFUND)
-                pcall(function() part:setBleedingTime(restored) end)
-            end
-        end
-    end
-    captureUzumakiHealthState(player)
-end
 
 -- Alarm Seal Logic
 local function getActualInventoryItem(item)
@@ -129,33 +31,10 @@ local function placeAlarmSeal(player, square)
 end
 
 -- Storage Seal logic
-local function isSealedScrollItem(item)
-    local ok, fullType = pcall(function() return item and item:getFullType() end)
-    return ok and fullType == "Base.NL_SealedScroll"
-end
-
-local function isBackpackContainer(item)
-    if not item or isSealedScrollItem(item) then return false end
-    local okContainer, isContainer = pcall(function() return item:IsInventoryContainer() end)
-    if not okContainer or not isContainer then return false end
-
-    local okEquip, equipLocation = pcall(function() return item:canBeEquipped() end)
-    if okEquip and equipLocation and tostring(equipLocation) ~= "" then return true end
-
-    local okCategory, category = pcall(function() return item:getDisplayCategory() end)
-    if okCategory and tostring(category) == "Bag" then return true end
-
-    return false
-end
-
-local function getScrollInventory(scroll)
-    local ok, inv = pcall(function() return scroll and scroll:getInventory() end)
-    if ok then return inv end
-    return nil
-end
+-- (isSealedScroll, NinjaLineages.ScrollUtils.isBackpackContainer, getScrollInventory now in NinjaLineages.ScrollUtils)
 
 local function getContainedBackpack(scroll)
-    local inv = getScrollInventory(scroll)
+    local inv = NinjaLineages.ScrollUtils.getScrollInventory(scroll)
     if not inv or inv:getItems():size() == 0 then return nil end
     return inv:getItems():get(0)
 end
@@ -219,7 +98,7 @@ local function collectEmptyScrolls(player)
     local items = inv:getItems()
     for i = 0, items:size() - 1 do
         local item = items:get(i)
-        if isSealedScrollItem(item) then
+        if NinjaLineages.ScrollUtils.isSealedScroll(item) then
             local scrollInv = getScrollInventory(item)
             if scrollInv and scrollInv:getItems():size() == 0 then
                 table.insert(scrolls, item)
@@ -240,14 +119,14 @@ local function addStorageSealContextMenu(playerNum, context, items)
     end
     if not selected then return end
 
-    if isSealedScrollItem(selected) then
+    if NinjaLineages.ScrollUtils.isSealedScroll(selected) then
         if getContainedBackpack(selected) then
             context:addOption(getText("UI_NL_Ability_StorageSeal_Unseal"), player, unsealScroll, selected)
         end
         return
     end
 
-    if not isBackpackContainer(selected) then return end
+    if not NinjaLineages.ScrollUtils.isBackpackContainer(selected) then return end
     local scrolls = collectEmptyScrolls(player)
     if #scrolls == 0 then return end
 
@@ -257,19 +136,6 @@ local function addStorageSealContextMenu(playerNum, context, items)
     for _, scroll in ipairs(scrolls) do
         subMenu:addOption(scroll:getName(), player, sealBackpackInScroll, selected, scroll)
     end
-end
-
--- Dynamic Registration
--- MP client: server owns Uzumaki health mutation.
--- SP: preserve local authority because server files are not loaded in normal SP.
-if not (isClient and isClient()) then
-    NinjaLineages.registerPlayerUpdate("uzumaki.update", function(player)
-        applyUzumakiBleedSlow(player)
-    end)
-
-    NinjaLineages.registerPlayerGetDamage("uzumaki.getDamage", refundUzumakiDamage)
-
-    NinjaLineages.registerCreatePlayer("uzumaki.init", captureUzumakiHealthState)
 end
 
 -- Hook context menus

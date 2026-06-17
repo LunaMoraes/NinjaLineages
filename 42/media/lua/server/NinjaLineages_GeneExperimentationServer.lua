@@ -1,5 +1,6 @@
 require "NinjaLineages_Progression"
 require "NinjaLineages_Utils"
+require "NinjaLineages_CorpseUtils"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.GeneExperimentationServer = NinjaLineages.GeneExperimentationServer or {}
@@ -29,20 +30,7 @@ function ServerLogic.getZombieByOnlineID(onlineID)
     return nil
 end
 
--- Retrieve a corpse by coordinates and square index
-function ServerLogic.getCorpseFromIdentifier(args)
-    if not args then return nil end
-    if args.isZombie and args.zombieId then
-        return ServerLogic.getZombieByOnlineID(args.zombieId)
-    end
-    local sq = getCell():getGridSquare(args.x, args.y, args.z)
-    if not sq then return nil end
-    local deadBodies = sq:getDeadBodys()
-    if deadBodies and args.index >= 0 and args.index < deadBodies:size() then
-        return deadBodies:get(args.index)
-    end
-    return nil
-end
+-- (Corpse identification helpers now in NinjaLineages.CorpseUtils)
 
 -- Handle Zombie Ninja Mutation Roll
 local function handleRollZombieNinja(player, args)
@@ -141,7 +129,7 @@ local function handleCompleteCorpseExperiment(player, args)
     local actionId = args and args.actionId
     if not corpseId or not actionId then return end
     
-    local corpse = ServerLogic.getCorpseFromIdentifier(corpseId)
+    local corpse = NinjaLineages.CorpseUtils.getCorpseFromIdentifier(corpseId)
     if corpse then
         -- Validate player distance to corpse (within 4 tiles)
         local dx = player:getX() - corpse:getX()

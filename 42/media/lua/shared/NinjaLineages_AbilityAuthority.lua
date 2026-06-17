@@ -1,111 +1,14 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_JutsuCatalog"
+require "NinjaLineages_KamuiState"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.AbilityAuthority = NinjaLineages.AbilityAuthority or {}
 
 local Authority = NinjaLineages.AbilityAuthority
 
-local kamuiLocalState = setmetatable({}, { __mode = "k" })
-local KAMUI_ALPHA = 0.55
-
-local function readLocalKamuiState(player)
-    local state = {
-        wasCollidable = true,
-        wasNoClip = false,
-        wasGhostMode = false,
-        wasAlpha = 1,
-        wasTargetAlpha = 1,
-    }
-
-    local okCollidable, wasCollidable = pcall(function()
-        return player:isCollidable()
-    end)
-    if okCollidable then state.wasCollidable = wasCollidable == true end
-
-    local okNoClip, wasNoClip = pcall(function()
-        return player:isNoClip()
-    end)
-    if okNoClip then state.wasNoClip = wasNoClip == true end
-
-    local okGhost, wasGhost = pcall(function()
-        return player:isGhostMode()
-    end)
-    if okGhost then state.wasGhostMode = wasGhost == true end
-
-    local okAlpha, wasAlpha = pcall(function()
-        return player:getAlpha()
-    end)
-    if okAlpha and wasAlpha then state.wasAlpha = wasAlpha end
-
-    local okTargetAlpha, wasTargetAlpha = pcall(function()
-        return player:getTargetAlpha()
-    end)
-    if okTargetAlpha and wasTargetAlpha then state.wasTargetAlpha = wasTargetAlpha end
-
-    return state
-end
-
-local function setForcedNoClip(player, active)
-    -- B42.19's one-argument overload clears noclip without the admin capability.
-    pcall(function() player:setNoClip(active == true, true) end)
-end
-
-local function maintainLocalKamuiNoClip(player)
-    if not player or not kamuiLocalState[player] then return end
-
-    -- PlayerCheats only permits NO_CLIP in client/server or debug mode.
-    -- Ordinary SP uses the phase-step fallback in AbilityExecution instead.
-    if (isClient and isClient()) or (isServer and isServer()) then
-        setForcedNoClip(player, true)
-    end
-    pcall(function() player:setGhostMode(true) end)
-    pcall(function() player:setAlphaAndTarget(KAMUI_ALPHA) end)
-end
-
-local function applyLocalKamuiNoClip(player, args)
-    if not player then return end
-    local active = args and args.active == true
-
-    if active then
-        if not kamuiLocalState[player] then
-            kamuiLocalState[player] = readLocalKamuiState(player)
-        end
-
-        if (isClient and isClient()) or (isServer and isServer()) then
-            setForcedNoClip(player, true)
-        end
-        pcall(function() player:setGhostMode(true) end)
-        pcall(function() player:setAlphaAndTarget(KAMUI_ALPHA) end)
-        return
-    end
-
-    local state = kamuiLocalState[player]
-    if state then
-        if args and args.restoreX and args.restoreY and args.restoreZ then
-            pcall(function()
-                player:setX(args.restoreX)
-                player:setY(args.restoreY)
-                player:setZ(args.restoreZ)
-            end)
-        end
-        setForcedNoClip(player, state.wasNoClip == true)
-        pcall(function() player:setGhostMode(state.wasGhostMode == true) end)
-        pcall(function() player:setCollidable(state.wasCollidable == true) end)
-        pcall(function()
-            player:setAlpha(state.wasAlpha)
-            player:setTargetAlpha(state.wasTargetAlpha)
-        end)
-        kamuiLocalState[player] = nil
-        return
-    end
-
-    setForcedNoClip(player, false)
-    pcall(function() player:setCollidable(true) end)
-end
-
 function Authority.maintainLocalKamuiNoClip(player)
-    maintainLocalKamuiNoClip(player)
+    NinjaLineages.KamuiState.maintain(player)
 end
 
 Authority.REQUEST_TIMEOUT_MS = 5000
@@ -361,7 +264,7 @@ function Authority.handleEvent(args)
     elseif args.kind == "kamui_noclip" then
         local player = findLocalPlayer(args.casterOnlineId)
         if player then
-            applyLocalKamuiNoClip(player, args)
+            NinjaLineages.KamuiState.applyLocal(player, args)
         end
     elseif args.kind == "mangekyo_unlocked" then
         local player = findLocalPlayer(args.casterOnlineId)

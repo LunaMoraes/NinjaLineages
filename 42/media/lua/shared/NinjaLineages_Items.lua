@@ -2,6 +2,7 @@ require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Chakra"
 require "NinjaLineages_Progression"
+require "NinjaLineages_ScrollUtils"
 require "TimedActions/ISReadABook"
 
 NinjaLineages = NinjaLineages or {}
@@ -29,15 +30,12 @@ function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(item, result)
     return NinjaLineages.Progression.isCompleted(player, "storage_seal")
 end
 
-local function isSealedScroll(item)
-    local ok, fullType = pcall(function() return item and item:getFullType() end)
-    return ok and fullType == "Base.NL_SealedScroll"
-end
+-- (NinjaLineages.ScrollUtils.isSealedScroll now in NinjaLineages.ScrollUtils)
 
 function AcceptItemFunction.NinjaLineagesSealedScroll(container, item)
     if not container or not item then return false end
     if container:getItems():size() >= 1 then return false end
-    if isSealedScroll(item) then return false end
+    if NinjaLineages.ScrollUtils.isSealedScroll(item) then return false end
     local ok, isContainer = pcall(function() return item:IsInventoryContainer() end)
     if not ok or isContainer ~= true then return false end
 

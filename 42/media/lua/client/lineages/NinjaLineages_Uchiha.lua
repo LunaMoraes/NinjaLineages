@@ -129,25 +129,7 @@ function NinjaLineages.Uchiha.unlockKamuiForSinglePlayerTest(player)
     player:Say(getText("UI_NL_Unlock_MangekyoAwakened"))
 end
 
-local function unlockMangekyoIfEligible(victim)
-    -- MP: server owns Mangekyo unlock.
-    -- SP: this client file is still the local authority.
-    if isClient and isClient() then return end
-
-    if not victim or not instanceof(victim, "IsoPlayer") then return end
-    local attacker = victim:getAttackedBy()
-    if not attacker or not instanceof(attacker, "IsoPlayer") then return end
-    if not attacker:isLocalPlayer() then return end
-    if not NinjaLineages.hasSharingan(attacker) or NinjaLineages.getSharinganStage(attacker) < 3 then return end
-
-    local data = NinjaLineages.getNLData(attacker)
-    if data.mangekyoUnlocked then return end
-
-    data.mangekyoUnlocked = true
-    NinjaLineages.transmitPlayerData(attacker)
-    attacker:Say(getText("UI_NL_Unlock_MangekyoAwakened"))
-    updateSharinganMoodle(attacker)
-end
+-- Mangekyo unlock authority is now in NinjaLineages.UchihaPassives (shared/server).
 
 NinjaLineages.registerPlayerUpdate("uchiha.update", function(player)
     updateSharinganProgress(player)
@@ -162,12 +144,3 @@ NinjaLineages.registerCreatePlayer("uchiha.init", function(player)
     updateSharinganMoodle(player)
 end)
 
-
-
-if Events.OnCharacterDeath then
-    NinjaLineages.addEventOnce(
-        "client.uchiha.onCharacterDeath.unlockMangekyoSPOnly",
-        Events.OnCharacterDeath,
-        unlockMangekyoIfEligible
-    )
-end
