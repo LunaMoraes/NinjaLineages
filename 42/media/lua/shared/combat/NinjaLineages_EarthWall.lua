@@ -72,17 +72,40 @@ local function facingPlacement(player)
         stepY = dy >= 0 and 1 or -1
     end
 
-    local targetSquare = cell:getGridSquare(
+    local adjacent = cell:getGridSquare(
         square:getX() + stepX,
         square:getY() + stepY,
         square:getZ()
     )
-    if not targetSquare then return nil end
+    if not adjacent then return nil end
 
+    if stepY < 0 then
+        return {
+            fromSquare = square,
+            toSquare = adjacent,
+            objectSquare = square,
+            north = true,
+        }
+    elseif stepY > 0 then
+        return {
+            fromSquare = square,
+            toSquare = adjacent,
+            objectSquare = adjacent,
+            north = true,
+        }
+    elseif stepX < 0 then
+        return {
+            fromSquare = square,
+            toSquare = adjacent,
+            objectSquare = square,
+            north = false,
+        }
+    end
     return {
         fromSquare = square,
-        objectSquare = targetSquare,
-        north = math.abs(stepY) > 0,
+        toSquare = adjacent,
+        objectSquare = adjacent,
+        north = false,
     }
 end
 
@@ -90,11 +113,13 @@ function EarthWall.validatePlacement(player)
     local placement = facingPlacement(player)
     if not placement then return nil, "invalid_target" end
     local square = placement.objectSquare
+    local destinationSquare = placement.toSquare
 
-    if not square:TreatAsSolidFloor()
-            or not square:isFree(true)
-            or square:isVehicleIntersecting()
-            or square:getMovingObjects():size() > 0 then
+    if not destinationSquare:TreatAsSolidFloor()
+            or destinationSquare:isVehicleIntersecting()
+            or destinationSquare:getMovingObjects():size() > 0
+            or placement.fromSquare:isBlockedTo(placement.toSquare)
+            or placement.fromSquare:testCollideSpecialObjects(placement.toSquare) then
         return nil, "blocked_placement"
     end
 
@@ -131,7 +156,7 @@ function EarthWall.spawn(player, placement, duration)
     local wall = IsoThumpable.new(getCell(), square, sprite, placement.north, {})
     wall:setName("Doton: Doryuheki")
     wall:setCanBarricade(false)
-    wall:setBlockAllTheSquare(true)
+    wall:setBlockAllTheSquare(false)
     wall:setCanPassThrough(false)
     wall:setIsHoppable(false)
     wall:setHoppable(false)

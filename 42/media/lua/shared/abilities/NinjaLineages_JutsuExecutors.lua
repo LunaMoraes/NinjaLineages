@@ -537,7 +537,7 @@ specializedExecutors.chakra_needle = function(player, definition, args)
         targetOnlineId = target.onlineId,
         targetX = target.x,
         targetY = target.y,
-        speed = 20,
+        speed = 40,
         maximumTravelDistance = resolved.targeting.range * 2,
         damagePayload = {
             damage = rollDamage(resolved),
@@ -565,7 +565,7 @@ specializedExecutors.chakra_needle = function(player, definition, args)
             toZ = math.floor(target.z),
             casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
             startGameMinutes = NinjaLineages.Utils.Time.gameMinutes(),
-            speed = 20,
+            speed = 40,
         },
     }
 end
