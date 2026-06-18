@@ -16,6 +16,19 @@ NLJutsuTreeUI.instances = NLJutsuTreeUI.instances or {}
 
 local tierOrder = { GENIN = 1, CHUNIN = 2, JONIN = 3 }
 
+local function drawMemberName(panel, name, x, y, w, h, r, g, b)
+    local words = {}
+    for word in string.gmatch(name, "%S+") do
+        table.insert(words, word)
+    end
+    if #words == 1 then
+        panel:drawTextCentre(words[1], x + w/2, y + h/2 - 8, r, g, b, 1, UIFont.Small)
+    elseif #words >= 2 then
+        panel:drawTextCentre(words[1], x + w/2, y + h/2 - 14, r, g, b, 1, UIFont.Small)
+        panel:drawTextCentre(words[2], x + w/2, y + h/2 + 2, r, g, b, 1, UIFont.Small)
+    end
+end
+
 local function text(key, ...)
     return getText(key, ...)
 end
@@ -83,24 +96,24 @@ function NLJutsuTreeUI:drawBandanaPlate(panel, iconX, iconY, iconSize)
     local plateX = iconX - (plateW - iconSize) / 2
     local plateY = iconY - (plateH - iconSize) / 2
 
-    -- 1. Draw metallic gradient strips
-    local yOffset = 0
-    local bands = {
-        { pct = 0.12, r = 0.50, g = 0.50, b = 0.53 },
-        { pct = 0.12, r = 0.60, g = 0.60, b = 0.63 },
-        { pct = 0.16, r = 0.70, g = 0.70, b = 0.73 },
-        { pct = 0.20, r = 0.85, g = 0.85, b = 0.88 },
-        { pct = 0.16, r = 0.75, g = 0.75, b = 0.78 },
-        { pct = 0.12, r = 0.62, g = 0.62, b = 0.65 },
-        { pct = 0.12, r = 0.52, g = 0.52, b = 0.55 }
-    }
-    for i, band in ipairs(bands) do
-        local h = math.floor(plateH * band.pct)
-        if i == #bands then
-            h = plateH - yOffset
+    -- 1. Draw metallic brushed gradient
+    local step = 2
+    for y = 0, plateH - 1, step do
+        local pct
+        local r, g, b
+        if y < plateH * 0.45 then
+            pct = y / (plateH * 0.45)
+            r = 0.42 + (0.85 - 0.42) * pct
+            g = 0.42 + (0.85 - 0.42) * pct
+            b = 0.45 + (0.88 - 0.45) * pct
+        else
+            pct = (y - plateH * 0.45) / (plateH * 0.55)
+            r = 0.85 + (0.45 - 0.85) * pct
+            g = 0.85 + (0.45 - 0.85) * pct
+            b = 0.88 + (0.48 - 0.88) * pct
         end
-        panel:drawRect(plateX, plateY + yOffset, plateW, h, 1.0, band.r, band.g, band.b)
-        yOffset = yOffset + h
+        local h = math.min(step, plateH - y)
+        panel:drawRect(plateX, plateY + y, plateW, h, 1.0, r, g, b)
     end
 
     -- 2. Draw 3D Bevel borders
@@ -189,11 +202,32 @@ function NLJutsuTreeUI:initialise()
                 rankImage = "media/ui/jutsuTree/ranks/jounin.png"
             end
 
-            if rankImage then
-                local tex = getTexture(rankImage)
-                if tex then
-                    local imgX = margin + math.floor((leftWidth - margin - 96) / 2)
-                    panel:drawTextureScaled(tex, imgX, boxY + 95, 96, 96, 1.0, 1.0, 1.0, 1.0)
+            local village = NinjaLineages.Social.getMyVillage(self.player)
+            local imgSize = 96
+            local imgX = margin + math.floor((leftWidth - margin - imgSize) / 2)
+
+            if village then
+                panel:drawText("Village: " .. village.name, boxX, boxY + 85, 0.85, 0.85, 0.9, 1, UIFont.Small)
+
+                local symbolTexture = NinjaLineages.Social.getSymbol(village.symbolID)
+                local texture = symbolTexture and getTexture(symbolTexture)
+                if texture then
+                    self:drawBandanaPlate(panel, imgX, boxY + 110, imgSize)
+                    panel:drawTextureScaled(texture, imgX, boxY + 110, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
+                end
+
+                if rankImage then
+                    local tex = getTexture(rankImage)
+                    if tex then
+                        panel:drawTextureScaled(tex, imgX, boxY + 240, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
+                    end
+                end
+            else
+                if rankImage then
+                    local tex = getTexture(rankImage)
+                    if tex then
+                        panel:drawTextureScaled(tex, imgX, boxY + 95, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
+                    end
                 end
             end
 
@@ -971,19 +1005,6 @@ local function getNextDefaultTeamName(village)
     end
 end
 
-local function drawMemberName(panel, name, x, y, w, h, r, g, b)
-    local words = {}
-    for word in string.gmatch(name, "%S+") do
-        table.insert(words, word)
-    end
-    if #words == 1 then
-        panel:drawTextCentre(words[1], x + w/2, y + h/2 - 8, r, g, b, 1, UIFont.Small)
-    elseif #words >= 2 then
-        panel:drawTextCentre(words[1], x + w/2, y + h/2 - 14, r, g, b, 1, UIFont.Small)
-        panel:drawTextCentre(words[2], x + w/2, y + h/2 + 2, r, g, b, 1, UIFont.Small)
-    end
-end
-
 function NLJutsuTreeUI:createVillageScreen()
     self:clearControls()
     self.screen = "village"
@@ -1458,7 +1479,7 @@ function NLJutsuTreeUI:new(player)
     local screenWidth = getPlayerScreenWidth(playerNum)
     local screenHeight = getPlayerScreenHeight(playerNum)
     local width = math.floor(screenWidth * 0.85)
-    local height = math.floor(screenHeight * 0.85)
+    local height = math.max(680, math.floor(screenHeight * 0.85))
     local x = getPlayerScreenLeft(playerNum) + (screenWidth - width) / 2
     local y = getPlayerScreenTop(playerNum) + (screenHeight - height) / 2
     
