@@ -298,6 +298,11 @@ function Authority.handleEvent(args)
         if NinjaLineages.MedicalEffects and NinjaLineages.MedicalEffects.addLines then
             NinjaLineages.MedicalEffects.addLines(args)
         end
+    elseif args.kind == "katon_stream_started" then
+        if NinjaLineages.JutsuEffects
+                and NinjaLineages.JutsuEffects.addKatonStream then
+            NinjaLineages.JutsuEffects.addKatonStream(args)
+        end
     elseif args.kind == "katon_fire" then
         if NinjaLineages.isServer() or not NinjaLineages.isClient() then
             local cell = getCell()

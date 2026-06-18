@@ -457,39 +457,44 @@ specializedExecutors.katon = function(player, definition)
     if not valid then return false, reason, remaining end
 
     local config = resolved.targeting
-    local targets = {}
-    for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, config.range)) do
-        local zombie = entry.zombie
-        local dx = zombie:getX() - player:getX()
-        local dy = zombie:getY() - player:getY()
-        local length = math.sqrt((dx * dx) + (dy * dy))
-        if length > 0 then
-            local dot = ((dx / length) * player:getForwardDirection():getX()) + ((dy / length) * player:getForwardDirection():getY())
-            if dot >= config.minDot then
-                table.insert(targets, entry)
-            end
-        end
-    end
+    local forward = player:getForwardDirection()
+    if not forward then return false, "invalid_target" end
+    local originX, originY = player:getX(), player:getY()
+    local originZ = math.floor(player:getZ())
+    local directionX, directionY = forward:getX(), forward:getY()
+    local durationMs = 750
 
-    for _, entry in ipairs(targets) do
-        NinjaLineages.Utils.Combat.applyDamageAndControl(
-            player,
-            entry.zombie,
-            rollDamage(resolved),
-            resolved.control.tier
-        )
-    end
-
-    local squares = NinjaLineages.Utils.Geometry.collectConeSquares(
-        player, resolved.radius, config.minDot
-    )
+    local stream = NinjaLineages.CombatRuntime.createKatonStream({
+        casterObject = player,
+        casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
+        originX = originX,
+        originY = originY,
+        originZ = originZ,
+        directionX = directionX,
+        directionY = directionY,
+        range = resolved.radius or config.range,
+        minDot = config.minDot,
+        durationMs = durationMs,
+        damageRoll = function() return rollDamage(resolved) end,
+        controlTier = resolved.control and resolved.control.tier or nil,
+        collisionMask = NinjaLineages.Collision.Masks.jutsu_projectile,
+    })
+    if not stream then return false, "invalid_target" end
 
     commit(player, definition, resolved, cost)
     NinjaLineages.transmitPlayerData(player)
     return true, nil, nil, {
         event = {
-            kind = "katon_fire",
-            squares = squares,
+            kind = "katon_stream_started",
+            streamId = stream.streamId,
+            originX = originX,
+            originY = originY,
+            originZ = originZ,
+            directionX = directionX,
+            directionY = directionY,
+            range = stream.range,
+            minDot = stream.minDot,
+            durationMs = durationMs,
         },
     }
 end

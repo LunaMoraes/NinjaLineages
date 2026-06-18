@@ -6,15 +6,27 @@ NinjaLineages.CombatRuntime = NinjaLineages.CombatRuntime or {}
 
 local Runtime = NinjaLineages.CombatRuntime
 Runtime.projectiles = Runtime.projectiles or {}
+Runtime.katonStreams = Runtime.katonStreams or {}
 
 local nextProjectileId = 0
+local nextKatonStreamId = 0
 local LOG_PREFIX = "[DEBUG-NL-PROJECTILE] "
+local KATON_LOG_PREFIX = "[DEBUG-NL-KATON] "
+local resolveCaster
 
 local function log(message)
     if SandboxVars
             and SandboxVars.NinjaLineages
             and SandboxVars.NinjaLineages.DebugMode == true then
         print(LOG_PREFIX .. message)
+    end
+end
+
+local function katonLog(message)
+    if SandboxVars
+            and SandboxVars.NinjaLineages
+            and SandboxVars.NinjaLineages.DebugMode == true then
+        print(KATON_LOG_PREFIX .. message)
     end
 end
 
@@ -36,6 +48,183 @@ end
 local function generateId()
     nextProjectileId = nextProjectileId + 1
     return "nlp_" .. tostring(nextProjectileId)
+end
+
+local function generateKatonId()
+    nextKatonStreamId = nextKatonStreamId + 1
+    return "nlk_" .. tostring(nextKatonStreamId)
+end
+
+local function collectKatonTiles(config)
+    local tiles = {}
+    local radius = math.max(0.1, tonumber(config.range) or 0.1)
+    local minDot = tonumber(config.minDot) or 0.82
+    local baseX = math.floor(config.originX)
+    local baseY = math.floor(config.originY)
+    local z = math.floor(config.originZ or 0)
+    local iRadius = math.ceil(radius)
+
+    for dx = -iRadius, iRadius do
+        for dy = -iRadius, iRadius do
+            local tileX, tileY = baseX + dx, baseY + dy
+            local centerX, centerY = tileX + 0.5, tileY + 0.5
+            local offsetX = centerX - config.originX
+            local offsetY = centerY - config.originY
+            local distance = math.sqrt(offsetX * offsetX + offsetY * offsetY)
+            if distance > 0.15 and distance <= radius then
+                local dot = (offsetX / distance) * config.directionX
+                    + (offsetY / distance) * config.directionY
+                if dot >= minDot then
+                    table.insert(tiles, {
+                        x = tileX,
+                        y = tileY,
+                        z = z,
+                        centerX = centerX,
+                        centerY = centerY,
+                        distance = distance,
+                        activationProgress = distance / radius,
+                    })
+                end
+            end
+        end
+    end
+
+    table.sort(tiles, function(a, b) return a.distance < b.distance end)
+    return tiles
+end
+
+function Runtime.createKatonStream(config)
+    local directionLength = math.sqrt(
+        config.directionX * config.directionX + config.directionY * config.directionY
+    )
+    if directionLength <= 0.0001 then return nil end
+
+    local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
+    local stream = {
+        streamId = config.streamId or generateKatonId(),
+        casterObject = config.casterObject,
+        casterOnlineId = config.casterOnlineId,
+        originX = config.originX,
+        originY = config.originY,
+        originZ = math.floor(config.originZ or 0),
+        directionX = config.directionX / directionLength,
+        directionY = config.directionY / directionLength,
+        range = math.max(0.1, tonumber(config.range) or 0.1),
+        minDot = tonumber(config.minDot) or 0.82,
+        durationMs = math.max(1, tonumber(config.durationMs) or 750),
+        startedAtMs = nowMs,
+        damageRoll = config.damageRoll,
+        controlTier = config.controlTier,
+        collisionMask = config.collisionMask or NinjaLineages.Collision.Masks.jutsu_projectile,
+        tiles = {},
+        nextTileIndex = 1,
+        hitTargets = {},
+    }
+    stream.tiles = collectKatonTiles(stream)
+    Runtime.katonStreams[stream.streamId] = stream
+    katonLog(string.format(
+        "CREATED id=%s origin=(%.2f,%.2f,%d) direction=(%.3f,%.3f) range=%.2f tiles=%d durationMs=%d",
+        stream.streamId,
+        stream.originX,
+        stream.originY,
+        stream.originZ,
+        stream.directionX,
+        stream.directionY,
+        stream.range,
+        #stream.tiles,
+        stream.durationMs
+    ))
+    return stream
+end
+
+local function targetKey(target)
+    if not target then return nil end
+    if target.getOnlineID then
+        local ok, id = pcall(function() return target:getOnlineID() end)
+        if ok and id and id >= 0 then
+            return objectName(target) .. ":" .. tostring(id)
+        end
+    end
+    return tostring(target)
+end
+
+local function applyKatonToSquare(stream, square)
+    local movingObjects = square and square:getMovingObjects()
+    if not movingObjects then return end
+    local caster = resolveCaster(stream)
+
+    for i = 0, movingObjects:size() - 1 do
+        local object = movingObjects:get(i)
+        local key = targetKey(object)
+        if object and key and not stream.hitTargets[key] then
+            local damage = stream.damageRoll and stream.damageRoll() or 0
+            local payload = {
+                damage = damage,
+                controlTier = stream.controlTier,
+            }
+            if instanceof(object, "IsoZombie") and not object:isDead() then
+                stream.hitTargets[key] = true
+                NinjaLineages.Damage.applyTargetDamageAndControl(caster, {
+                    kind = "zombie",
+                    object = object,
+                }, payload)
+            elseif instanceof(object, "IsoPlayer") and object ~= caster and not object:isDead() then
+                local damaged = NinjaLineages.Damage.applyTargetDamageAndControl(caster, {
+                    kind = "player",
+                    object = object,
+                }, payload)
+                if damaged then stream.hitTargets[key] = true end
+            end
+        end
+    end
+end
+
+local function activateKatonTile(stream, tile)
+    local collision = NinjaLineages.Collision.traceSegment(
+        stream.originX,
+        stream.originY,
+        stream.originZ,
+        tile.centerX,
+        tile.centerY,
+        tile.z,
+        stream.collisionMask
+    )
+    if collision then
+        katonLog(string.format(
+            "MASKED id=%s tile=(%d,%d,%d) collision=%s",
+            stream.streamId,
+            tile.x,
+            tile.y,
+            tile.z,
+            tostring(collision.kind)
+        ))
+        return
+    end
+
+    local cell = getCell()
+    local square = cell and cell:getGridSquare(tile.x, tile.y, tile.z)
+    if not square then return end
+    applyKatonToSquare(stream, square)
+    if IsoFireManager and IsoFireManager.StartFire then
+        pcall(function() IsoFireManager.StartFire(cell, square, true, 100, 500) end)
+    end
+end
+
+local function updateKatonStreams(nowMs)
+    local completed = {}
+    for streamId, stream in pairs(Runtime.katonStreams) do
+        local progress = math.min(1, math.max(0, (nowMs - stream.startedAtMs) / stream.durationMs))
+        while stream.nextTileIndex <= #stream.tiles
+                and stream.tiles[stream.nextTileIndex].activationProgress <= progress do
+            activateKatonTile(stream, stream.tiles[stream.nextTileIndex])
+            stream.nextTileIndex = stream.nextTileIndex + 1
+        end
+        if progress >= 1 then table.insert(completed, streamId) end
+    end
+    for _, streamId in ipairs(completed) do
+        Runtime.katonStreams[streamId] = nil
+        katonLog("COMPLETED id=" .. tostring(streamId))
+    end
 end
 
 local function resolveTargetObject(projectile)
@@ -60,7 +249,7 @@ local function resolveTargetObject(projectile)
     return nil, "unsupported_target_kind"
 end
 
-local function resolveCaster(projectile)
+resolveCaster = function(projectile)
     if projectile.casterObject then return projectile.casterObject end
     if projectile.casterOnlineId and getPlayerByOnlineID then
         return getPlayerByOnlineID(projectile.casterOnlineId)
@@ -178,6 +367,7 @@ function Runtime.update()
     if NinjaLineages.isClient() and not NinjaLineages.isServer() then return end
 
     local now = NinjaLineages.Utils.Time.gameMinutes()
+    updateKatonStreams(NinjaLineages.Utils.Time.realMilliseconds())
     local toRemove = {}
 
     for _, projectile in pairs(Runtime.projectiles) do

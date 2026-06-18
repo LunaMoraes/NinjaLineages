@@ -3,16 +3,59 @@ require "NinjaLineages_Social"
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Targeting = NinjaLineages.Targeting or {}
 
+local function readServerBoolean(name, fallback)
+    local ok, value = pcall(function()
+        if getServerOptions then
+            local options = getServerOptions()
+            if options then return options:getBoolean(name) end
+        end
+        if ServerOptions and ServerOptions.getInstance then
+            return ServerOptions.getInstance():getBoolean(name)
+        end
+        return nil
+    end)
+    if not ok or value == nil then return fallback end
+    return value == true or tostring(value) == "true"
+end
+
+local function readSafetyEnabled(player)
+    if not player or not player.getSafety then return true end
+    local ok, safety = pcall(function() return player:getSafety() end)
+    if not ok or not safety or not safety.isEnabled then return true end
+    local enabledOk, enabled = pcall(function() return safety:isEnabled() end)
+    if not enabledOk then return true end
+    return enabled == true
+end
+
 function NinjaLineages.Targeting.isServerPvPEnabled()
-    return false
+    return readServerBoolean("PVP", false)
+end
+
+function NinjaLineages.Targeting.canDamagePlayer(caster, targetPlayer)
+    if not caster or not targetPlayer then return false, "invalid_player" end
+    if caster == targetPlayer then return false, "self" end
+    if targetPlayer.isDead and targetPlayer:isDead() then return false, "dead" end
+    if not NinjaLineages.Targeting.isServerPvPEnabled() then return false, "pvp_disabled" end
+    if NinjaLineages.Social.areSameTeam(caster, targetPlayer) then
+        return false, "same_team"
+    end
+    if NinjaLineages.Social.areSameVillage(caster, targetPlayer) then
+        return false, "same_village"
+    end
+
+    if readServerBoolean("SafetySystem", false) then
+        local casterSafe = readSafetyEnabled(caster)
+        local targetSafe = readSafetyEnabled(targetPlayer)
+        if casterSafe and targetSafe then
+            return false, "safety"
+        end
+    end
+
+    return true
 end
 
 function NinjaLineages.Targeting.isHostilePlayer(caster, targetPlayer)
-    if not caster or not targetPlayer or caster == targetPlayer then return false end
-    if not NinjaLineages.Targeting.isServerPvPEnabled() then return false end
-    if NinjaLineages.Social.areSameTeam(caster, targetPlayer) then return false end
-    if NinjaLineages.Social.areSameVillage(caster, targetPlayer) then return false end
-    return true
+    return NinjaLineages.Targeting.canDamagePlayer(caster, targetPlayer)
 end
 
 function NinjaLineages.Targeting.isFriendly(caster, targetPlayer)

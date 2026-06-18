@@ -17,6 +17,7 @@ require "NinjaLineages_RadialMenu"
 require "NinjaLineages_JutsuTreeUI"
 require "NinjaLineages_GeneExperimentationClient"
 require "NinjaLineages_MedicalEffects"
+require "NinjaLineages_JutsuEffects"
 
 -- Load modular lineages (dynamic registries)
 require "lineages/NinjaLineages_Uchiha"
