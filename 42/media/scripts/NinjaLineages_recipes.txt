@@ -71,4 +71,40 @@ module Base
             item 1 Base.NL_SealedScroll,
         }
     }
+
+    craftRecipe MakeNLBingoBook
+    {
+        timedAction = Making,
+        time = 30,
+        NeedToBeLearn = true,
+        Tags = InHandCraft,
+        category = Miscellaneous,
+        inputs
+        {
+            item 1 tags[base:newspaper;base:magazine],
+            item 1 [Base.Pen;Base.Pencil;Base.PenFancy;Base.PenMultiColor;Base.PenSpiffo;Base.PencilSpiffo] mode:keep,
+        }
+        outputs
+        {
+            item 1 Base.NL_BingoBook,
+        }
+    }
+
+    craftRecipe MakeNLBingoBookFromPaper
+    {
+        timedAction = Making,
+        time = 30,
+        NeedToBeLearn = true,
+        Tags = InHandCraft,
+        category = Miscellaneous,
+        inputs
+        {
+            item 1 [Base.SheetPaper2;Base.Notebook;Base.Journal],
+            item 1 [Base.Pen;Base.Pencil;Base.PenFancy;Base.PenMultiColor;Base.PenSpiffo;Base.PencilSpiffo] mode:keep,
+        }
+        outputs
+        {
+            item 1 Base.NL_BingoBook,
+        }
+    }
 }

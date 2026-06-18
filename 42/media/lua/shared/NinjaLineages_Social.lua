@@ -8,6 +8,13 @@ Social.VERSION = 1
 Social.INVITE_LIFETIME_SECONDS = 60
 Social.INVITE_RANGE = 2
 Social.MAX_TEAM_SIZE = 3
+Social.MAX_FLAG_SEVERITY = 5
+Social.ReputationFlagTypes = Social.ReputationFlagTypes or {
+    "Wanted",
+    "Traitor",
+    "Deserter",
+    "Betrayal Associate",
+}
 
 -- Add new village symbols here when their square texture is added.
 Social.VillageSymbols = Social.VillageSymbols or {
@@ -130,6 +137,8 @@ Social._snapshot = Social._snapshot or {
     playerTeams = {},
     playerVillages = {},
     pendingInvites = {},
+    reputationFlags = {},
+    knownPlayers = {},
 }
 
 function Social.setSnapshot(snapshot)
@@ -139,6 +148,8 @@ function Social.setSnapshot(snapshot)
     snapshot.playerTeams = snapshot.playerTeams or {}
     snapshot.playerVillages = snapshot.playerVillages or {}
     snapshot.pendingInvites = snapshot.pendingInvites or {}
+    snapshot.reputationFlags = snapshot.reputationFlags or {}
+    snapshot.knownPlayers = snapshot.knownPlayers or {}
     Social._snapshot = snapshot
     return true
 end
@@ -205,6 +216,35 @@ function Social.getPendingInvites(player)
     end
     table.sort(result, function(a, b)
         return (tonumber(a.createdAt) or 0) < (tonumber(b.createdAt) or 0)
+    end)
+    return result
+end
+
+function Social.isValidReputationFlagType(flagType)
+    for _, allowed in ipairs(Social.ReputationFlagTypes) do
+        if flagType == allowed then return true end
+    end
+    return false
+end
+
+function Social.getOwnedReputationFlags(player)
+    local result = {}
+    local state = Social.getState()
+    local village = Social.getMyVillage(player)
+    if not village then return result end
+    for recordID, flag in pairs((state and state.reputationFlags) or {}) do
+        if flag.sourceVillageId == village.id then
+            local copy = {}
+            for key, value in pairs(flag) do copy[key] = value end
+            copy.recordId = recordID
+            table.insert(result, copy)
+        end
+    end
+    table.sort(result, function(a, b)
+        if a.targetPlayerName ~= b.targetPlayerName then
+            return tostring(a.targetPlayerName) < tostring(b.targetPlayerName)
+        end
+        return tostring(a.flagType) < tostring(b.flagType)
     end)
     return result
 end

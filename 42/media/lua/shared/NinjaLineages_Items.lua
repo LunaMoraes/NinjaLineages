@@ -31,6 +31,27 @@ function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(item, result, player)
     return NinjaLineages.Progression.isCompleted(player, "storage_seal")
 end
 
+local BINGO_BOOK_RECIPES = {
+    "MakeNLBingoBook",
+    "MakeNLBingoBookFromPaper",
+}
+local bingoBookRecipesUnlocked = setmetatable({}, { __mode = "k" })
+
+local function unlockBingoBookRecipesAtKage(player)
+    if not player then return end
+    if bingoBookRecipesUnlocked[player] then return end
+    if NinjaLineages.Progression.getNinjaRank(player) ~= "KAGE" then return end
+    for _, recipeName in ipairs(BINGO_BOOK_RECIPES) do
+        local known = false
+        pcall(function() known = player:isRecipeActuallyKnown(recipeName) end)
+        if not known then pcall(function() player:learnRecipe(recipeName) end) end
+    end
+    bingoBookRecipesUnlocked[player] = true
+end
+
+NinjaLineages.registerCreatePlayer("items.unlockBingoBookRecipes", unlockBingoBookRecipesAtKage)
+NinjaLineages.registerPlayerUpdate("items.unlockBingoBookRecipes", unlockBingoBookRecipesAtKage)
+
 -- (NinjaLineages.ScrollUtils.isSealedScroll now in NinjaLineages.ScrollUtils)
 
 function AcceptItemFunction.NinjaLineagesSealedScroll(container, item)

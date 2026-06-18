@@ -16,6 +16,7 @@ local VALID_SCREENS = {
     village = true,
     village_teams = true,
     village_create = true,
+    reputation = true,
 }
 
 local function text(key, ...)
@@ -74,6 +75,9 @@ function SocialPanel:new(host)
         nameEntry = nil,
         titleCombo = nil,
         slotButtons = nil,
+        targetCombo = nil,
+        flagTypeCombo = nil,
+        pardonButtons = nil,
     }, self)
 end
 
@@ -85,6 +89,9 @@ function SocialPanel:clearState()
     self.nameEntry = nil
     self.titleCombo = nil
     self.slotButtons = nil
+    self.targetCombo = nil
+    self.flagTypeCombo = nil
+    self.pardonButtons = nil
 end
 
 function SocialPanel:addButton(x, y, width, height, title, callback)
@@ -115,6 +122,8 @@ function SocialPanel:open(screen)
         self:createVillageTeamsScreen()
     elseif screen == "village_create" then
         self:createVillageCreationScreen()
+    elseif screen == "reputation" then
+        self:createReputationScreen()
     end
     return true
 end
@@ -131,6 +140,8 @@ function SocialPanel:prerender(panel)
         self:drawVillageTeams(panel, w)
     elseif self.screen == "village_create" then
         self:drawVillageCreation(panel, w)
+    elseif self.screen == "reputation" then
+        self:drawReputation(panel, w)
     end
 end
 
@@ -279,6 +290,35 @@ function SocialPanel:drawVillageCreation(panel, w)
     panel:drawText("Kage Title (Dropdown):", w / 2 - 130, 400, 0.9, 0.9, 0.95, 1, UIFont.Small)
 end
 
+local function stars(severity)
+    return string.rep("★", math.max(1, math.min(5, tonumber(severity) or 1)))
+end
+
+function SocialPanel:drawReputation(panel, w)
+    panel:drawTextCentre(
+        text("UI_NL_Reputation_Title"),
+        w / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large
+    )
+    panel:drawText(text("UI_NL_Reputation_Target"), 70, 92, 0.9, 0.9, 0.95, 1, UIFont.Small)
+    panel:drawText(text("UI_NL_Reputation_FlagType"), 70, 147, 0.9, 0.9, 0.95, 1, UIFont.Small)
+    panel:drawText(text("UI_NL_Reputation_OwnedFlags"), 70, 235, 1, 1, 1, 1, UIFont.Medium)
+
+    local flags = NinjaLineages.Social.getOwnedReputationFlags(self.host.player)
+    if #flags == 0 then
+        panel:drawText(text("UI_NL_Reputation_NoOwnedFlags"), 90, 275, 0.7, 0.7, 0.78, 1, UIFont.Small)
+        return
+    end
+    local y = 275
+    for _, flag in ipairs(flags) do
+        panel:drawText(
+            tostring(flag.targetPlayerName) .. " - " .. tostring(flag.flagType)
+                .. " " .. stars(flag.severity),
+            90, y, 0.86, 0.86, 0.92, 1, UIFont.Small
+        )
+        y = y + 36
+    end
+end
+
 function SocialPanel:createVillageCreationScreen()
     local w = self.host.contentPanel.width
     self:addBackButton()
@@ -374,6 +414,11 @@ function SocialPanel:createVillageScreen()
 
     local village = NinjaLineages.Social.getMyVillage(self.host.player)
     if village and NinjaLineages.Social.isKage(self.host.player) then
+        self:addButton(
+            math.floor(w * 0.55), 322, 160, 32,
+            text("UI_NL_Reputation_Manage"),
+            SocialPanel.onManageReputation
+        )
         local textWidth = getTextManager():MeasureStringX(UIFont.Large, village.name)
         self:addButton(
             290 + textWidth + 15, 82, 70, 24,
@@ -381,6 +426,77 @@ function SocialPanel:createVillageScreen()
             SocialPanel.onRenameVillage
         )
     end
+end
+
+function SocialPanel:onManageReputation()
+    self:open("reputation")
+end
+
+function SocialPanel:createReputationScreen()
+    self:addBackButton(SocialPanel.onVillageBack)
+    if not NinjaLineages.Social.isKage(self.host.player) then
+        self:open("village")
+        return
+    end
+
+    local w = self.host.contentPanel.width
+    local snapshot = NinjaLineages.Social.getSnapshot()
+    local targets = {}
+    for playerID, displayName in pairs(snapshot.knownPlayers or {}) do
+        table.insert(targets, { id = playerID, name = displayName })
+    end
+    table.sort(targets, function(a, b) return tostring(a.name) < tostring(b.name) end)
+
+    self.targetCombo = ISComboBox:new(70, 110, 360, 28, self, nil)
+    self.targetCombo:initialise()
+    self.targetCombo:instantiate()
+    self.host.contentPanel:addChild(self.targetCombo)
+    for _, target in ipairs(targets) do
+        self.targetCombo:addOptionWithData(target.name, target.id)
+    end
+
+    self.flagTypeCombo = ISComboBox:new(70, 165, 360, 28, self, nil)
+    self.flagTypeCombo:initialise()
+    self.flagTypeCombo:instantiate()
+    self.host.contentPanel:addChild(self.flagTypeCombo)
+    for _, flagType in ipairs(NinjaLineages.Social.ReputationFlagTypes) do
+        self.flagTypeCombo:addOptionWithData(flagType, flagType)
+    end
+
+    local apply = self:addButton(450, 135, 150, 38, text("UI_NL_Reputation_Apply"), SocialPanel.onApplyFlag)
+    apply.enable = #targets > 0
+
+    self.pardonButtons = {}
+    local flags = NinjaLineages.Social.getOwnedReputationFlags(self.host.player)
+    local y = 270
+    for _, flag in ipairs(flags) do
+        local pardon = self:addButton(
+            w - 190, y - 6, 120, 28,
+            text("UI_NL_Reputation_Pardon"),
+            SocialPanel.onPardonFlag
+        )
+        pardon.targetPlayerId = flag.targetPlayerId
+        pardon.flagType = flag.flagType
+        table.insert(self.pardonButtons, pardon)
+        y = y + 36
+    end
+end
+
+function SocialPanel:onApplyFlag()
+    local targetPlayerId = self.targetCombo and self.targetCombo:getSelectedData()
+    local flagType = self.flagTypeCombo and self.flagTypeCombo:getSelectedData()
+    if not targetPlayerId or not flagType then return end
+    NinjaLineages.Social.request(self.host.player, "socialApplyReputationFlag", {
+        targetPlayerId = targetPlayerId,
+        flagType = flagType,
+    })
+end
+
+function SocialPanel:onPardonFlag(button)
+    NinjaLineages.Social.request(self.host.player, "socialPardonReputationFlag", {
+        targetPlayerId = button.targetPlayerId,
+        flagType = button.flagType,
+    })
 end
 
 function SocialPanel:onVillageTeams()
@@ -642,9 +758,12 @@ function SocialPanel:refresh()
     local village = NinjaLineages.Social.getMyVillage(self.host.player)
     if self.screen == "village_create" then
         if village then self:open("village") end
-    elseif (self.screen == "village" or self.screen == "village_teams") and not village then
+    elseif (self.screen == "village" or self.screen == "village_teams" or self.screen == "reputation")
+            and not village then
         self.screen = nil
         self.host:createSelectionScreen()
+    elseif self.screen == "reputation" and not NinjaLineages.Social.isKage(self.host.player) then
+        self:open("village")
     else
         self:open(self.screen)
     end

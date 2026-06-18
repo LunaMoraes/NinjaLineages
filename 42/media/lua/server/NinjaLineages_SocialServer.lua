@@ -25,6 +25,8 @@ local function defaultState()
         playerTeams = {},
         playerVillages = {},
         pendingInvites = {},
+        knownPlayers = {},
+        reputationFlags = {},
         nextTeamID = 1,
         nextVillageID = 1,
         nextInviteID = 1,
@@ -42,6 +44,8 @@ local function ensureState()
     state.playerTeams = state.playerTeams or {}
     state.playerVillages = state.playerVillages or {}
     state.pendingInvites = state.pendingInvites or {}
+    state.knownPlayers = state.knownPlayers or {}
+    state.reputationFlags = state.reputationFlags or {}
     return state
 end
 
@@ -79,6 +83,8 @@ local function snapshotFor(player)
         playerTeams = {},
         playerVillages = {},
         pendingInvites = {},
+        reputationFlags = {},
+        knownPlayers = {},
     }
     for teamID, team in pairs(state.teams) do snapshot.teams[teamID] = shallowRecord(team) end
     for villageID, village in pairs(state.villages) do snapshot.villages[villageID] = shallowRecord(village) end
@@ -121,7 +127,54 @@ local function snapshotFor(player)
     local village = snapshot.me.villageID and state.villages[snapshot.me.villageID] or nil
     snapshot.me.isTeamLeader = team ~= nil and team.leaderKey == playerKey
     snapshot.me.isKage = village ~= nil and village.kageKey == playerKey
+    if snapshot.me.isKage then
+        for knownKey, displayName in pairs(state.knownPlayers) do
+            if knownKey ~= playerKey then snapshot.knownPlayers[knownKey] = displayName end
+        end
+        for recordID, flag in pairs(state.reputationFlags) do
+            if flag.sourceVillageId == village.id then
+                snapshot.reputationFlags[recordID] = shallowRecord(flag)
+            end
+        end
+    end
     return snapshot
+end
+
+local function publicReputationSnapshot()
+    local grouped = {}
+    for _, flag in pairs(state.reputationFlags) do
+        local targetID = flag.targetPlayerId
+        if targetID then
+            local entry = grouped[targetID]
+            if not entry then
+                entry = {
+                    playerName = flag.targetPlayerName or state.knownPlayers[targetID] or "Unknown",
+                    flags = {},
+                }
+                grouped[targetID] = entry
+            end
+            table.insert(entry.flags, {
+                flagType = flag.flagType,
+                severity = flag.severity,
+                sourceVillageName = flag.sourceVillageName,
+            })
+        end
+    end
+
+    local players = {}
+    for _, entry in pairs(grouped) do
+        table.sort(entry.flags, function(a, b)
+            if a.sourceVillageName ~= b.sourceVillageName then
+                return tostring(a.sourceVillageName) < tostring(b.sourceVillageName)
+            end
+            return tostring(a.flagType) < tostring(b.flagType)
+        end)
+        table.insert(players, entry)
+    end
+    table.sort(players, function(a, b)
+        return tostring(a.playerName) < tostring(b.playerName)
+    end)
+    return { players = players }
 end
 
 local function forEachOnlinePlayer(callback)
@@ -147,6 +200,15 @@ local function sendSnapshot(player)
         sendServerCommand(player, "NinjaLineages", "socialSnapshot", snapshotFor(player))
     else
         Social.setSnapshot(snapshotFor(player))
+    end
+end
+
+local function sendReputationSnapshot(player)
+    local snapshot = publicReputationSnapshot()
+    if NinjaLineages.isServer() then
+        sendServerCommand(player, "NinjaLineages", "reputationSnapshot", snapshot)
+    elseif NinjaLineages.BingoBook and NinjaLineages.BingoBook.receiveSnapshot then
+        NinjaLineages.BingoBook.receiveSnapshot(snapshot)
     end
 end
 
@@ -191,6 +253,44 @@ local function removeFromArray(values, wanted)
     for index = #(values or {}), 1, -1 do
         if values[index] == wanted then table.remove(values, index) end
     end
+end
+
+local function reputationRecordID(targetPlayerId, sourceVillageId, flagType)
+    return tostring(#targetPlayerId) .. ":" .. targetPlayerId
+        .. tostring(#sourceVillageId) .. ":" .. sourceVillageId
+        .. tostring(#flagType) .. ":" .. flagType
+end
+
+local function normalizeReputationState()
+    for _, team in pairs(state.teams or {}) do
+        for playerKey, displayName in pairs(team.memberNames or {}) do
+            if not state.knownPlayers[playerKey] then state.knownPlayers[playerKey] = displayName end
+        end
+    end
+    for _, village in pairs(state.villages or {}) do
+        for playerKey, displayName in pairs(village.memberNames or {}) do
+            if not state.knownPlayers[playerKey] then state.knownPlayers[playerKey] = displayName end
+        end
+    end
+
+    local normalized = {}
+    for _, flag in pairs(state.reputationFlags or {}) do
+        local targetID = flag.targetPlayerId
+        local villageID = flag.sourceVillageId
+        local flagType = flag.flagType
+        if targetID and villageID and Social.isValidReputationFlagType(flagType)
+                and state.villages[villageID] then
+            local village = state.villages[villageID]
+            flag.targetPlayerName = state.knownPlayers[targetID] or flag.targetPlayerName or "Unknown"
+            flag.sourceVillageName = village.name
+            flag.severity = math.max(1, math.min(
+                Social.MAX_FLAG_SEVERITY,
+                math.floor(tonumber(flag.severity) or 1)
+            ))
+            normalized[reputationRecordID(targetID, villageID, flagType)] = flag
+        end
+    end
+    state.reputationFlags = normalized
 end
 
 local function rebuildIndexes()
@@ -301,6 +401,27 @@ local function disbandTeam(teamID)
     state.teams[teamID] = nil
 end
 
+local function removePlayerFromVillageTeam(targetKey)
+    local teamID = state.playerTeams[targetKey]
+    local team = teamID and state.teams[teamID]
+    if not team or not team.villageID then return end
+    removeFromArray(team.members, targetKey)
+    if team.memberNames then team.memberNames[targetKey] = nil end
+    if team.leaderKey == targetKey then team.leaderKey = nil end
+    if team.member1Key == targetKey then team.member1Key = nil end
+    if team.member2Key == targetKey then team.member2Key = nil end
+    state.playerTeams[targetKey] = nil
+end
+
+local function expelVillageMember(village, targetKey)
+    if not village or state.playerVillages[targetKey] ~= village.id then return false end
+    removePlayerFromVillageTeam(targetKey)
+    removeFromArray(village.members, targetKey)
+    if village.memberNames then village.memberNames[targetKey] = nil end
+    state.playerVillages[targetKey] = nil
+    return true
+end
+
 local function createInvite(kind, inviter, target, proposedName)
     local inviterKey = Social.getPlayerKey(inviter, false)
     local targetKey = Social.getPlayerKey(target, false)
@@ -408,6 +529,69 @@ function handlers.socialRequestSnapshot(player)
     pruneInvites()
     sendSnapshot(player)
     return true
+end
+
+function handlers.socialRequestReputationSnapshot(player)
+    sendReputationSnapshot(player)
+    return true
+end
+
+function handlers.socialApplyReputationFlag(player, args)
+    local actorKey = Social.getPlayerKey(player, false)
+    if not actorKey then return false, "unstable_identity" end
+    local villageID = state.playerVillages[actorKey]
+    local village = villageID and state.villages[villageID]
+    if not village or village.kageKey ~= actorKey then return false, "not_kage" end
+
+    local targetKey = args and args.targetPlayerId
+    local flagType = args and args.flagType
+    if not targetKey or not state.knownPlayers[targetKey] then return false, "unknown_player" end
+    if targetKey == actorKey then return false, "cannot_flag_self" end
+    if not Social.isValidReputationFlagType(flagType) then return false, "invalid_flag_type" end
+
+    local recordID = reputationRecordID(targetKey, villageID, flagType)
+    local flag = state.reputationFlags[recordID]
+    if flag then
+        flag.severity = math.min(
+            Social.MAX_FLAG_SEVERITY,
+            math.max(1, tonumber(flag.severity) or 1) + 1
+        )
+        flag.targetPlayerName = state.knownPlayers[targetKey]
+        flag.sourceVillageName = village.name
+    else
+        state.reputationFlags[recordID] = {
+            targetPlayerId = targetKey,
+            targetPlayerName = state.knownPlayers[targetKey],
+            sourceVillageId = villageID,
+            sourceVillageName = village.name,
+            flagType = flagType,
+            severity = 1,
+        }
+    end
+
+    if state.playerVillages[targetKey] == villageID then
+        expelVillageMember(village, targetKey)
+        rebuildIndexes()
+    end
+    return true, "reputation_flag_applied"
+end
+
+function handlers.socialPardonReputationFlag(player, args)
+    local actorKey = Social.getPlayerKey(player, false)
+    if not actorKey then return false, "unstable_identity" end
+    local villageID = state.playerVillages[actorKey]
+    local village = villageID and state.villages[villageID]
+    if not village or village.kageKey ~= actorKey then return false, "not_kage" end
+
+    local targetKey = args and args.targetPlayerId
+    local flagType = args and args.flagType
+    if not targetKey or not Social.isValidReputationFlagType(flagType) then
+        return false, "invalid_flag"
+    end
+    local recordID = reputationRecordID(targetKey, villageID, flagType)
+    if not state.reputationFlags[recordID] then return false, "flag_not_found" end
+    state.reputationFlags[recordID] = nil
+    return true, "reputation_flag_pardoned"
 end
 
 function handlers.socialInviteTeam(player, args)
@@ -589,6 +773,9 @@ function handlers.socialRenameVillage(player, args)
     end
 
     village.name = name
+    for _, flag in pairs(state.reputationFlags) do
+        if flag.sourceVillageId == villageID then flag.sourceVillageName = name end
+    end
     return true
 end
 
@@ -688,6 +875,8 @@ end
 
 function Server.handleCommand(command, player, args)
     ensureState()
+    local playerKey = Social.getPlayerKey(player, false)
+    if playerKey then state.knownPlayers[playerKey] = Social.getPlayerDisplayName(player) end
     pruneInvites()
     local handler = handlers[command]
     if not handler then return false end
@@ -695,6 +884,9 @@ function Server.handleCommand(command, player, args)
     if not ok then
         print("[NinjaLineages Social] " .. tostring(command) .. " failed: " .. tostring(success))
         result(player, false, "server_error", command)
+        return true
+    end
+    if command == "socialRequestReputationSnapshot" then
         return true
     end
     if command ~= "socialRequestSnapshot" then
@@ -713,6 +905,7 @@ local function onInitGlobalModData()
     ensureState()
     rebuildIndexes()
     rebuildCounters()
+    normalizeReputationState()
     pruneInvites()
 end
 
@@ -722,6 +915,10 @@ local function onPlayerConnected(player)
     local playerKey = Social.getPlayerKey(player, false)
     if playerKey then
         local displayName = Social.getPlayerDisplayName(player)
+        state.knownPlayers[playerKey] = displayName
+        for _, flag in pairs(state.reputationFlags) do
+            if flag.targetPlayerId == playerKey then flag.targetPlayerName = displayName end
+        end
         local teamID = state.playerTeams[playerKey]
         local team = teamID and state.teams[teamID]
         if team and team.memberNames then

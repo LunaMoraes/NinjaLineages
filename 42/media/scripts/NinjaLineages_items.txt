@@ -87,6 +87,18 @@ module Base
         Tags = base:isfirefuel;base:isfiretinder,
     }
 
+    item NL_BingoBook
+    {
+        DisplayCategory = Literature,
+        ItemType = base:literature,
+        DisplayName = UI_item_NL_BingoBook,
+        Weight = 0.5,
+        Icon = Book,
+        NumberOfPages = 1,
+        ReadType = book,
+        Tags = base:isfirefuel;base:isfiretinder,
+    }
+
     item NL_Training_quiet_step { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_quiet_step_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
     item NL_Training_false_sound { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_false_sound_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
     item NL_Training_veil_presence { DisplayCategory = Literature, ItemType = base:literature, DisplayName = UI_NL_Node_veil_presence_Name, Weight = 0.0, Icon = NLSealIcon, ReadType = book, Hidden = true, }
