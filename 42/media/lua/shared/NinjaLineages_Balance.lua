@@ -142,6 +142,28 @@ NinjaLineages.Balance.Progression = {
     ConditionRestore = 1,
 }
 
+NinjaLineages.Balance.Missions = {
+    NinjaXP = {
+        D = 25,
+        C = 50,
+        B = 100,
+        A = 200,
+        S = 400,
+    },
+    VillageXP = {
+        D = 10,
+        C = 20,
+        B = 40,
+        A = 80,
+        S = 160,
+    },
+    VillageRankUnlockXP = {
+        B = 100,
+        A = 300,
+        S = 700,
+    },
+}
+
 NinjaLineages.Balance.SkillXP = {
     CHAKRA_SPEND_RATIO = 0.10,
 }

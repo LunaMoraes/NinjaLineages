@@ -27,9 +27,12 @@ local function defaultState()
         pendingInvites = {},
         knownPlayers = {},
         reputationFlags = {},
+        missions = {},
+        pendingMissionXP = {},
         nextTeamID = 1,
         nextVillageID = 1,
         nextInviteID = 1,
+        nextMissionID = 1,
     }
 end
 
@@ -46,6 +49,8 @@ local function ensureState()
     state.pendingInvites = state.pendingInvites or {}
     state.knownPlayers = state.knownPlayers or {}
     state.reputationFlags = state.reputationFlags or {}
+    state.missions = state.missions or {}
+    state.pendingMissionXP = state.pendingMissionXP or {}
     return state
 end
 
@@ -214,6 +219,10 @@ end
 
 local function broadcastSnapshots()
     forEachOnlinePlayer(sendSnapshot)
+end
+
+function Server.broadcastSnapshots()
+    broadcastSnapshots()
 end
 
 local function result(player, ok, reason, action)

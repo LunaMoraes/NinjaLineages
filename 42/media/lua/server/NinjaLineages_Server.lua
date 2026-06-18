@@ -6,6 +6,7 @@ require "NinjaLineages_ProgressionServer"
 require "NinjaLineages_PassivesServer"
 require "NinjaLineages_GeneExperimentationServer"
 require "NinjaLineages_SocialServer"
+require "NinjaLineages_MissionServer"
 require "lineages/NinjaLineages_UchihaPassives"
 
 local function handleAbilityRequest(player, args)

@@ -7,6 +7,7 @@ require "NinjaLineages_Progression"
 require "NinjaLineages_Training"
 require "NinjaLineages_Social"
 require "NinjaLineages_SocialPanel"
+require "NinjaLineages_MissionPanel"
 
 NLJutsuTreeUI = ISCollapsableWindow:derive("NLJutsuTreeUI")
 NLJutsuTreeUI.instances = NLJutsuTreeUI.instances or {}
@@ -21,30 +22,6 @@ local function translated(key, fallback)
     local value = getText(key)
     if value == key then return fallback or key end
     return value
-end
-
-local function setMouseTooltip(button, tooltip)
-    button.tooltip = tooltip
-    button.updateTooltip = function(btn)
-        if btn:isMouseOver() and btn.tooltip then
-            if not btn.tooltipUI then
-                btn.tooltipUI = ISToolTip:new()
-                btn.tooltipUI:setOwner(btn)
-                btn.tooltipUI:setVisible(false)
-                btn.tooltipUI:setAlwaysOnTop(true)
-                btn.tooltipUI.maxLineWidth = 300
-            end
-            if not btn.tooltipUI:getIsVisible() then
-                btn.tooltipUI:addToUIManager()
-                btn.tooltipUI:setVisible(true)
-            end
-            btn.tooltipUI.description = btn.tooltip
-            btn.tooltipUI:setDesiredPosition(getMouseX(), getMouseY() + 8)
-        elseif btn.tooltipUI and btn.tooltipUI:getIsVisible() then
-            btn.tooltipUI:setVisible(false)
-            btn.tooltipUI:removeFromUIManager()
-        end
-    end
 end
 
 local function drawDisabledSideButton(panel, button)
@@ -144,6 +121,7 @@ function NLJutsuTreeUI:initialise()
     self.contentPanel.backgroundColor = { r = 0.05, g = 0.05, b = 0.07, a = 0.95 }
     self:addChild(self.contentPanel)
     self.socialPanel = NinjaLineages.SocialPanel:new(self)
+    self.missionPanel = NinjaLineages.MissionPanel:new(self)
 
     if self.closeButton then
         self.closeButton.onclick = function(btn)
@@ -287,6 +265,8 @@ function NLJutsuTreeUI:initialise()
             end
         elseif self.socialPanel and self.socialPanel:isActive() then
             self.socialPanel:prerender(panel)
+        elseif self.missionPanel and self.missionPanel:isActive() then
+            self.missionPanel:prerender(panel)
         end
     end
 
@@ -296,7 +276,9 @@ function NLJutsuTreeUI:initialise()
             if self.foundVillageButton and not self.foundVillageButton.enable then
                 drawDisabledSideButton(panel, self.foundVillageButton)
             end
-            drawDisabledSideButton(panel, self.missionBoardButton)
+            if self.missionBoardButton and not self.missionBoardButton.enable then
+                drawDisabledSideButton(panel, self.missionBoardButton)
+            end
         end
     end
 
@@ -317,6 +299,7 @@ function NLJutsuTreeUI:clearControls()
         end
     end
     if self.socialPanel then self.socialPanel:clearState() end
+    if self.missionPanel then self.missionPanel:clearState() end
 
     self.contentPanel:clearChildren()
     self.contentPanel.joypadButtons = {}
@@ -566,8 +549,6 @@ function NLJutsuTreeUI:createSelectionScreen()
     local sideButtonHeight = math.floor(h * 0.055)
     local sideButtonGap = 8
     local sideButtonY = statusY + statusHeight - (sideButtonHeight * 4) - (sideButtonGap * 3) - 15
-    local comingSoon = text("UI_NL_Tree_ComingSoon")
-
     self.foundVillageButton = self:addButton(
         sideButtonX,
         sideButtonY,
@@ -605,10 +586,8 @@ function NLJutsuTreeUI:createSelectionScreen()
         sideButtonHeight,
         text("UI_NL_Tree_OpenMissionBoard"),
         self,
-        nil
+        NLJutsuTreeUI.onMissionBoard
     )
-    self.missionBoardButton.enable = false
-    setMouseTooltip(self.missionBoardButton, comingSoon)
     self:updateSelectionButtons()
 end
 
@@ -650,6 +629,10 @@ function NLJutsuTreeUI:updateSelectionButtons()
     if self.foundVillageButton then self.foundVillageButton:setVisible(isKageRank and not village) end
     if self.viewVillageButton then self.viewVillageButton:setVisible(village ~= nil) end
     if self.teamInspectButton then self.teamInspectButton:setVisible(true) end
+    if self.missionBoardButton then
+        self.missionBoardButton:setVisible(village ~= nil)
+        self.missionBoardButton.enable = village ~= nil
+    end
 end
 
 function NLJutsuTreeUI:onFoundVillage()
@@ -664,8 +647,16 @@ function NLJutsuTreeUI:onTeamInspect()
     self.socialPanel:open("team")
 end
 
+function NLJutsuTreeUI:onMissionBoard()
+    self.missionPanel:open()
+end
+
 function NLJutsuTreeUI:refreshSocialState()
     self.socialPanel:refresh()
+end
+
+function NLJutsuTreeUI:refreshMissionState()
+    self.missionPanel:refresh()
 end
 
 function NLJutsuTreeUI:createDisciplineScreen(disciplineId)

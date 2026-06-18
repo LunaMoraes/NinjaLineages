@@ -182,7 +182,10 @@ function SocialPanel:drawVillage(panel, w)
         panel:drawTextureScaled(texture, iconX, iconY, iconSize, iconSize, 1, 1, 1, 1)
     end
     panel:drawText(village.name, 290, 78, 1, 1, 1, 1, UIFont.Large)
-    panel:drawText("Village XP: " .. tostring(village.xp or 0), 290, 115, 0.85, 0.85, 0.9, 1, UIFont.Medium)
+    panel:drawText(
+        text("UI_NL_Social_VillageXP", tostring(village.xp or 0)),
+        290, 115, 0.85, 0.85, 0.9, 1, UIFont.Medium
+    )
 
     local highestRank = "None"
     local rankOrder = { D = 1, C = 2, B = 3, A = 4, S = 5 }
@@ -194,7 +197,10 @@ function SocialPanel:drawVillage(panel, w)
             highestRank = rank
         end
     end
-    panel:drawText("Mission Ranks: " .. highestRank, 290, 145, 0.85, 0.85, 0.9, 1, UIFont.Medium)
+    panel:drawText(
+        text("UI_NL_Social_MissionRanks", highestRank),
+        290, 145, 0.85, 0.85, 0.9, 1, UIFont.Medium
+    )
 
     local title = village.title or "Kage"
     panel:drawText(title .. ": " .. tostring(
