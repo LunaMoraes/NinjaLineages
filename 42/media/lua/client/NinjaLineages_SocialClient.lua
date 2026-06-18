@@ -164,7 +164,9 @@ local function onServerCommand(module, command, args)
         refreshSocialViews()
     elseif command == "socialResult" then
         if args and args.ok then
-            if args.reason ~= "declined" then
+            if args.reason == "village_team_created" then
+                say(translated("UI_NL_Social_PromptAddMembers", "Empty team created. Click the slots to add members."))
+            elseif args.reason ~= "declined" then
                 say(translated("UI_NL_Social_ActionComplete", "Social action completed."))
             end
         else

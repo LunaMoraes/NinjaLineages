@@ -344,35 +344,83 @@ function NLJutsuTreeUI:initialise()
             local village = NinjaLineages.Social.getMyVillage(self.player)
             panel:drawTextCentre(text("UI_NL_Social_VillageTeams") or "Village Teams", w / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large)
             if village then
-                local y = 100
-                for _, teamID in ipairs(village.teamIDs or {}) do
-                    local team = NinjaLineages.Social.getSnapshot().teams[teamID]
-                    if team then
-                        panel:drawText(team.name .. " (" .. tostring(#(team.members or {})) .. "/3)", 60, y, 1, 1, 1, 1, UIFont.Medium)
-                        local memberY = y + 25
-                        for _, memberKey in ipairs(team.members or {}) do
-                            panel:drawText(
-                                "- " .. tostring((team.memberNames and team.memberNames[memberKey]) or memberKey),
-                                80, memberY, 0.86, 0.86, 0.9, 1, UIFont.Small
-                            )
-                            memberY = memberY + 20
+                local teamIDs = village.teamIDs or {}
+                if #teamIDs == 0 then
+                    panel:drawTextCentre(text("UI_NL_Social_NoVillageTeams") or "No teams in this village.", w / 2, 120, 0.8, 0.8, 0.85, 1, UIFont.Medium)
+                else
+                    local boxW = 180
+                    local spacing = 20
+                    local startX = (w - (#teamIDs * boxW + (#teamIDs - 1) * spacing)) / 2
+                    local colY = 100
+
+                    for i, teamID in ipairs(teamIDs) do
+                        local team = NinjaLineages.Social.getSnapshot().teams[teamID]
+                        if team then
+                            local colX = startX + (i - 1) * (boxW + spacing)
+                            
+                            -- Draw Team Box (Grey Border)
+                            panel:drawRectBorder(colX, colY, boxW, 210, 0.85, 0.34, 0.34, 0.42)
+
+                            -- Draw Team Name
+                            panel:drawTextCentre(team.name, colX + boxW / 2, colY + 10, 0.95, 0.85, 0.65, 1, UIFont.Medium)
+
+                            -- Leader Box (Dark border, lighter when hovered)
+                            local leaderX = colX + 15
+                            local leaderY = colY + 35
+                            local leaderW = 150
+                            local leaderH = 45
+                            local leaderBtn = self.slotButtons and self.slotButtons[teamID .. "_leader"]
+                            local leaderHovered = leaderBtn and leaderBtn:isMouseOver()
+                            local lbr, lbg, lbb = 0.22, 0.22, 0.28
+                            if leaderHovered then lbr, lbg, lbb = 0.50, 0.50, 0.62 end
+                            panel:drawRectBorder(leaderX, leaderY, leaderW, leaderH, 0.85, lbr, lbg, lbb)
+                            local leaderName = "[Leader]"
+                            local lr, lg, lb = 0.5, 0.5, 0.5
+                            if team.leaderKey and team.leaderKey ~= "" then
+                                leaderName = village.memberNames and village.memberNames[team.leaderKey] or team.leaderKey
+                                lr, lg, lb = 0.9, 0.9, 0.95
+                            end
+                            panel:drawTextCentre(leaderName, leaderX + leaderW / 2, leaderY + leaderH / 2 - 8, lr, lg, lb, 1, UIFont.Small)
+
+                            -- Member 1 Box
+                            local m1X = colX + 15
+                            local m1Y = colY + 95
+                            local m1W = 70
+                            local m1H = 95
+                            local m1Btn = self.slotButtons and self.slotButtons[teamID .. "_member1"]
+                            local m1Hovered = m1Btn and m1Btn:isMouseOver()
+                            local m1br, m1bg, m1bb = 0.22, 0.22, 0.28
+                            if m1Hovered then m1br, m1bg, m1bb = 0.50, 0.50, 0.62 end
+                            panel:drawRectBorder(m1X, m1Y, m1W, m1H, 0.85, m1br, m1bg, m1bb)
+                            local m1Name = "[M1]"
+                            local m1r, m1g, m1b = 0.5, 0.5, 0.5
+                            if team.member1Key and team.member1Key ~= "" then
+                                m1Name = village.memberNames and village.memberNames[team.member1Key] or team.member1Key
+                                m1r, m1g, m1b = 0.9, 0.9, 0.95
+                            end
+                            drawMemberName(panel, m1Name, m1X, m1Y, m1W, m1H, m1r, m1g, m1b)
+
+                            -- Member 2 Box
+                            local m2X = colX + 95
+                            local m2Y = colY + 95
+                            local m2W = 70
+                            local m2H = 95
+                            local m2Btn = self.slotButtons and self.slotButtons[teamID .. "_member2"]
+                            local m2Hovered = m2Btn and m2Btn:isMouseOver()
+                            local m2br, m2bg, m2bb = 0.22, 0.22, 0.28
+                            if m2Hovered then m2br, m2bg, m2bb = 0.50, 0.50, 0.62 end
+                            panel:drawRectBorder(m2X, m2Y, m2W, m2H, 0.85, m2br, m2bg, m2bb)
+                            local m2Name = "[M2]"
+                            local m2r, m2g, m2b = 0.5, 0.5, 0.5
+                            if team.member2Key and team.member2Key ~= "" then
+                                m2Name = village.memberNames and village.memberNames[team.member2Key] or team.member2Key
+                                m2r, m2g, m2b = 0.9, 0.9, 0.95
+                            end
+                            drawMemberName(panel, m2Name, m2X, m2Y, m2W, m2H, m2r, m2g, m2b)
                         end
-                        y = memberY + 15
-                    else
-                        panel:drawText("Team ID: " .. tostring(teamID), 60, y, 0.6, 0.6, 0.7, 1, UIFont.Small)
-                        y = y + 25
                     end
                 end
-                if #(village.teamIDs or {}) == 0 then
-                    panel:drawTextCentre(text("UI_NL_Social_NoVillageTeams") or "No teams in this village.", w / 2, 120, 0.8, 0.8, 0.85, 1, UIFont.Medium)
-                end
             end
-        elseif self.screen == "village_team_create" then
-            panel:drawTextCentre(text("UI_NL_Social_CreateTeam") or "Create Team", w / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large)
-            panel:drawText("Team Name:", w / 2 - 130, 100, 0.9, 0.9, 0.95, 1, UIFont.Small)
-            panel:drawText("Select Leader:", w / 2 - 130, 160, 0.9, 0.9, 0.95, 1, UIFont.Small)
-            panel:drawText("Select Member 1 (Optional):", w / 2 - 130, 220, 0.9, 0.9, 0.95, 1, UIFont.Small)
-            panel:drawText("Select Member 2 (Optional):", w / 2 - 130, 280, 0.9, 0.9, 0.95, 1, UIFont.Small)
         elseif self.screen == "village_create" then
             local symbolTexture = self.availableSymbols and self.availableSymbols[self.selectedVillageSymbolIndex or 1] or nil
             panel:drawTextCentre(text("UI_NL_Tree_FoundHiddenVillage"), w / 2, 35, 0.95, 0.85, 0.65, 1, UIFont.Large)
@@ -427,6 +475,7 @@ function NLJutsuTreeUI:clearControls()
     self.leaderCombo = nil
     self.member1Combo = nil
     self.member2Combo = nil
+    self.slotButtons = nil
 
     self.contentPanel:clearChildren()
     self.contentPanel.joypadButtons = {}
@@ -821,8 +870,8 @@ function NLJutsuTreeUI:createVillageCreationScreen()
 
     -- 2. Symbol Navigation buttons next to the preview
     local previewX = (w - 180) / 2
-    self.symbolPrevBtn = self:addButton(previewX - 70, 216, 50, 38, "<", self, NLJutsuTreeUI.onPreviousVillageSymbol)
-    self.symbolNextBtn = self:addButton(previewX + 180 + 20, 216, 50, 38, ">", self, NLJutsuTreeUI.onNextVillageSymbol)
+    self.symbolPrevBtn = self:addButton(previewX - 105, 216, 50, 38, "<", self, NLJutsuTreeUI.onPreviousVillageSymbol)
+    self.symbolNextBtn = self:addButton(previewX + 180 + 55, 216, 50, 38, ">", self, NLJutsuTreeUI.onNextVillageSymbol)
 
     -- 3. Name input field
     self.nameEntry = ISTextEntryBox:new("", w / 2 - 130, 365, 260, 24)
@@ -847,13 +896,23 @@ end
 function NLJutsuTreeUI:onPreviousVillageSymbol()
     local count = #self.availableSymbols
     if count == 0 then return end
-    self.selectedVillageSymbolIndex = ((self.selectedVillageSymbolIndex or 1) - 2) % count + 1
+    local current = self.selectedVillageSymbolIndex or 1
+    current = current - 1
+    if current < 1 then
+        current = count
+    end
+    self.selectedVillageSymbolIndex = current
 end
 
 function NLJutsuTreeUI:onNextVillageSymbol()
     local count = #self.availableSymbols
     if count == 0 then return end
-    self.selectedVillageSymbolIndex = (self.selectedVillageSymbolIndex or 1) % count + 1
+    local current = self.selectedVillageSymbolIndex or 1
+    current = current + 1
+    if current > count then
+        current = 1
+    end
+    self.selectedVillageSymbolIndex = current
 end
 
 function NLJutsuTreeUI:onConfirmFoundVillage()
@@ -892,6 +951,39 @@ function NLJutsuTreeUI:onConfirmFoundVillage()
     })
 end
 
+local function getNextDefaultTeamName(village)
+    local index = 1
+    local snapshot = NinjaLineages.Social.getSnapshot()
+    while true do
+        local name = string.format("Team %02d", index)
+        local taken = false
+        for _, teamID in ipairs(village.teamIDs or {}) do
+            local team = snapshot.teams[teamID]
+            if team and team.name == name then
+                taken = true
+                break
+            end
+        end
+        if not taken then
+            return name
+        end
+        index = index + 1
+    end
+end
+
+local function drawMemberName(panel, name, x, y, w, h, r, g, b)
+    local words = {}
+    for word in string.gmatch(name, "%S+") do
+        table.insert(words, word)
+    end
+    if #words == 1 then
+        panel:drawTextCentre(words[1], x + w/2, y + h/2 - 8, r, g, b, 1, UIFont.Small)
+    elseif #words >= 2 then
+        panel:drawTextCentre(words[1], x + w/2, y + h/2 - 14, r, g, b, 1, UIFont.Small)
+        panel:drawTextCentre(words[2], x + w/2, y + h/2 + 2, r, g, b, 1, UIFont.Small)
+    end
+end
+
 function NLJutsuTreeUI:createVillageScreen()
     self:clearControls()
     self.screen = "village"
@@ -914,7 +1006,7 @@ function NLJutsuTreeUI:createVillageScreen()
             local textWidth = getTextManager():MeasureStringX(UIFont.Large, village.name)
             self.renameVillageButton = self:addButton(
                 290 + textWidth + 15,
-                75,
+                82,
                 70,
                 24,
                 text("UI_NL_Social_Rename") or "Rename",
@@ -941,103 +1033,114 @@ function NLJutsuTreeUI:createVillageTeamsScreen()
             local w = self.contentPanel.width
             self:addButton(w - 180, 20, 160, 32, text("UI_NL_Social_CreateTeam") or "Create Team", self, NLJutsuTreeUI.onCreateVillageTeam)
         end
+
+        local teamIDs = village.teamIDs or {}
+        local boxW = 180
+        local spacing = 20
+        local w = self.contentPanel.width
+        local startX = (w - (#teamIDs * boxW + (#teamIDs - 1) * spacing)) / 2
+        local colY = 100
+
+        for i, teamID in ipairs(teamIDs) do
+            local team = NinjaLineages.Social.getSnapshot().teams[teamID]
+            if team then
+                local colX = startX + (i - 1) * (boxW + spacing)
+
+                local isTeamLeader = team.leaderKey and NinjaLineages.Social.getPlayerKey(self.player, true) == team.leaderKey
+                if isVillageKage or isTeamLeader then
+                    local nameBtn = self:addButton(colX, colY + 5, boxW, 24, "", self, function() self:onRenameTeamName(teamID) end)
+                    nameBtn.background = false
+                    nameBtn.border = false
+                end
+
+                if isVillageKage then
+                    local leaderBtn = self:addButton(colX + 15, colY + 35, 150, 45, "", self, function() self:onSelectSlot(teamID, "leader") end)
+                    leaderBtn.background = false
+                    leaderBtn.border = false
+
+                    local m1Btn = self:addButton(colX + 15, colY + 95, 70, 95, "", self, function() self:onSelectSlot(teamID, "member1") end)
+                    m1Btn.background = false
+                    m1Btn.border = false
+
+                    local m2Btn = self:addButton(colX + 95, colY + 95, 70, 95, "", self, function() self:onSelectSlot(teamID, "member2") end)
+                    m2Btn.background = false
+                    m2Btn.border = false
+                end
+            end
+        end
     end
 end
 
 function NLJutsuTreeUI:onCreateVillageTeam()
-    self:createVillageTeamCreateScreen()
+    local village = NinjaLineages.Social.getMyVillage(self.player)
+    if not village then return end
+
+    local defaultName = getNextDefaultTeamName(village)
+    NinjaLineages.Social.request(self.player, "socialCreateVillageTeam", {
+        name = defaultName,
+    })
 end
 
-function NLJutsuTreeUI:createVillageTeamCreateScreen()
-    self:clearControls()
-    self.screen = "village_team_create"
-    local w, h = self.contentPanel.width, self.contentPanel.height
-    self:addButton(20, 20, 100, 32, text("UI_NL_Tree_Back"), self, NLJutsuTreeUI.createVillageTeamsScreen)
-
+function NLJutsuTreeUI:onSelectSlot(teamID, slot)
     local village = NinjaLineages.Social.getMyVillage(self.player)
     if not village then return end
 
     local snapshot = NinjaLineages.Social.getSnapshot()
-    local eligibleMembers = {}
+    local team = snapshot.teams[teamID]
+    if not team then return end
+
+    local currentOccupant
+    if slot == "leader" then currentOccupant = team.leaderKey
+    elseif slot == "member1" then currentOccupant = team.member1Key
+    elseif slot == "member2" then currentOccupant = team.member2Key
+    end
+
+    local menu = ISContextMenu.get(self.playerNum, getMouseX(), getMouseY())
+
+    if currentOccupant and currentOccupant ~= "" then
+        local occupantName = village.memberNames and village.memberNames[currentOccupant] or currentOccupant
+        menu:addOption("Remove " .. occupantName, self, self.assignSlot, teamID, slot, nil)
+    end
+
     for _, memberKey in ipairs(village.members or {}) do
-        if not snapshot.playerTeams[memberKey] then
-            table.insert(eligibleMembers, memberKey)
+        if not snapshot.playerTeams[memberKey] or snapshot.playerTeams[memberKey] == teamID then
+            if memberKey ~= currentOccupant then
+                local displayName = village.memberNames and village.memberNames[memberKey] or memberKey
+                menu:addOption(displayName, self, self.assignSlot, teamID, slot, memberKey)
+            end
         end
     end
-
-    -- 1. Team Name input field
-    self.villageTeamNameEntry = ISTextEntryBox:new("", w / 2 - 130, 120, 260, 24)
-    self.villageTeamNameEntry:initialise()
-    self.villageTeamNameEntry:instantiate()
-    self.contentPanel:addChild(self.villageTeamNameEntry)
-
-    -- 2. Leader ComboBox
-    self.leaderCombo = ISComboBox:new(w / 2 - 130, 180, 260, 24, self, nil)
-    self.leaderCombo:initialise()
-    self.leaderCombo:instantiate()
-    self.contentPanel:addChild(self.leaderCombo)
-
-    -- 3. Member 1 ComboBox (Optional)
-    self.member1Combo = ISComboBox:new(w / 2 - 130, 240, 260, 24, self, nil)
-    self.member1Combo:initialise()
-    self.member1Combo:instantiate()
-    self.contentPanel:addChild(self.member1Combo)
-    self.member1Combo:addOptionWithData("[None]", "")
-
-    -- 4. Member 2 ComboBox (Optional)
-    self.member2Combo = ISComboBox:new(w / 2 - 130, 300, 260, 24, self, nil)
-    self.member2Combo:initialise()
-    self.member2Combo:instantiate()
-    self.contentPanel:addChild(self.member2Combo)
-    self.member2Combo:addOptionWithData("[None]", "")
-
-    -- Populate
-    for _, mKey in ipairs(eligibleMembers) do
-        local displayName = village.memberNames and village.memberNames[mKey] or mKey
-        self.leaderCombo:addOptionWithData(displayName, mKey)
-        self.member1Combo:addOptionWithData(displayName, mKey)
-        self.member2Combo:addOptionWithData(displayName, mKey)
-    end
-
-    -- 5. Submit Button
-    self.createTeamSubmitBtn = self:addButton(
-        w / 2 - 130,
-        350,
-        260,
-        40,
-        text("UI_NL_Social_Create") or "Create",
-        self,
-        NLJutsuTreeUI.onConfirmCreateTeam
-    )
 end
 
-function NLJutsuTreeUI:onConfirmCreateTeam()
-    local name = self.villageTeamNameEntry:getText()
-    if not name or name:trim() == "" then
-        return
-    end
-
-    local leaderKey = self.leaderCombo:getSelectedData()
-    if not leaderKey or leaderKey == "" then
-        return
-    end
-
-    local member1Key = self.member1Combo:getSelectedData()
-    local member2Key = self.member2Combo:getSelectedData()
-
-    local memberKeys = {}
-    if member1Key and member1Key ~= "" and member1Key ~= leaderKey then
-        table.insert(memberKeys, member1Key)
-    end
-    if member2Key and member2Key ~= "" and member2Key ~= leaderKey and member2Key ~= member1Key then
-        table.insert(memberKeys, member2Key)
-    end
-
-    NinjaLineages.Social.request(self.player, "socialCreateVillageTeam", {
-        name = name,
-        leaderKey = leaderKey,
-        memberKeys = memberKeys,
+function NLJutsuTreeUI:assignSlot(teamID, slot, targetKey)
+    NinjaLineages.Social.request(self.player, "socialAssignTeamMember", {
+        teamID = teamID,
+        slot = slot,
+        targetKey = targetKey,
     })
+end
+
+local function onTeamRenameEnteredFromTeams(ui, button, teamID)
+    if button.internal ~= "OK" then return end
+    local name = button.parent.entry:getText()
+    if not name or name:trim() == "" then return end
+    NinjaLineages.Social.request(ui.player, "socialRenameTeam", {
+        teamID = teamID,
+        name = name,
+    })
+end
+
+function NLJutsuTreeUI:onRenameTeamName(teamID)
+    local snapshot = NinjaLineages.Social.getSnapshot()
+    local team = snapshot.teams[teamID]
+    if not team then return end
+    local box = ISTextBox:new(
+        0, 0, 440, 160, text("UI_NL_Social_RenameTeam"), team.name or "",
+        self, onTeamRenameEnteredFromTeams, self.playerNum, teamID
+    )
+    box:initialise()
+    box.entry:setMaxTextLength(32)
+    box:addToUIManager()
 end
 
 local function onVillageRenameEntered(ui, button)

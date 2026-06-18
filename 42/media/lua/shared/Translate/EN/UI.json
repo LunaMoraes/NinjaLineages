@@ -338,5 +338,6 @@
     "UI_NL_Social_Cancel": "Cancel",
     "UI_NL_Social_Error_invalid_leader": "Selected leader is not eligible.",
     "UI_NL_Social_Error_village_title_taken": "That Kage title is already in use.",
-    "UI_NL_Social_Error_invalid_title": "That Kage title is not valid."
+    "UI_NL_Social_Error_invalid_title": "That Kage title is not valid.",
+    "UI_NL_Social_PromptAddMembers": "Empty team created. Click the slots to add members."
 }

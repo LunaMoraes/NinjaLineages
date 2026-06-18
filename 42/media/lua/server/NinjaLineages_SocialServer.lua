@@ -437,9 +437,29 @@ end
 
 function handlers.socialRenameTeam(player, args)
     local playerKey = Social.getPlayerKey(player, false)
-    local teamID = playerKey and state.playerTeams[playerKey]
+    local teamID = args and args.teamID
     local team = teamID and state.teams[teamID]
-    if not team or team.leaderKey ~= playerKey then return false, "not_team_leader" end
+
+    if not team then
+        teamID = playerKey and state.playerTeams[playerKey]
+        team = teamID and state.teams[teamID]
+    end
+
+    if not team then return false, "no_team" end
+
+    local isAuthorized = false
+    if team.leaderKey == playerKey then
+        isAuthorized = true
+    else
+        local villageID = team.villageID
+        local village = villageID and state.villages[villageID]
+        if village and village.kageKey == playerKey then
+            isAuthorized = true
+        end
+    end
+
+    if not isAuthorized then return false, "not_team_leader" end
+
     local name = Social.validateDisplayName(args and args.name)
     if not name then return false, "invalid_name" end
     team.name = name
@@ -581,40 +601,88 @@ function handlers.socialCreateVillageTeam(player, args)
     local name = Social.validateDisplayName(args and args.name)
     if not name then return false, "invalid_name" end
 
-    local leaderKey = args and args.leaderKey
-    if not leaderKey or state.playerVillages[leaderKey] ~= villageID or state.playerTeams[leaderKey] then
-        return false, "invalid_leader"
-    end
-
     local teamID = id("team_", "nextTeamID")
-    local members = { leaderKey }
-    local memberNames = {
-        [leaderKey] = village.memberNames[leaderKey] or "Unknown"
-    }
-
-    if args.memberKeys then
-        for _, mKey in ipairs(args.memberKeys) do
-            if mKey ~= leaderKey and state.playerVillages[mKey] == villageID and not state.playerTeams[mKey] and #members < 3 then
-                table.insert(members, mKey)
-                memberNames[mKey] = village.memberNames[mKey] or "Unknown"
-            end
-        end
-    end
-
     state.teams[teamID] = {
         id = teamID,
         name = name,
-        leaderKey = leaderKey,
-        members = members,
-        memberNames = memberNames,
+        leaderKey = nil,
+        members = {},
+        memberNames = {},
         villageID = villageID,
+        member1Key = nil,
+        member2Key = nil,
     }
 
-    for _, mKey in ipairs(members) do
-        state.playerTeams[mKey] = teamID
+    table.insert(village.teamIDs, teamID)
+    return true, "village_team_created"
+end
+
+function handlers.socialAssignTeamMember(player, args)
+    local playerKey = Social.getPlayerKey(player, false)
+    local villageID = playerKey and state.playerVillages[playerKey]
+    local village = villageID and state.villages[villageID]
+    if not village or village.kageKey ~= playerKey then return false, "not_kage" end
+
+    local teamID = args and args.teamID
+    local team = teamID and state.teams[teamID]
+    if not team or team.villageID ~= villageID then return false, "invalid_team" end
+
+    local slot = args and args.slot -- "leader", "member1", "member2"
+    local targetKey = args and args.targetKey
+
+    if targetKey == "" then targetKey = nil end
+
+    if targetKey then
+        if state.playerVillages[targetKey] ~= villageID then return false, "target_not_in_village" end
+        local existingTeamID = state.playerTeams[targetKey]
+        if existingTeamID and existingTeamID ~= teamID then return false, "target_has_team" end
     end
 
-    table.insert(village.teamIDs, teamID)
+    -- Remove target from their current slot in this team if they are already in the team in a different slot
+    if targetKey then
+        if slot ~= "leader" and team.leaderKey == targetKey then team.leaderKey = nil end
+        if slot ~= "member1" and team.member1Key == targetKey then team.member1Key = nil end
+        if slot ~= "member2" and team.member2Key == targetKey then team.member2Key = nil end
+    end
+
+    -- Assign slot and identify what key was replaced
+    local oldKey
+    if slot == "leader" then
+        oldKey = team.leaderKey
+        team.leaderKey = targetKey
+    elseif slot == "member1" then
+        oldKey = team.member1Key
+        team.member1Key = targetKey
+    elseif slot == "member2" then
+        oldKey = team.member2Key
+        team.member2Key = targetKey
+    end
+
+    if oldKey then
+        state.playerTeams[oldKey] = nil
+    end
+    if targetKey then
+        state.playerTeams[targetKey] = teamID
+    end
+
+    -- Reconstruct members array and memberNames mapping
+    local members = {}
+    local memberNames = {}
+    if team.leaderKey then
+        table.insert(members, team.leaderKey)
+        memberNames[team.leaderKey] = village.memberNames[team.leaderKey] or "Unknown"
+    end
+    if team.member1Key then
+        table.insert(members, team.member1Key)
+        memberNames[team.member1Key] = village.memberNames[team.member1Key] or "Unknown"
+    end
+    if team.member2Key then
+        table.insert(members, team.member2Key)
+        memberNames[team.member2Key] = village.memberNames[team.member2Key] or "Unknown"
+    end
+    team.members = members
+    team.memberNames = memberNames
+
     return true
 end
 
