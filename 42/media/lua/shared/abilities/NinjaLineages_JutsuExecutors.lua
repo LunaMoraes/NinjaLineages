@@ -6,6 +6,7 @@ require "NinjaLineages_RinneganMechanics"
 require "NinjaLineages_Utils"
 require "combat/NinjaLineages_Targeting"
 require "combat/NinjaLineages_CombatRuntime"
+require "combat/NinjaLineages_EarthWall"
 require "lineages/NinjaLineages_KamuiState"
 require "disciplines/NinjaLineages_ScrollUtils"
 
@@ -493,6 +494,23 @@ specializedExecutors.katon = function(player, definition)
     }
 end
 
+specializedExecutors.earth_wall = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+
+    local placement, placementReason = NinjaLineages.EarthWall.validatePlacement(player)
+    if not placement then return false, placementReason end
+
+    commit(player, definition, resolved, cost)
+    local wall = NinjaLineages.EarthWall.spawn(player, placement, resolved.duration)
+    if not wall then return false, "blocked_placement" end
+    NinjaLineages.transmitPlayerData(player)
+    return true
+end
+
 
 specializedExecutors.chakra_needle = function(player, definition, args)
     local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
@@ -505,26 +523,32 @@ specializedExecutors.chakra_needle = function(player, definition, args)
     local target = targets[1]
     if not target then return false, "no_target" end
 
-    -- Delay authoritative damage until the client-side needle reaches the target.
+    local projectileDefinition = definition.projectile or {}
     local projectileConfig = {
         casterObject = player,
         casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
         abilityId = definition.id,
+        trackingType = projectileDefinition.trackingType or "homing",
         originX = player:getX(),
         originY = player:getY(),
+        originZ = math.floor(player:getZ()),
         targetKind = target.kind,
         targetObject = target.object,
         targetOnlineId = target.onlineId,
         targetX = target.x,
         targetY = target.y,
         speed = 20,
+        maximumTravelDistance = resolved.targeting.range * 2,
         damagePayload = {
             damage = rollDamage(resolved),
             controlTier = resolved.control and resolved.control.tier or nil,
         },
+        collisionMask = NinjaLineages.Collision.Masks[
+            projectileDefinition.collisionMask or "jutsu_projectile"
+        ],
     }
 
-    NinjaLineages.CombatRuntime.createProjectile(projectileConfig)
+    local projectile = NinjaLineages.CombatRuntime.createProjectile(projectileConfig)
 
     commit(player, definition, resolved, cost)
     NinjaLineages.transmitPlayerData(player)
@@ -532,6 +556,7 @@ specializedExecutors.chakra_needle = function(player, definition, args)
     return true, nil, nil, {
         event = {
             kind = "chakra_needle_line",
+            projectileId = projectile.projectileId,
             fromX = player:getX(),
             fromY = player:getY(),
             fromZ = math.floor(player:getZ()),

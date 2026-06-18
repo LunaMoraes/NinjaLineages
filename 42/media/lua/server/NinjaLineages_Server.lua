@@ -73,6 +73,9 @@ local function updateAbilities()
     if NinjaLineages.CombatRuntime then
         NinjaLineages.CombatRuntime.update()
     end
+    if NinjaLineages.EarthWall then
+        NinjaLineages.EarthWall.update()
+    end
     NinjaLineages.AbilityAuthority.updateWorld()
 
     forEachOnlinePlayer(function(player)

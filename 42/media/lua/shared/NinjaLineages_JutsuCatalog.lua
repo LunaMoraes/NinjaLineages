@@ -197,7 +197,7 @@ Catalog.Definitions = {
         executor = "katon",
     },
     {
-        id = "pressure_point_pulse",
+        id = "earth_wall",
         category = "common",
         node = {
             discipline = "ninjutsu", rank = "CHUNIN", order = 20,
@@ -205,17 +205,16 @@ Catalog.Definitions = {
         },
         handSigns = { "ram", "ox", "snake" },
         balance = {
-            cost = "ADVANCED", cooldown = "LONG", targeting = "SMALL_CLUSTER",
-            damage = "LIGHT", control = "CHUNIN",
+            cost = "ADVANCED", cooldown = "LONG", duration = "LONG",
         },
-        effect = { kind = "cluster_damage" },
+        executor = "earth_wall",
     },
     {
         id = "shadow_close",
         category = "common",
         node = {
             discipline = "ninjutsu", rank = "JONIN", order = 10,
-            prerequisites = { "katon", "pressure_point_pulse" },
+            prerequisites = { "katon", "earth_wall" },
         },
         handSigns = { "bird", "rat", "tiger" },
         balance = {
@@ -285,6 +284,12 @@ Catalog.Definitions = {
             damage = "LIGHT", control = "GENIN",
         },
         executor = "chakra_needle",
+        projectile = {
+            trackingType = "homing",
+            visual = "chakra_needle_line",
+            collisionMask = "jutsu_projectile",
+            targetPriority = "zombie_then_hostile_player",
+        },
     },
     {
         id = "nervous_system_shock",
@@ -478,6 +483,7 @@ local specializedExecutors = {
     katon = true,
     calorie_control = true,
     chakra_needle = true,
+    earth_wall = true,
     nervous_system_shock = true,
     projectile_jutsu = true,
 }

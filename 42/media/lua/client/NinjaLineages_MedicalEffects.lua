@@ -52,7 +52,10 @@ function NinjaLineages.MedicalEffects.addProjectile(args)
     local dy = args.toY - args.fromY
     local dz = args.toZ - args.fromZ
     local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
-    table.insert(activeProjectiles, {
+    local projectileId = args.projectileId
+        or ("legacy_" .. tostring(NinjaLineages.Utils.Time.realMilliseconds()))
+    activeProjectiles[projectileId] = {
+        projectileId = projectileId,
         fromX = args.fromX,
         fromY = args.fromY,
         fromZ = args.fromZ,
@@ -64,7 +67,17 @@ function NinjaLineages.MedicalEffects.addProjectile(args)
         distance = distance,
         color = consts.COLOR,
         thickness = consts.THICKNESS,
-    })
+    }
+end
+
+function NinjaLineages.MedicalEffects.resolveProjectile(args)
+    if not args or not args.projectileId then return end
+    local projectile = activeProjectiles[args.projectileId]
+    if not projectile then return end
+    projectile.resolvedX = args.x
+    projectile.resolvedY = args.y
+    projectile.resolvedZ = args.z
+    projectile.resolvedAtMs = NinjaLineages.Utils.Time.realMilliseconds()
 end
 
 local function renderEffects()
@@ -88,37 +101,59 @@ local function renderEffects()
         end
     end
 
-    for i = #activeProjectiles, 1, -1 do
-        local proj = activeProjectiles[i]
-        local elapsed = nowGameMinutes - proj.startGameMinutes
-        local totalTime = proj.distance / proj.speed
-        local progress = totalTime > 0 and (elapsed / totalTime) or 1
-
-        if progress >= 1 then
-            table.remove(activeProjectiles, i)
-        else
-            local cx = proj.fromX + (proj.toX - proj.fromX) * progress
-            local cy = proj.fromY + (proj.toY - proj.fromY) * progress
-            local cz = proj.fromZ + (proj.toZ - proj.fromZ) * progress
-
-            local dirX = proj.toX - proj.fromX
-            local dirY = proj.toY - proj.fromY
-            local dirLen = math.sqrt(dirX * dirX + dirY * dirY)
-            if dirLen > 0 then
-                dirX = dirX / dirLen
-                dirY = dirY / dirLen
+    for projectileId, proj in pairs(activeProjectiles) do
+        if proj.resolvedAtMs then
+            if nowMs - proj.resolvedAtMs >= 100 then
+                activeProjectiles[projectileId] = nil
+            else
+                local dirX = proj.toX - proj.fromX
+                local dirY = proj.toY - proj.fromY
+                local dirLen = math.sqrt(dirX * dirX + dirY * dirY)
+                if dirLen > 0 then
+                    dirX = dirX / dirLen
+                    dirY = dirY / dirLen
+                end
+                renderIsoLine(
+                    proj.resolvedX, proj.resolvedY, proj.resolvedZ,
+                    proj.resolvedX + dirX * 0.15,
+                    proj.resolvedY + dirY * 0.15,
+                    proj.resolvedZ,
+                    proj.thickness * 1.5,
+                    proj.color.R, proj.color.G, proj.color.B,
+                    0.95
+                )
             end
+        else
+            local elapsed = nowGameMinutes - proj.startGameMinutes
+            local totalTime = proj.distance / proj.speed
+            local progress = totalTime > 0 and (elapsed / totalTime) or 1
 
-            local endX = cx + dirX * 0.15
-            local endY = cy + dirY * 0.15
+            if progress >= 1 then
+                activeProjectiles[projectileId] = nil
+            else
+                local cx = proj.fromX + (proj.toX - proj.fromX) * progress
+                local cy = proj.fromY + (proj.toY - proj.fromY) * progress
+                local cz = proj.fromZ + (proj.toZ - proj.fromZ) * progress
 
-            renderIsoLine(
-                cx, cy, cz,
-                endX, endY, cz,
-                proj.thickness * 1.5,
-                proj.color.R, proj.color.G, proj.color.B,
-                0.95
-            )
+                local dirX = proj.toX - proj.fromX
+                local dirY = proj.toY - proj.fromY
+                local dirLen = math.sqrt(dirX * dirX + dirY * dirY)
+                if dirLen > 0 then
+                    dirX = dirX / dirLen
+                    dirY = dirY / dirLen
+                end
+
+                local endX = cx + dirX * 0.15
+                local endY = cy + dirY * 0.15
+
+                renderIsoLine(
+                    cx, cy, cz,
+                    endX, endY, cz,
+                    proj.thickness * 1.5,
+                    proj.color.R, proj.color.G, proj.color.B,
+                    0.95
+                )
+            end
         end
     end
 end

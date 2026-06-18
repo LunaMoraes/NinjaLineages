@@ -158,6 +158,7 @@ local errorMessages = {
     locked = "UI_NL_Error_MangekyoLocked",
     no_wounds = "UI_NL_NoWounds",
     invalid_item = "UI_NL_Error_NoAlarmSealItem",
+    blocked_placement = "UI_NL_Error_EarthWallBlocked",
 }
 
 local function abilityDisplayName(actionId)
@@ -287,6 +288,11 @@ function Authority.handleEvent(args)
             elseif NinjaLineages.MedicalEffects.addLine then
                 NinjaLineages.MedicalEffects.addLine(args)
             end
+        end
+    elseif args.kind == "projectile_resolved" then
+        if NinjaLineages.MedicalEffects
+                and NinjaLineages.MedicalEffects.resolveProjectile then
+            NinjaLineages.MedicalEffects.resolveProjectile(args)
         end
     elseif args.kind == "nervous_system_shock_lines" then
         if NinjaLineages.MedicalEffects and NinjaLineages.MedicalEffects.addLines then

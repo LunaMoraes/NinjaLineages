@@ -33,7 +33,11 @@ function NinjaLineages.Damage.applyPlayerDamage(caster, targetPlayer, payload)
 end
 
 function NinjaLineages.Damage.applyBarrierDamage(caster, barrier, payload)
-    return false
+    if not barrier or not barrier.Damage then return false, 0 end
+    local structuralDamage = math.max(0, tonumber(payload and payload.damage) or 0) * 100
+    if structuralDamage <= 0 then return false, 0 end
+    local ok = pcall(function() barrier:Damage(structuralDamage) end)
+    return ok, structuralDamage
 end
 
 function NinjaLineages.Damage.applyControlToTarget(caster, target, controlTier)
