@@ -189,8 +189,7 @@ function NLJutsuTreeUI:initialise()
             local boxX = margin + 15
             local boxY = statusY + 20
             panel:drawText("STATUS", boxX, boxY, 1, 1, 1, 1, UIFont.Medium)
-            panel:drawText("Rank: " .. text("UI_NL_Rank_" .. NinjaLineages.Progression.getNinjaRank(self.player)), boxX, boxY + 35, 0.85, 0.85, 0.9, 1, UIFont.Small)
-            panel:drawText("Ninja XP: " .. math.floor(NinjaLineages.Progression.getNinjaXP(self.player)), boxX, boxY + 60, 0.85, 0.85, 0.9, 1, UIFont.Small)
+            panel:drawText("Rank: " .. text("UI_NL_Rank_" .. NinjaLineages.Progression.getNinjaRank(self.player)), boxX, boxY + 30, 0.85, 0.85, 0.9, 1, UIFont.Small)
 
             local rank = NinjaLineages.Progression.getNinjaRank(self.player)
             local rankImage = nil
@@ -202,32 +201,27 @@ function NLJutsuTreeUI:initialise()
                 rankImage = "media/ui/jutsuTree/ranks/jounin.png"
             end
 
-            local village = NinjaLineages.Social.getMyVillage(self.player)
             local imgSize = 96
             local imgX = margin + math.floor((leftWidth - margin - imgSize) / 2)
 
+            if rankImage then
+                local tex = getTexture(rankImage)
+                if tex then
+                    panel:drawTextureScaled(tex, imgX, boxY + 50, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
+                end
+            end
+
+            panel:drawText("Ninja XP: " .. math.floor(NinjaLineages.Progression.getNinjaXP(self.player)), boxX, boxY + 155, 0.85, 0.85, 0.9, 1, UIFont.Small)
+
+            local village = NinjaLineages.Social.getMyVillage(self.player)
             if village then
-                panel:drawText("Village: " .. village.name, boxX, boxY + 85, 0.85, 0.85, 0.9, 1, UIFont.Small)
+                panel:drawText("Village: " .. village.name, boxX, boxY + 180, 0.85, 0.85, 0.9, 1, UIFont.Small)
 
                 local symbolTexture = NinjaLineages.Social.getSymbol(village.symbolID)
                 local texture = symbolTexture and getTexture(symbolTexture)
                 if texture then
-                    self:drawBandanaPlate(panel, imgX, boxY + 110, imgSize)
-                    panel:drawTextureScaled(texture, imgX, boxY + 110, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
-                end
-
-                if rankImage then
-                    local tex = getTexture(rankImage)
-                    if tex then
-                        panel:drawTextureScaled(tex, imgX, boxY + 240, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
-                    end
-                end
-            else
-                if rankImage then
-                    local tex = getTexture(rankImage)
-                    if tex then
-                        panel:drawTextureScaled(tex, imgX, boxY + 95, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
-                    end
+                    self:drawBandanaPlate(panel, imgX, boxY + 220, imgSize)
+                    panel:drawTextureScaled(texture, imgX, boxY + 220, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
                 end
             end
 
