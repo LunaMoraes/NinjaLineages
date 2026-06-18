@@ -570,6 +570,20 @@ end
 local function onPlayerConnected(player)
     ensureState()
     pruneInvites()
+    local playerKey = Social.getPlayerKey(player, false)
+    if playerKey then
+        local displayName = Social.getPlayerDisplayName(player)
+        local teamID = state.playerTeams[playerKey]
+        local team = teamID and state.teams[teamID]
+        if team and team.memberNames then
+            team.memberNames[playerKey] = displayName
+        end
+        local villageID = state.playerVillages[playerKey]
+        local village = villageID and state.villages[villageID]
+        if village and village.memberNames then
+            village.memberNames[playerKey] = displayName
+        end
+    end
     sendSnapshot(player)
 end
 

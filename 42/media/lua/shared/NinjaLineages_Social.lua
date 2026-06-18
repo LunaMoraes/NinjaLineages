@@ -97,7 +97,8 @@ end
 
 function Social.getPlayerDisplayName(player)
     return tostring(
-        safePlayerValue(player, "getDisplayName")
+        safePlayerValue(player, "getFullName")
+        or safePlayerValue(player, "getDisplayName")
         or safePlayerValue(player, "getUsername")
         or Social.getPlayerKey(player, true)
         or "Unknown"

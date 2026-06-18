@@ -75,6 +75,66 @@ local function drawDisabledSideButton(panel, button)
     )
 end
 
+function NLJutsuTreeUI:drawBandanaPlate(panel, iconX, iconY, iconSize)
+    local plateW = iconSize + 80
+    local plateH = iconSize + 30
+    local plateX = iconX - (plateW - iconSize) / 2
+    local plateY = iconY - (plateH - iconSize) / 2
+
+    -- 1. Draw metallic gradient strips
+    local yOffset = 0
+    local bands = {
+        { pct = 0.12, r = 0.50, g = 0.50, b = 0.53 },
+        { pct = 0.12, r = 0.60, g = 0.60, b = 0.63 },
+        { pct = 0.16, r = 0.70, g = 0.70, b = 0.73 },
+        { pct = 0.20, r = 0.85, g = 0.85, b = 0.88 },
+        { pct = 0.16, r = 0.75, g = 0.75, b = 0.78 },
+        { pct = 0.12, r = 0.62, g = 0.62, b = 0.65 },
+        { pct = 0.12, r = 0.52, g = 0.52, b = 0.55 }
+    }
+    for i, band in ipairs(bands) do
+        local h = math.floor(plateH * band.pct)
+        if i == #bands then
+            h = plateH - yOffset
+        end
+        panel:drawRect(plateX, plateY + yOffset, plateW, h, 1.0, band.r, band.g, band.b)
+        yOffset = yOffset + h
+    end
+
+    -- 2. Draw 3D Bevel borders
+    -- Top & Left edge highlights (white)
+    panel:drawLine(nil, plateX, plateY, plateX + plateW, plateY, 1, 0.90, 0.90, 0.95, 0.7)
+    panel:drawLine(nil, plateX, plateY, plateX, plateY + plateH, 1, 0.90, 0.90, 0.95, 0.7)
+    -- Bottom & Right edge shadows (dark grey)
+    panel:drawLine(nil, plateX, plateY + plateH - 1, plateX + plateW, plateY + plateH - 1, 1, 0.2, 0.2, 0.22, 0.8)
+    panel:drawLine(nil, plateX + plateW - 1, plateY, plateX + plateW - 1, plateY + plateH, 1, 0.2, 0.2, 0.22, 0.8)
+
+    -- 3. Draw strong double outer border
+    panel:drawRectBorder(plateX - 2, plateY - 2, plateW + 4, plateH + 4, 1.0, 0.1, 0.1, 0.12)
+    panel:drawRectBorder(plateX - 1, plateY - 1, plateW + 2, plateH + 2, 1.0, 0.35, 0.35, 0.38)
+
+    -- 4. Draw corner screws
+    local screwTex = getTexture("media/ui/NLScrew.png")
+    local screwSize = 14
+    local margin = 8
+    local positions = {
+        { x = plateX + margin, y = plateY + margin },
+        { x = plateX + plateW - margin - screwSize, y = plateY + margin },
+        { x = plateX + margin, y = plateY + plateH - margin - screwSize },
+        { x = plateX + plateW - margin - screwSize, y = plateY + plateH - margin - screwSize }
+    }
+    for _, pos in ipairs(positions) do
+        if screwTex then
+            panel:drawTextureScaled(screwTex, pos.x, pos.y, screwSize, screwSize, 1.0, 1.0, 1.0, 1.0)
+        else
+            -- Procedural rivet fallback (raised look)
+            panel:drawRect(pos.x, pos.y, screwSize, screwSize, 1.0, 0.6, 0.6, 0.62)
+            panel:drawRectBorder(pos.x, pos.y, screwSize, screwSize, 1.0, 0.2, 0.2, 0.22)
+            panel:drawRectBorder(pos.x + 1, pos.y + 1, screwSize - 2, screwSize - 2, 1.0, 0.8, 0.8, 0.82)
+        end
+    end
+end
+
 function NLJutsuTreeUI:initialise()
     ISCollapsableWindow.initialise(self)
     
@@ -240,14 +300,30 @@ function NLJutsuTreeUI:initialise()
             if village then
                 local symbolTexture = NinjaLineages.Social.getSymbol(village.symbolID)
                 local texture = symbolTexture and getTexture(symbolTexture)
-                if texture then panel:drawTextureScaled(texture, 60, 75, 128, 128, 1, 1, 1, 1) end
+                if texture then
+                    local iconX = 60
+                    local iconY = 75
+                    local iconSize = 128
+                    self:drawBandanaPlate(panel, iconX, iconY, iconSize)
+                    panel:drawTextureScaled(texture, iconX, iconY, iconSize, iconSize, 1, 1, 1, 1)
+                end
                 panel:drawText(village.name, 220, 78, 1, 1, 1, 1, UIFont.Large)
-                panel:drawText("Village ID: " .. tostring(village.id), 220, 120, 0.7, 0.7, 0.78, 1, UIFont.Small)
-                panel:drawText("Village XP: " .. tostring(village.xp or 0), 220, 145, 0.85, 0.85, 0.9, 1, UIFont.Medium)
-                panel:drawText(
-                    "Mission Ranks: " .. table.concat(village.unlockedMissionRanks or {}, ", "),
-                    220, 177, 0.85, 0.85, 0.9, 1, UIFont.Medium
-                )
+                panel:drawText("Village XP: " .. tostring(village.xp or 0), 220, 115, 0.85, 0.85, 0.9, 1, UIFont.Medium)
+                
+                local highestRank = "None"
+                if village.unlockedMissionRanks and #village.unlockedMissionRanks > 0 then
+                    local rankOrder = { D = 1, C = 2, B = 3, A = 4, S = 5 }
+                    local maxVal = 0
+                    for _, rank in ipairs(village.unlockedMissionRanks) do
+                        local val = rankOrder[rank] or 0
+                        if val > maxVal then
+                            maxVal = val
+                            highestRank = rank
+                        end
+                    end
+                end
+                panel:drawText("Mission Ranks: " .. highestRank, 220, 145, 0.85, 0.85, 0.9, 1, UIFont.Medium)
+
                 panel:drawText("Kage: " .. tostring(
                     (village.memberNames and village.memberNames[village.kageKey]) or village.kageKey
                 ), 60, 235, 0.95, 0.85, 0.65, 1, UIFont.Medium)
@@ -260,16 +336,32 @@ function NLJutsuTreeUI:initialise()
                     )
                     y = y + 25
                 end
-                local teamY = 280
-                panel:drawText("Village Teams", math.floor(w * 0.55), teamY, 1, 1, 1, 1, UIFont.Medium)
-                teamY = teamY + 35
+            end
+        elseif self.screen == "village_teams" then
+            local village = NinjaLineages.Social.getMyVillage(self.player)
+            panel:drawTextCentre(text("UI_NL_Social_VillageTeams") or "Village Teams", w / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large)
+            if village then
+                local y = 100
                 for _, teamID in ipairs(village.teamIDs or {}) do
                     local team = NinjaLineages.Social.getSnapshot().teams[teamID]
-                    panel:drawText(
-                        team and (team.name .. " (" .. tostring(#(team.members or {})) .. "/3)") or tostring(teamID),
-                        math.floor(w * 0.57), teamY, 0.86, 0.86, 0.9, 1, UIFont.Small
-                    )
-                    teamY = teamY + 25
+                    if team then
+                        panel:drawText(team.name .. " (" .. tostring(#(team.members or {})) .. "/3)", 60, y, 1, 1, 1, 1, UIFont.Medium)
+                        local memberY = y + 25
+                        for _, memberKey in ipairs(team.members or {}) do
+                            panel:drawText(
+                                "- " .. tostring((team.memberNames and team.memberNames[memberKey]) or memberKey),
+                                80, memberY, 0.86, 0.86, 0.9, 1, UIFont.Small
+                            )
+                            memberY = memberY + 20
+                        end
+                        y = memberY + 15
+                    else
+                        panel:drawText("Team ID: " .. tostring(teamID), 60, y, 0.6, 0.6, 0.7, 1, UIFont.Small)
+                        y = y + 25
+                    end
+                end
+                if #(village.teamIDs or {}) == 0 then
+                    panel:drawTextCentre(text("UI_NL_Social_NoVillageTeams") or "No teams in this village.", w / 2, 120, 0.8, 0.8, 0.85, 1, UIFont.Medium)
                 end
             end
         elseif self.screen == "village_create" then
@@ -278,11 +370,15 @@ function NLJutsuTreeUI:initialise()
             panel:drawTextCentre(text("UI_NL_Social_ChooseSymbol"), w / 2, 100, 0.9, 0.9, 0.95, 1, UIFont.Medium)
             if symbolTexture then
                 local texture = getTexture(symbolTexture)
+                local iconSize = 180
+                local iconX = (w - iconSize) / 2
+                local iconY = 145
                 if texture then
-                    panel:drawTextureScaled(texture, (w - 180) / 2, 145, 180, 180, 1, 1, 1, 1)
+                    self:drawBandanaPlate(panel, iconX, iconY, iconSize)
+                    panel:drawTextureScaled(texture, iconX, iconY, iconSize, iconSize, 1, 1, 1, 1)
                 else
-                    panel:drawRect((w - 180) / 2, 145, 180, 180, 0.9, 0.08, 0.08, 0.11)
-                    panel:drawRectBorder((w - 180) / 2, 145, 180, 180, 0.8, 0.6, 0.6, 0.7)
+                    panel:drawRect(iconX, iconY, iconSize, iconSize, 0.9, 0.08, 0.08, 0.11)
+                    panel:drawRectBorder(iconX, iconY, iconSize, iconSize, 0.8, 0.6, 0.6, 0.7)
                 end
             end
         end
@@ -711,6 +807,26 @@ function NLJutsuTreeUI:createVillageScreen()
     self:clearControls()
     self.screen = "village"
     self:addSocialBackButton()
+    local w = self.contentPanel.width
+    self.villageTeamsButton = self:addButton(
+        math.floor(w * 0.55),
+        280,
+        160,
+        32,
+        text("UI_NL_Social_VillageTeams") or "Village Teams",
+        self,
+        NLJutsuTreeUI.onVillageTeams
+    )
+end
+
+function NLJutsuTreeUI:onVillageTeams()
+    self:createVillageTeamsScreen()
+end
+
+function NLJutsuTreeUI:createVillageTeamsScreen()
+    self:clearControls()
+    self.screen = "village_teams"
+    self:addButton(20, 20, 100, 32, text("UI_NL_Tree_Back"), self, NLJutsuTreeUI.createVillageScreen)
 end
 
 local function onTeamRenameEntered(ui, button)
@@ -785,6 +901,12 @@ function NLJutsuTreeUI:refreshSocialState()
     elseif self.screen == "village" then
         if NinjaLineages.Social.getMyVillage(self.player) then
             self:createVillageScreen()
+        else
+            self:createSelectionScreen()
+        end
+    elseif self.screen == "village_teams" then
+        if NinjaLineages.Social.getMyVillage(self.player) then
+            self:createVillageTeamsScreen()
         else
             self:createSelectionScreen()
         end
