@@ -9,8 +9,8 @@ local DATA_KEY = "NinjaLineagesEarthWalls"
 local LOG_PREFIX = "[DEBUG-NL-EARTH-WALL] "
 local HEALTH = 250
 local DURATION_GAME_MINUTES = 12
-local NORTH_SPRITE = "walls_house_stone_01_0"
-local WEST_SPRITE = "walls_house_stone_01_1"
+local WEST_WALL_SPRITE = "fencing_01_35"
+local NORTH_WALL_SPRITE = "fencing_01_33"
 
 local function log(message)
     if SandboxVars
@@ -58,7 +58,7 @@ local function findWallOnSquare(square, id)
     return nil
 end
 
-local function facingEdge(player)
+local function facingPlacement(player)
     local square = player and player:getSquare()
     local forward = player and player:getForwardDirection()
     local cell = getCell()
@@ -72,70 +72,50 @@ local function facingEdge(player)
         stepY = dy >= 0 and 1 or -1
     end
 
-    local adjacent = cell:getGridSquare(
+    local targetSquare = cell:getGridSquare(
         square:getX() + stepX,
         square:getY() + stepY,
         square:getZ()
     )
-    if not adjacent then return nil end
+    if not targetSquare then return nil end
 
-    if stepY < 0 then
-        return {
-            fromSquare = square,
-            toSquare = adjacent,
-            objectSquare = square,
-            north = true,
-        }
-    elseif stepY > 0 then
-        return {
-            fromSquare = square,
-            toSquare = adjacent,
-            objectSquare = adjacent,
-            north = true,
-        }
-    elseif stepX < 0 then
-        return {
-            fromSquare = square,
-            toSquare = adjacent,
-            objectSquare = square,
-            north = false,
-        }
-    end
     return {
         fromSquare = square,
-        toSquare = adjacent,
-        objectSquare = adjacent,
-        north = false,
+        objectSquare = targetSquare,
+        north = math.abs(stepY) > 0,
     }
 end
 
 function EarthWall.validatePlacement(player)
-    local edge = facingEdge(player)
-    if not edge then return nil, "invalid_target" end
-    if edge.fromSquare:isBlockedTo(edge.toSquare) then
-        return nil, "blocked_placement"
-    end
-    if edge.fromSquare:testCollideSpecialObjects(edge.toSquare) then
+    local placement = facingPlacement(player)
+    if not placement then return nil, "invalid_target" end
+    local square = placement.objectSquare
+
+    if not square:TreatAsSolidFloor()
+            or not square:isFree(true)
+            or square:isVehicleIntersecting()
+            or square:getMovingObjects():size() > 0 then
         return nil, "blocked_placement"
     end
 
-    local objects = getSpecialObjects(edge.objectSquare)
+    local objects = getSpecialObjects(square)
     if objects then
         for index = 0, objects:size() - 1 do
             local object = objects:get(index)
-            if object and object.getNorth and object:getNorth() == edge.north then
+            if object and object.hasModData and object:hasModData()
+                    and object:getModData().earthWall == true then
                 return nil, "blocked_placement"
             end
         end
     end
-    return edge
+    return placement
 end
 
-function EarthWall.spawn(player, edge, duration)
-    edge = edge or EarthWall.validatePlacement(player)
-    if not edge then return nil end
+function EarthWall.spawn(player, placement, duration)
+    placement = placement or EarthWall.validatePlacement(player)
+    if not placement then return nil end
 
-    local square = edge.objectSquare
+    local square = placement.objectSquare
     local createdAt = NinjaLineages.Utils.Time.gameMinutes()
     local owner = player.getUsername and player:getUsername() or ""
     local id = wallId(
@@ -143,16 +123,16 @@ function EarthWall.spawn(player, edge, duration)
         square:getX(),
         square:getY(),
         square:getZ(),
-        edge.north,
+        placement.north,
         createdAt
     )
     local expiresAt = createdAt + (tonumber(duration) or DURATION_GAME_MINUTES)
-    local sprite = edge.north and NORTH_SPRITE or WEST_SPRITE
-
-    local wall = IsoThumpable.new(getCell(), square, sprite, edge.north, {})
+    local sprite = placement.north and NORTH_WALL_SPRITE or WEST_WALL_SPRITE
+    local wall = IsoThumpable.new(getCell(), square, sprite, placement.north, {})
     wall:setName("Doton: Doryuheki")
     wall:setCanBarricade(false)
-    wall:setBlockAllTheSquare(false)
+    wall:setBlockAllTheSquare(true)
+    wall:setCanPassThrough(false)
     wall:setIsHoppable(false)
     wall:setHoppable(false)
     wall:setIsThumpable(true)
@@ -181,7 +161,7 @@ function EarthWall.spawn(player, edge, duration)
         x = square:getX(),
         y = square:getY(),
         z = square:getZ(),
-        north = edge.north,
+        north = placement.north,
         createdAtGameMinutes = createdAt,
         expiresAtGameMinutes = expiresAt,
     }
@@ -192,7 +172,7 @@ function EarthWall.spawn(player, edge, duration)
         square:getX(),
         square:getY(),
         square:getZ(),
-        tostring(edge.north),
+        tostring(placement.north),
         HEALTH,
         expiresAt
     ))
