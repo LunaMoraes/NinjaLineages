@@ -199,6 +199,9 @@ Catalog.Definitions = {
     {
         id = "earth_wall",
         category = "common",
+        presentation = {
+            icon = "media/ui/jutsuTree/nodes/earth_wall.png",
+        },
         node = {
             discipline = "ninjutsu", rank = "CHUNIN", order = 20,
             prerequisites = { "chakra_focus", "calorie_control" },
