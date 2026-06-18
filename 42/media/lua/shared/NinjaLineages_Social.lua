@@ -26,6 +26,12 @@ Social.VillageSymbols = Social.VillageSymbols or {
     "media/ui/villages/icons/village_symbol_13.png",
 }
 
+Social.VillageTitles = Social.VillageTitles or {
+    "Hokage", "Kazekage", "Raikage", "Tsuchikage", "Mizukage",
+    "Amekage", "Uzukage", "Otokage", "Takikage", "Kusakage",
+    "Yugakage", "Hoshikage", "Getsukage"
+}
+
 local function safePlayerValue(player, method)
     if not player or not player[method] then return nil end
     local ok, value = pcall(function() return player[method](player) end)

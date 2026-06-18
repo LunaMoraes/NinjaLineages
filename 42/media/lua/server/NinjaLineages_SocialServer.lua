@@ -497,12 +497,26 @@ function handlers.socialCreateVillage(player, args)
 
     local name = Social.validateDisplayName(args and args.name)
     local symbolID = args and args.symbolID
+    local title = args and args.title
     if not name then return false, "invalid_name" end
     if not Social.getSymbol(symbolID) then return false, "invalid_symbol" end
+    
+    local titleValid = false
+    if title then
+        for _, t in ipairs(Social.VillageTitles) do
+            if t == title then
+                titleValid = true
+                break
+            end
+        end
+    end
+    if not titleValid then return false, "invalid_title" end
+
     local normalized = Social.normalizeName(name)
     for _, village in pairs(state.villages) do
         if Social.normalizeName(village.name) == normalized then return false, "village_name_taken" end
         if village.symbolID == symbolID then return false, "village_symbol_taken" end
+        if village.title == title then return false, "village_title_taken" end
     end
 
     local teamID = state.playerTeams[playerKey]
@@ -525,6 +539,7 @@ function handlers.socialCreateVillage(player, args)
         id = villageID,
         name = name,
         symbolID = symbolID,
+        title = title,
         kageKey = playerKey,
         members = members,
         memberNames = memberNames,
@@ -534,6 +549,72 @@ function handlers.socialCreateVillage(player, args)
     }
     for _, memberKey in ipairs(members) do state.playerVillages[memberKey] = villageID end
     if team then team.villageID = villageID end
+    return true
+end
+
+function handlers.socialRenameVillage(player, args)
+    local playerKey = Social.getPlayerKey(player, false)
+    local villageID = playerKey and state.playerVillages[playerKey]
+    local village = villageID and state.villages[villageID]
+    if not village or village.kageKey ~= playerKey then return false, "not_kage" end
+
+    local name = Social.validateDisplayName(args and args.name)
+    if not name then return false, "invalid_name" end
+
+    local normalized = Social.normalizeName(name)
+    for vid, v in pairs(state.villages) do
+        if vid ~= villageID and Social.normalizeName(v.name) == normalized then
+            return false, "village_name_taken"
+        end
+    end
+
+    village.name = name
+    return true
+end
+
+function handlers.socialCreateVillageTeam(player, args)
+    local playerKey = Social.getPlayerKey(player, false)
+    local villageID = playerKey and state.playerVillages[playerKey]
+    local village = villageID and state.villages[villageID]
+    if not village or village.kageKey ~= playerKey then return false, "not_kage" end
+
+    local name = Social.validateDisplayName(args and args.name)
+    if not name then return false, "invalid_name" end
+
+    local leaderKey = args and args.leaderKey
+    if not leaderKey or state.playerVillages[leaderKey] ~= villageID or state.playerTeams[leaderKey] then
+        return false, "invalid_leader"
+    end
+
+    local teamID = id("team_", "nextTeamID")
+    local members = { leaderKey }
+    local memberNames = {
+        [leaderKey] = village.memberNames[leaderKey] or "Unknown"
+    }
+
+    if args.memberKeys then
+        for _, mKey in ipairs(args.memberKeys) do
+            if mKey ~= leaderKey and state.playerVillages[mKey] == villageID and not state.playerTeams[mKey] and #members < 3 then
+                table.insert(members, mKey)
+                memberNames[mKey] = village.memberNames[mKey] or "Unknown"
+            end
+        end
+    end
+
+    state.teams[teamID] = {
+        id = teamID,
+        name = name,
+        leaderKey = leaderKey,
+        members = members,
+        memberNames = memberNames,
+        villageID = villageID,
+    }
+
+    for _, mKey in ipairs(members) do
+        state.playerTeams[mKey] = teamID
+    end
+
+    table.insert(village.teamIDs, teamID)
     return true
 end
 

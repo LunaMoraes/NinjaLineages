@@ -3,6 +3,8 @@ require "ISUI/ISPanelJoypad"
 require "ISUI/ISButton"
 require "ISUI/ISModalDialog"
 require "ISUI/ISTextBox"
+require "ISUI/ISTextEntryBox"
+require "ISUI/ISComboBox"
 require "TimedActions/ISTimedActionQueue"
 require "NinjaLineages_TreeDefinitions"
 require "NinjaLineages_Progression"
@@ -307,8 +309,8 @@ function NLJutsuTreeUI:initialise()
                     self:drawBandanaPlate(panel, iconX, iconY, iconSize)
                     panel:drawTextureScaled(texture, iconX, iconY, iconSize, iconSize, 1, 1, 1, 1)
                 end
-                panel:drawText(village.name, 220, 78, 1, 1, 1, 1, UIFont.Large)
-                panel:drawText("Village XP: " .. tostring(village.xp or 0), 220, 115, 0.85, 0.85, 0.9, 1, UIFont.Medium)
+                panel:drawText(village.name, 290, 78, 1, 1, 1, 1, UIFont.Large)
+                panel:drawText("Village XP: " .. tostring(village.xp or 0), 290, 115, 0.85, 0.85, 0.9, 1, UIFont.Medium)
                 
                 local highestRank = "None"
                 if village.unlockedMissionRanks and #village.unlockedMissionRanks > 0 then
@@ -322,9 +324,10 @@ function NLJutsuTreeUI:initialise()
                         end
                     end
                 end
-                panel:drawText("Mission Ranks: " .. highestRank, 220, 145, 0.85, 0.85, 0.9, 1, UIFont.Medium)
+                panel:drawText("Mission Ranks: " .. highestRank, 290, 145, 0.85, 0.85, 0.9, 1, UIFont.Medium)
 
-                panel:drawText("Kage: " .. tostring(
+                local title = village.title or "Kage"
+                panel:drawText(title .. ": " .. tostring(
                     (village.memberNames and village.memberNames[village.kageKey]) or village.kageKey
                 ), 60, 235, 0.95, 0.85, 0.65, 1, UIFont.Medium)
                 panel:drawText("Members", 60, 280, 1, 1, 1, 1, UIFont.Medium)
@@ -364,8 +367,14 @@ function NLJutsuTreeUI:initialise()
                     panel:drawTextCentre(text("UI_NL_Social_NoVillageTeams") or "No teams in this village.", w / 2, 120, 0.8, 0.8, 0.85, 1, UIFont.Medium)
                 end
             end
+        elseif self.screen == "village_team_create" then
+            panel:drawTextCentre(text("UI_NL_Social_CreateTeam") or "Create Team", w / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large)
+            panel:drawText("Team Name:", w / 2 - 130, 100, 0.9, 0.9, 0.95, 1, UIFont.Small)
+            panel:drawText("Select Leader:", w / 2 - 130, 160, 0.9, 0.9, 0.95, 1, UIFont.Small)
+            panel:drawText("Select Member 1 (Optional):", w / 2 - 130, 220, 0.9, 0.9, 0.95, 1, UIFont.Small)
+            panel:drawText("Select Member 2 (Optional):", w / 2 - 130, 280, 0.9, 0.9, 0.95, 1, UIFont.Small)
         elseif self.screen == "village_create" then
-            local symbolTexture = NinjaLineages.Social.VillageSymbols[self.selectedVillageSymbol or 1]
+            local symbolTexture = self.availableSymbols and self.availableSymbols[self.selectedVillageSymbolIndex or 1] or nil
             panel:drawTextCentre(text("UI_NL_Tree_FoundHiddenVillage"), w / 2, 35, 0.95, 0.85, 0.65, 1, UIFont.Large)
             panel:drawTextCentre(text("UI_NL_Social_ChooseSymbol"), w / 2, 100, 0.9, 0.9, 0.95, 1, UIFont.Medium)
             if symbolTexture then
@@ -381,6 +390,8 @@ function NLJutsuTreeUI:initialise()
                     panel:drawRectBorder(iconX, iconY, iconSize, iconSize, 0.8, 0.6, 0.6, 0.7)
                 end
             end
+            panel:drawText("Village Name:", w / 2 - 130, 345, 0.9, 0.9, 0.95, 1, UIFont.Small)
+            panel:drawText("Kage Title (Dropdown):", w / 2 - 130, 400, 0.9, 0.9, 0.95, 1, UIFont.Small)
         end
     end
 
@@ -400,12 +411,23 @@ end
 function NLJutsuTreeUI:clearControls()
     if not self.contentPanel or not self.contentPanel.children then return end
     for id, child in pairs(self.contentPanel.children) do
+        if child.expanded and child.hidePopup then
+            child.expanded = false
+            child.hidePopup(child)
+        end
         child:setVisible(false)
         if child.tooltipUI and child.tooltipUI:getIsVisible() then
             child.tooltipUI:setVisible(false)
             child.tooltipUI:removeFromUIManager()
         end
     end
+    self.nameEntry = nil
+    self.titleCombo = nil
+    self.villageTeamNameEntry = nil
+    self.leaderCombo = nil
+    self.member1Combo = nil
+    self.member2Combo = nil
+
     self.contentPanel:clearChildren()
     self.contentPanel.joypadButtons = {}
     self.joypadButtons = {}
@@ -763,44 +785,111 @@ end
 function NLJutsuTreeUI:createVillageCreationScreen()
     self:clearControls()
     self.screen = "village_create"
-    self.selectedVillageSymbol = self.selectedVillageSymbol or 1
     local w, h = self.contentPanel.width, self.contentPanel.height
     self:addSocialBackButton()
-    self:addButton(w / 2 - 150, 385, 50, 38, "<", self, NLJutsuTreeUI.onPreviousVillageSymbol)
-    self:addButton(w / 2 + 100, 385, 50, 38, ">", self, NLJutsuTreeUI.onNextVillageSymbol)
-    local found = self:addButton(w / 2 - 130, h - 90, 260, 42, text("UI_NL_Tree_FoundHiddenVillage"), self, NLJutsuTreeUI.onConfirmFoundVillage)
-    found.enable = #NinjaLineages.Social.VillageSymbols > 0
+
+    -- 1. Build list of unused/available symbols and titles
+    local snapshot = NinjaLineages.Social.getSnapshot()
+    local usedSymbols = {}
+    local usedTitles = {}
+    if snapshot and snapshot.villages then
+        for _, village in pairs(snapshot.villages) do
+            if village.symbolID then usedSymbols[village.symbolID] = true end
+            if village.title then usedTitles[village.title] = true end
+        end
+    end
+
+    self.availableSymbols = {}
+    for _, symbolPath in ipairs(NinjaLineages.Social.VillageSymbols) do
+        local symID = NinjaLineages.Social.getSymbolID(symbolPath)
+        if not usedSymbols[symID] then
+            table.insert(self.availableSymbols, symbolPath)
+        end
+    end
+
+    self.availableTitles = {}
+    for _, title in ipairs(NinjaLineages.Social.VillageTitles) do
+        if not usedTitles[title] then
+            table.insert(self.availableTitles, title)
+        end
+    end
+
+    self.selectedVillageSymbolIndex = self.selectedVillageSymbolIndex or 1
+    if self.selectedVillageSymbolIndex > #self.availableSymbols then
+        self.selectedVillageSymbolIndex = 1
+    end
+
+    -- 2. Symbol Navigation buttons next to the preview
+    local previewX = (w - 180) / 2
+    self.symbolPrevBtn = self:addButton(previewX - 70, 216, 50, 38, "<", self, NLJutsuTreeUI.onPreviousVillageSymbol)
+    self.symbolNextBtn = self:addButton(previewX + 180 + 20, 216, 50, 38, ">", self, NLJutsuTreeUI.onNextVillageSymbol)
+
+    -- 3. Name input field
+    self.nameEntry = ISTextEntryBox:new("", w / 2 - 130, 365, 260, 24)
+    self.nameEntry:initialise()
+    self.nameEntry:instantiate()
+    self.contentPanel:addChild(self.nameEntry)
+
+    -- 4. Kage Title dropdown
+    self.titleCombo = ISComboBox:new(w / 2 - 130, 420, 260, 24, self, nil)
+    self.titleCombo:initialise()
+    self.titleCombo:instantiate()
+    self.contentPanel:addChild(self.titleCombo)
+    for _, title in ipairs(self.availableTitles) do
+        self.titleCombo:addOption(title)
+    end
+
+    -- 5. Found button
+    local found = self:addButton(w / 2 - 130, 470, 260, 40, text("UI_NL_Tree_FoundHiddenVillage"), self, NLJutsuTreeUI.onConfirmFoundVillage)
+    found.enable = #self.availableSymbols > 0 and #self.availableTitles > 0
 end
 
 function NLJutsuTreeUI:onPreviousVillageSymbol()
-    local count = #NinjaLineages.Social.VillageSymbols
+    local count = #self.availableSymbols
     if count == 0 then return end
-    self.selectedVillageSymbol = ((self.selectedVillageSymbol or 1) - 2) % count + 1
+    self.selectedVillageSymbolIndex = ((self.selectedVillageSymbolIndex or 1) - 2) % count + 1
 end
 
 function NLJutsuTreeUI:onNextVillageSymbol()
-    local count = #NinjaLineages.Social.VillageSymbols
+    local count = #self.availableSymbols
     if count == 0 then return end
-    self.selectedVillageSymbol = (self.selectedVillageSymbol or 1) % count + 1
-end
-
-local function onVillageNameEntered(ui, button)
-    if button.internal ~= "OK" then return end
-    local symbolTexture = NinjaLineages.Social.VillageSymbols[ui.selectedVillageSymbol or 1]
-    NinjaLineages.Social.request(ui.player, "socialCreateVillage", {
-        name = button.parent.entry:getText(),
-        symbolID = NinjaLineages.Social.getSymbolID(symbolTexture),
-    })
+    self.selectedVillageSymbolIndex = (self.selectedVillageSymbolIndex or 1) % count + 1
 end
 
 function NLJutsuTreeUI:onConfirmFoundVillage()
-    local box = ISTextBox:new(
-        0, 0, 440, 160, text("UI_NL_Social_EnterVillageName"), "",
-        self, onVillageNameEntered, self.playerNum
-    )
-    box:initialise()
-    box.entry:setMaxTextLength(32)
-    box:addToUIManager()
+    local name = self.nameEntry:getText()
+    if not name or name:trim() == "" then
+        return
+    end
+
+    -- Check if name is already taken on the client
+    local snapshot = NinjaLineages.Social.getSnapshot()
+    local normalized = name:trim():lower()
+    if snapshot and snapshot.villages then
+        for _, village in pairs(snapshot.villages) do
+            if village.name and village.name:trim():lower() == normalized then
+                local playerNum = self.player:getPlayerNum()
+                local box = ISModalDialog:new(
+                    0, 0, 320, 120,
+                    text("UI_NL_Social_Error_village_name_taken") or "That village name is already in use.",
+                    false, nil, nil, playerNum
+                )
+                box:initialise()
+                box:addToUIManager()
+                return
+            end
+        end
+    end
+
+    local symbolTexture = self.availableSymbols[self.selectedVillageSymbolIndex or 1]
+    local symbolID = NinjaLineages.Social.getSymbolID(symbolTexture)
+    local title = self.titleCombo:getSelectedText()
+
+    NinjaLineages.Social.request(self.player, "socialCreateVillage", {
+        name = name,
+        symbolID = symbolID,
+        title = title,
+    })
 end
 
 function NLJutsuTreeUI:createVillageScreen()
@@ -817,6 +906,23 @@ function NLJutsuTreeUI:createVillageScreen()
         self,
         NLJutsuTreeUI.onVillageTeams
     )
+
+    local village = NinjaLineages.Social.getMyVillage(self.player)
+    if village then
+        local isVillageKage = NinjaLineages.Social.isKage(self.player)
+        if isVillageKage then
+            local textWidth = getTextManager():MeasureStringX(UIFont.Large, village.name)
+            self.renameVillageButton = self:addButton(
+                290 + textWidth + 15,
+                75,
+                70,
+                24,
+                text("UI_NL_Social_Rename") or "Rename",
+                self,
+                NLJutsuTreeUI.onRenameVillage
+            )
+        end
+    end
 end
 
 function NLJutsuTreeUI:onVillageTeams()
@@ -827,6 +933,153 @@ function NLJutsuTreeUI:createVillageTeamsScreen()
     self:clearControls()
     self.screen = "village_teams"
     self:addButton(20, 20, 100, 32, text("UI_NL_Tree_Back"), self, NLJutsuTreeUI.createVillageScreen)
+
+    local village = NinjaLineages.Social.getMyVillage(self.player)
+    if village then
+        local isVillageKage = NinjaLineages.Social.isKage(self.player)
+        if isVillageKage then
+            local w = self.contentPanel.width
+            self:addButton(w - 180, 20, 160, 32, text("UI_NL_Social_CreateTeam") or "Create Team", self, NLJutsuTreeUI.onCreateVillageTeam)
+        end
+    end
+end
+
+function NLJutsuTreeUI:onCreateVillageTeam()
+    self:createVillageTeamCreateScreen()
+end
+
+function NLJutsuTreeUI:createVillageTeamCreateScreen()
+    self:clearControls()
+    self.screen = "village_team_create"
+    local w, h = self.contentPanel.width, self.contentPanel.height
+    self:addButton(20, 20, 100, 32, text("UI_NL_Tree_Back"), self, NLJutsuTreeUI.createVillageTeamsScreen)
+
+    local village = NinjaLineages.Social.getMyVillage(self.player)
+    if not village then return end
+
+    local snapshot = NinjaLineages.Social.getSnapshot()
+    local eligibleMembers = {}
+    for _, memberKey in ipairs(village.members or {}) do
+        if not snapshot.playerTeams[memberKey] then
+            table.insert(eligibleMembers, memberKey)
+        end
+    end
+
+    -- 1. Team Name input field
+    self.villageTeamNameEntry = ISTextEntryBox:new("", w / 2 - 130, 120, 260, 24)
+    self.villageTeamNameEntry:initialise()
+    self.villageTeamNameEntry:instantiate()
+    self.contentPanel:addChild(self.villageTeamNameEntry)
+
+    -- 2. Leader ComboBox
+    self.leaderCombo = ISComboBox:new(w / 2 - 130, 180, 260, 24, self, nil)
+    self.leaderCombo:initialise()
+    self.leaderCombo:instantiate()
+    self.contentPanel:addChild(self.leaderCombo)
+
+    -- 3. Member 1 ComboBox (Optional)
+    self.member1Combo = ISComboBox:new(w / 2 - 130, 240, 260, 24, self, nil)
+    self.member1Combo:initialise()
+    self.member1Combo:instantiate()
+    self.contentPanel:addChild(self.member1Combo)
+    self.member1Combo:addOptionWithData("[None]", "")
+
+    -- 4. Member 2 ComboBox (Optional)
+    self.member2Combo = ISComboBox:new(w / 2 - 130, 300, 260, 24, self, nil)
+    self.member2Combo:initialise()
+    self.member2Combo:instantiate()
+    self.contentPanel:addChild(self.member2Combo)
+    self.member2Combo:addOptionWithData("[None]", "")
+
+    -- Populate
+    for _, mKey in ipairs(eligibleMembers) do
+        local displayName = village.memberNames and village.memberNames[mKey] or mKey
+        self.leaderCombo:addOptionWithData(displayName, mKey)
+        self.member1Combo:addOptionWithData(displayName, mKey)
+        self.member2Combo:addOptionWithData(displayName, mKey)
+    end
+
+    -- 5. Submit Button
+    self.createTeamSubmitBtn = self:addButton(
+        w / 2 - 130,
+        350,
+        260,
+        40,
+        text("UI_NL_Social_Create") or "Create",
+        self,
+        NLJutsuTreeUI.onConfirmCreateTeam
+    )
+end
+
+function NLJutsuTreeUI:onConfirmCreateTeam()
+    local name = self.villageTeamNameEntry:getText()
+    if not name or name:trim() == "" then
+        return
+    end
+
+    local leaderKey = self.leaderCombo:getSelectedData()
+    if not leaderKey or leaderKey == "" then
+        return
+    end
+
+    local member1Key = self.member1Combo:getSelectedData()
+    local member2Key = self.member2Combo:getSelectedData()
+
+    local memberKeys = {}
+    if member1Key and member1Key ~= "" and member1Key ~= leaderKey then
+        table.insert(memberKeys, member1Key)
+    end
+    if member2Key and member2Key ~= "" and member2Key ~= leaderKey and member2Key ~= member1Key then
+        table.insert(memberKeys, member2Key)
+    end
+
+    NinjaLineages.Social.request(self.player, "socialCreateVillageTeam", {
+        name = name,
+        leaderKey = leaderKey,
+        memberKeys = memberKeys,
+    })
+end
+
+local function onVillageRenameEntered(ui, button)
+    if button.internal ~= "OK" then return end
+    local name = button.parent.entry:getText()
+    if not name or name:trim() == "" then return end
+
+    local snapshot = NinjaLineages.Social.getSnapshot()
+    local normalized = name:trim():lower()
+    local currentVillage = NinjaLineages.Social.getMyVillage(ui.player)
+    local currentVillageID = currentVillage and currentVillage.id
+    if snapshot and snapshot.villages then
+        for vid, village in pairs(snapshot.villages) do
+            if vid ~= currentVillageID and village.name and village.name:trim():lower() == normalized then
+                local playerNum = ui.player:getPlayerNum()
+                local box = ISModalDialog:new(
+                    0, 0, 320, 120,
+                    text("UI_NL_Social_Error_village_name_taken") or "Name already chosen",
+                    false, nil, nil, playerNum
+                )
+                box:initialise()
+                box:addToUIManager()
+                return
+            end
+        end
+    end
+
+    NinjaLineages.Social.request(ui.player, "socialRenameVillage", {
+        name = name,
+    })
+end
+
+function NLJutsuTreeUI:onRenameVillage()
+    local village = NinjaLineages.Social.getMyVillage(self.player)
+    if not village then return end
+    local box = ISTextBox:new(
+        0, 0, 440, 160, text("UI_NL_Social_RenameVillage") or "Rename Hidden Village:", village.name or "",
+        self, onVillageRenameEntered, self.playerNum
+    )
+    box:initialise()
+    box.entry:setMaxTextLength(32)
+    box:addToUIManager()
 end
 
 local function onTeamRenameEntered(ui, button)
