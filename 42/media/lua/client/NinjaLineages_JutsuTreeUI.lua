@@ -29,6 +29,17 @@ local function drawMemberName(panel, name, x, y, w, h, r, g, b)
     end
 end
 
+local function getTeamCardPosition(index, teamCount, panelWidth, cardWidth, cardHeight, horizontalGap, verticalGap, top)
+    local columns = 4
+    local row = math.floor((index - 1) / columns)
+    local column = (index - 1) % columns
+    local rowStart = row * columns + 1
+    local rowCount = math.min(columns, teamCount - rowStart + 1)
+    local rowWidth = rowCount * cardWidth + (rowCount - 1) * horizontalGap
+    local rowX = (panelWidth - rowWidth) / 2
+    return rowX + column * (cardWidth + horizontalGap), top + row * (cardHeight + verticalGap)
+end
+
 local function text(key, ...)
     return getText(key, ...)
 end
@@ -381,13 +392,15 @@ function NLJutsuTreeUI:initialise()
                     local slotSize = 70
                     local slotGap = 10
                     local spacing = 20
-                    local startX = (w - (#teamIDs * boxW + (#teamIDs - 1) * spacing)) / 2
-                    local colY = 100
+                    local rowSpacing = 20
+                    local gridTop = 100
 
                     for i, teamID in ipairs(teamIDs) do
                         local team = NinjaLineages.Social.getSnapshot().teams[teamID]
                         if team then
-                            local colX = startX + (i - 1) * (boxW + spacing)
+                            local colX, colY = getTeamCardPosition(
+                                i, #teamIDs, w, boxW, boxH, spacing, rowSpacing, gridTop
+                            )
                             
                             -- Draw Team Box (Grey Border)
                             panel:drawRectBorder(colX, colY, boxW, boxH, 0.85, 0.34, 0.34, 0.42)
@@ -1052,15 +1065,18 @@ function NLJutsuTreeUI:createVillageTeamsScreen()
         local slotSize = 70
         local slotGap = 10
         local spacing = 20
+        local boxH = 215
+        local rowSpacing = 20
         local w = self.contentPanel.width
-        local startX = (w - (#teamIDs * boxW + (#teamIDs - 1) * spacing)) / 2
-        local colY = 100
+        local gridTop = 100
         self.slotButtons = {}
 
         for i, teamID in ipairs(teamIDs) do
             local team = NinjaLineages.Social.getSnapshot().teams[teamID]
             if team then
-                local colX = startX + (i - 1) * (boxW + spacing)
+                local colX, colY = getTeamCardPosition(
+                    i, #teamIDs, w, boxW, boxH, spacing, rowSpacing, gridTop
+                )
 
                 local isTeamLeader = team.leaderKey and NinjaLineages.Social.getPlayerKey(self.player, true) == team.leaderKey
                 if isVillageKage or isTeamLeader then
