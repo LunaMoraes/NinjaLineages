@@ -350,7 +350,10 @@ function NLJutsuTreeUI:createSelectionScreen()
     local targetWidth = leftWidth + gridW + margin * 2
     
     local screenWidth = getPlayerScreenWidth(self.playerNum)
-    local newX = getPlayerScreenLeft(self.playerNum) + (screenWidth - targetWidth) / 2
+    local screenLeft = getPlayerScreenLeft(self.playerNum)
+    local currentCenterX = self.x + self.width / 2
+    local newX = currentCenterX - targetWidth / 2
+    newX = math.max(screenLeft, math.min(screenLeft + screenWidth - targetWidth, newX))
     self:setX(newX)
     self:setWidth(targetWidth)
     if self.contentPanel then
@@ -794,8 +797,11 @@ function NLJutsuTreeUI:createDisciplineScreen(disciplineId)
     -- Restore original window size for the tree screen
     if self.originalWidth then
         local screenWidth = getPlayerScreenWidth(self.playerNum)
-        local origX = getPlayerScreenLeft(self.playerNum) + (screenWidth - self.originalWidth) / 2
-        self:setX(origX)
+        local screenLeft = getPlayerScreenLeft(self.playerNum)
+        local currentCenterX = self.x + self.width / 2
+        local newX = currentCenterX - self.originalWidth / 2
+        newX = math.max(screenLeft, math.min(screenLeft + screenWidth - self.originalWidth, newX))
+        self:setX(newX)
         self:setWidth(self.originalWidth)
         if self.contentPanel then
             self.contentPanel:setWidth(self.originalWidth)
