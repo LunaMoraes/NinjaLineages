@@ -505,15 +505,15 @@ specializedExecutors.chakra_needle = function(player, definition, args)
     local target = targets[1]
     if not target then return false, "no_target" end
 
-    -- Create homing projectile; damage is applied server-side when it reaches the target
+    -- Delay authoritative damage until the client-side needle reaches the target.
     local projectileConfig = {
+        casterObject = player,
         casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
         abilityId = definition.id,
-        trackingType = "homing",
         originX = player:getX(),
         originY = player:getY(),
-        originZ = math.floor(player:getZ()),
         targetKind = target.kind,
+        targetObject = target.object,
         targetOnlineId = target.onlineId,
         targetX = target.x,
         targetY = target.y,
@@ -522,7 +522,6 @@ specializedExecutors.chakra_needle = function(player, definition, args)
             damage = rollDamage(resolved),
             controlTier = resolved.control and resolved.control.tier or nil,
         },
-        collisionMask = NinjaLineages.Collision.Masks.jutsu_projectile,
     }
 
     NinjaLineages.CombatRuntime.createProjectile(projectileConfig)

@@ -1,5 +1,3 @@
-require "combat/NinjaLineages_Targeting"
-require "combat/NinjaLineages_Collision"
 require "combat/NinjaLineages_Damage"
 
 NinjaLineages = NinjaLineages or {}
@@ -7,60 +5,81 @@ NinjaLineages.CombatRuntime = NinjaLineages.CombatRuntime or {}
 
 NinjaLineages.CombatRuntime.projectiles = NinjaLineages.CombatRuntime.projectiles or {}
 local nextProjectileId = 0
+local LOG_PREFIX = "[DEBUG-NL-PROJECTILE] "
 
-function NinjaLineages.CombatRuntime.generateId()
+local function log(message)
+    print(LOG_PREFIX .. message)
+end
+
+local function readHealth(target)
+    if not target or not target.getHealth then return "unavailable" end
+    local ok, health = pcall(function() return target:getHealth() end)
+    if not ok then return "error" end
+    return tostring(health)
+end
+
+local function generateId()
     nextProjectileId = nextProjectileId + 1
     return "nlp_" .. tostring(nextProjectileId)
 end
 
-function NinjaLineages.CombatRuntime.createProjectile(config)
-    local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
-    local speed = tonumber(config.speed) or 12
-    if speed <= 0 then speed = 12 end
-
-    local travelTime
-    if config.targetX and config.targetY then
-        local dx = config.targetX - config.originX
-        local dy = config.targetY - config.originY
-        local distance = math.sqrt(dx * dx + dy * dy)
-        travelTime = (distance / speed) + 0.5
-    else
-        travelTime = (20 / speed) + 0.5
+local function resolveTargetObject(projectile)
+    local target = projectile.targetObject
+    if target and not target:isDead() then
+        return target, "stored_object"
     end
 
-    local p = {
-        projectileId = config.projectileId or NinjaLineages.CombatRuntime.generateId(),
+    local onlineId = tonumber(projectile.targetOnlineId)
+    if not onlineId or onlineId < 0 then
+        return nil, target and "stored_target_dead" or "no_valid_online_id"
+    end
+
+    if projectile.targetKind == "zombie" then
+        target = NinjaLineages.Utils.Zombies.getByOnlineID(onlineId)
+        return target, target and "zombie_online_id" or "zombie_online_id_not_found"
+    end
+    if projectile.targetKind == "player" and getPlayerByOnlineID then
+        target = getPlayerByOnlineID(onlineId)
+        return target, target and "player_online_id" or "player_online_id_not_found"
+    end
+    return nil, "unsupported_target_kind"
+end
+
+function NinjaLineages.CombatRuntime.createProjectile(config)
+    local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
+    local speed = tonumber(config.speed) or 20
+    if speed <= 0 then speed = 20 end
+
+    local dx = (config.targetX or config.originX) - config.originX
+    local dy = (config.targetY or config.originY) - config.originY
+    local distance = math.sqrt((dx * dx) + (dy * dy))
+
+    local projectile = {
+        projectileId = config.projectileId or generateId(),
+        casterObject = config.casterObject,
         casterOnlineId = config.casterOnlineId,
         abilityId = config.abilityId,
-        trackingType = config.trackingType or "fixed_path",
-        originX = config.originX,
-        originY = config.originY,
-        originZ = config.originZ,
-        currentX = config.originX,
-        currentY = config.originY,
-        currentZ = config.originZ,
-        directionX = config.directionX or 0,
-        directionY = config.directionY or 0,
         targetKind = config.targetKind,
+        targetObject = config.targetObject,
         targetOnlineId = config.targetOnlineId,
-        targetX = config.targetX,
-        targetY = config.targetY,
-        speed = speed,
-        radius = config.radius or 0.5,
-        createdAtGameMinutes = nowGameMinutes,
-        lastTickGameMinutes = nowGameMinutes,
-        expiresAtGameMinutes = nowGameMinutes + travelTime,
+        impactAtGameMinutes = nowGameMinutes + (distance / speed),
         damagePayload = config.damagePayload or {},
-        collisionMask = config.collisionMask or NinjaLineages.Collision.Masks.jutsu_projectile,
-        resolved = false,
-        hitKind = nil,
-        hitX = nil,
-        hitY = nil,
-        hitZ = nil,
     }
 
-    NinjaLineages.CombatRuntime.projectiles[p.projectileId] = p
-    return p
+    NinjaLineages.CombatRuntime.projectiles[projectile.projectileId] = projectile
+    log(string.format(
+        "CREATED id=%s ability=%s targetKind=%s targetId=%s targetObject=%s distance=%.4f speed=%.4f now=%.6f impactAt=%.6f",
+        tostring(projectile.projectileId),
+        tostring(projectile.abilityId),
+        tostring(projectile.targetKind),
+        tostring(projectile.targetOnlineId),
+        tostring(projectile.targetObject ~= nil),
+        distance,
+        speed,
+        nowGameMinutes,
+        projectile.impactAtGameMinutes
+    ))
+    return projectile
 end
 
 function NinjaLineages.CombatRuntime.removeProjectile(projectileId)
@@ -73,119 +92,60 @@ function NinjaLineages.CombatRuntime.update()
     local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
     local toRemove = {}
 
-    for id, p in pairs(NinjaLineages.CombatRuntime.projectiles) do
-        local shouldRemove = false
+    for id, projectile in pairs(NinjaLineages.CombatRuntime.projectiles) do
+        if nowGameMinutes >= projectile.impactAtGameMinutes then
+            log(string.format(
+                "IMPACT_DUE id=%s now=%.6f impactAt=%.6f",
+                tostring(id),
+                nowGameMinutes,
+                projectile.impactAtGameMinutes
+            ))
 
-        if p.resolved then
-            shouldRemove = true
-        elseif nowGameMinutes >= p.expiresAtGameMinutes then
-            shouldRemove = true
-        else
-            local caster = nil
-            if p.casterOnlineId and getPlayerByOnlineID then
-                caster = getPlayerByOnlineID(p.casterOnlineId)
+            local caster = projectile.casterObject
+            if not caster and projectile.casterOnlineId and getPlayerByOnlineID then
+                caster = getPlayerByOnlineID(projectile.casterOnlineId)
             end
 
-            if p.trackingType == "homing" and p.targetKind and p.targetOnlineId then
-                local targetObj = nil
-                if p.targetKind == "zombie" then
-                    targetObj = NinjaLineages.Utils.Zombies.getByOnlineID(p.targetOnlineId)
-                elseif p.targetKind == "player" then
-                    if getPlayerByOnlineID then
-                        targetObj = getPlayerByOnlineID(p.targetOnlineId)
-                    end
-                end
-
-                if targetObj and not targetObj:isDead() then
-                    p.targetX = targetObj:getX()
-                    p.targetY = targetObj:getY()
-                else
-                    shouldRemove = true
-                end
+            local targetObject, targetSource = resolveTargetObject(projectile)
+            if targetObject then
+                local healthBefore = readHealth(targetObject)
+                NinjaLineages.Damage.applyTargetDamageAndControl(caster, {
+                    kind = projectile.targetKind,
+                    onlineId = projectile.targetOnlineId,
+                    object = targetObject,
+                    x = targetObject:getX(),
+                    y = targetObject:getY(),
+                    z = targetObject:getZ(),
+                    distance = 0,
+                }, projectile.damagePayload)
+                log(string.format(
+                    "DAMAGE_APPLIED id=%s source=%s casterFound=%s targetDead=%s damage=%s healthBefore=%s healthAfter=%s",
+                    tostring(id),
+                    tostring(targetSource),
+                    tostring(caster ~= nil),
+                    tostring(targetObject:isDead()),
+                    tostring(projectile.damagePayload.damage),
+                    healthBefore,
+                    readHealth(targetObject)
+                ))
+            else
+                log(string.format(
+                    "TARGET_MISSING id=%s reason=%s targetKind=%s targetId=%s hadStoredObject=%s",
+                    tostring(id),
+                    tostring(targetSource),
+                    tostring(projectile.targetKind),
+                    tostring(projectile.targetOnlineId),
+                    tostring(projectile.targetObject ~= nil)
+                ))
             end
 
-            if not shouldRemove then
-                local destX, destY
-                if p.targetX and p.targetY then
-                    destX, destY = p.targetX, p.targetY
-                else
-                    destX = p.currentX + p.directionX * 1000
-                    destY = p.currentY + p.directionY * 1000
-                end
-
-                local dx = destX - p.currentX
-                local dy = destY - p.currentY
-                local dist = math.sqrt(dx * dx + dy * dy)
-
-                local delta = nowGameMinutes - p.lastTickGameMinutes
-                if delta < 0 then delta = 0 end
-                local moveDist = p.speed * delta
-
-                if dist <= 0.001 then
-                    p.resolved = true
-                    shouldRemove = true
-                elseif dist <= moveDist then
-                    p.currentX = destX
-                    p.currentY = destY
-                    p.resolved = true
-
-                    if p.targetKind and p.targetOnlineId then
-                        local targetObj = nil
-                        if p.targetKind == "zombie" then
-                            targetObj = NinjaLineages.Utils.Zombies.getByOnlineID(p.targetOnlineId)
-                        elseif p.targetKind == "player" then
-                            if getPlayerByOnlineID then
-                                targetObj = getPlayerByOnlineID(p.targetOnlineId)
-                            end
-                        end
-                        if targetObj and not targetObj:isDead() then
-                            local target = {
-                                kind = p.targetKind,
-                                onlineId = p.targetOnlineId,
-                                object = targetObj,
-                                x = targetObj:getX(),
-                                y = targetObj:getY(),
-                                z = targetObj:getZ(),
-                                distance = 0,
-                            }
-                            NinjaLineages.Damage.applyTargetDamageAndControl(caster, target, p.damagePayload)
-                        end
-                    end
-
-                    shouldRemove = true
-                else
-                    local nx = p.currentX + (dx / dist) * moveDist
-                    local ny = p.currentY + (dy / dist) * moveDist
-
-                    local blocker = NinjaLineages.Collision.traceLine(
-                        p.currentX, p.currentY, p.currentZ,
-                        nx, ny, p.currentZ,
-                        p.collisionMask
-                    )
-
-                    if blocker then
-                        p.resolved = true
-                        p.hitX = blocker.x
-                        p.hitY = blocker.y
-                        p.hitZ = blocker.z
-                        shouldRemove = true
-                    else
-                        p.currentX = nx
-                        p.currentY = ny
-                    end
-                end
-            end
-        end
-
-        p.lastTickGameMinutes = nowGameMinutes
-
-        if shouldRemove then
             table.insert(toRemove, id)
         end
     end
 
     for _, id in ipairs(toRemove) do
         NinjaLineages.CombatRuntime.removeProjectile(id)
+        log("REMOVED id=" .. tostring(id))
     end
 end
 

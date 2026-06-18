@@ -285,12 +285,6 @@ Catalog.Definitions = {
             damage = "LIGHT", control = "GENIN",
         },
         executor = "chakra_needle",
-        projectile = {
-            trackingType = "homing",
-            visual = "chakra_needle_line",
-            collisionMask = "jutsu_projectile",
-            targetPriority = "zombie_then_hostile_player",
-        },
     },
     {
         id = "nervous_system_shock",
