@@ -126,7 +126,7 @@ end
 
 local function forEachOnlinePlayer(callback)
     local players = getOnlinePlayers and getOnlinePlayers()
-    if players then
+    if players and players:size() > 0 then
         for i = 0, players:size() - 1 do
             local player = players:get(i)
             if player then callback(player) end

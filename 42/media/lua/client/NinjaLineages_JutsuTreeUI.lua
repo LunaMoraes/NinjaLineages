@@ -402,7 +402,7 @@ function NLJutsuTreeUI:initialise()
                             local lbr, lbg, lbb = 0.22, 0.22, 0.28
                             if leaderHovered then lbr, lbg, lbb = 0.50, 0.50, 0.62 end
                             panel:drawRectBorder(leaderX, leaderY, leaderW, leaderH, 0.85, lbr, lbg, lbb)
-                            local leaderName = "[Leader]"
+                            local leaderName = "No Leader"
                             local lr, lg, lb = 0.5, 0.5, 0.5
                             if team.leaderKey and team.leaderKey ~= "" then
                                 leaderName = village.memberNames and village.memberNames[team.leaderKey] or team.leaderKey
@@ -420,7 +420,7 @@ function NLJutsuTreeUI:initialise()
                             local m1br, m1bg, m1bb = 0.22, 0.22, 0.28
                             if m1Hovered then m1br, m1bg, m1bb = 0.50, 0.50, 0.62 end
                             panel:drawRectBorder(m1X, m1Y, m1W, m1H, 0.85, m1br, m1bg, m1bb)
-                            local m1Name = "[M1]"
+                            local m1Name = "No Member"
                             local m1r, m1g, m1b = 0.5, 0.5, 0.5
                             if team.member1Key and team.member1Key ~= "" then
                                 m1Name = village.memberNames and village.memberNames[team.member1Key] or team.member1Key
@@ -438,7 +438,7 @@ function NLJutsuTreeUI:initialise()
                             local m2br, m2bg, m2bb = 0.22, 0.22, 0.28
                             if m2Hovered then m2br, m2bg, m2bb = 0.50, 0.50, 0.62 end
                             panel:drawRectBorder(m2X, m2Y, m2W, m2H, 0.85, m2br, m2bg, m2bb)
-                            local m2Name = "[M2]"
+                            local m2Name = "No Member"
                             local m2r, m2g, m2b = 0.5, 0.5, 0.5
                             if team.member2Key and team.member2Key ~= "" then
                                 m2Name = village.memberNames and village.memberNames[team.member2Key] or team.member2Key
