@@ -1,10 +1,13 @@
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISPanelJoypad"
 require "ISUI/ISButton"
+require "ISUI/ISModalDialog"
+require "ISUI/ISTextBox"
 require "TimedActions/ISTimedActionQueue"
 require "NinjaLineages_TreeDefinitions"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Training"
+require "NinjaLineages_Social"
 
 NLJutsuTreeUI = ISCollapsableWindow:derive("NLJutsuTreeUI")
 NLJutsuTreeUI.instances = NLJutsuTreeUI.instances or {}
@@ -207,13 +210,90 @@ function NLJutsuTreeUI:initialise()
                 panel:drawText(translated(node.name, node.nameFallback), self.detailsX, math.floor(h * 0.18), 1, 1, 1, 1, UIFont.Medium)
                 panel:drawText(translated(node.description, node.descriptionFallback), self.detailsX, math.floor(h * 0.24), 0.85, 0.85, 0.9, 1, UIFont.Small)
             end
+        elseif self.screen == "team" then
+            local team = NinjaLineages.Social.getMyTeam(self.player)
+            panel:drawTextCentre(text("UI_NL_Social_TeamInspect"), w / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large)
+            if not team then
+                panel:drawTextCentre(text("UI_NL_Social_NoTeam"), w / 2, 100, 0.8, 0.8, 0.85, 1, UIFont.Medium)
+            else
+                panel:drawTextCentre(team.name or team.id, w / 2, 82, 1, 1, 1, 1, UIFont.Medium)
+                panel:drawTextCentre("ID: " .. tostring(team.id), w / 2, 112, 0.6, 0.6, 0.7, 1, UIFont.Small)
+                local y = 155
+                for _, memberKey in ipairs(team.members or {}) do
+                    local suffix = team.leaderKey == memberKey and "  [Leader]" or ""
+                    panel:drawText(
+                        tostring((team.memberNames and team.memberNames[memberKey]) or memberKey) .. suffix,
+                        70, y, 0.88, 0.88, 0.92, 1, UIFont.Medium
+                    )
+                    y = y + 34
+                end
+                if team.villageID then
+                    panel:drawText(
+                        text("UI_NL_Social_VillageTeamNotice"),
+                        70, y + 12, 0.72, 0.72, 0.8, 1, UIFont.Small
+                    )
+                end
+            end
+        elseif self.screen == "village" then
+            local village = NinjaLineages.Social.getMyVillage(self.player)
+            panel:drawTextCentre(text("UI_NL_Social_HiddenVillage"), w / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large)
+            if village then
+                local symbolTexture = NinjaLineages.Social.getSymbol(village.symbolID)
+                local texture = symbolTexture and getTexture(symbolTexture)
+                if texture then panel:drawTextureScaled(texture, 60, 75, 128, 128, 1, 1, 1, 1) end
+                panel:drawText(village.name, 220, 78, 1, 1, 1, 1, UIFont.Large)
+                panel:drawText("Village ID: " .. tostring(village.id), 220, 120, 0.7, 0.7, 0.78, 1, UIFont.Small)
+                panel:drawText("Village XP: " .. tostring(village.xp or 0), 220, 145, 0.85, 0.85, 0.9, 1, UIFont.Medium)
+                panel:drawText(
+                    "Mission Ranks: " .. table.concat(village.unlockedMissionRanks or {}, ", "),
+                    220, 177, 0.85, 0.85, 0.9, 1, UIFont.Medium
+                )
+                panel:drawText("Kage: " .. tostring(
+                    (village.memberNames and village.memberNames[village.kageKey]) or village.kageKey
+                ), 60, 235, 0.95, 0.85, 0.65, 1, UIFont.Medium)
+                panel:drawText("Members", 60, 280, 1, 1, 1, 1, UIFont.Medium)
+                local y = 315
+                for _, memberKey in ipairs(village.members or {}) do
+                    panel:drawText(
+                        tostring((village.memberNames and village.memberNames[memberKey]) or memberKey),
+                        80, y, 0.86, 0.86, 0.9, 1, UIFont.Small
+                    )
+                    y = y + 25
+                end
+                local teamY = 280
+                panel:drawText("Village Teams", math.floor(w * 0.55), teamY, 1, 1, 1, 1, UIFont.Medium)
+                teamY = teamY + 35
+                for _, teamID in ipairs(village.teamIDs or {}) do
+                    local team = NinjaLineages.Social.getSnapshot().teams[teamID]
+                    panel:drawText(
+                        team and (team.name .. " (" .. tostring(#(team.members or {})) .. "/3)") or tostring(teamID),
+                        math.floor(w * 0.57), teamY, 0.86, 0.86, 0.9, 1, UIFont.Small
+                    )
+                    teamY = teamY + 25
+                end
+            end
+        elseif self.screen == "village_create" then
+            local symbolTexture = NinjaLineages.Social.VillageSymbols[self.selectedVillageSymbol or 1]
+            panel:drawTextCentre(text("UI_NL_Tree_FoundHiddenVillage"), w / 2, 35, 0.95, 0.85, 0.65, 1, UIFont.Large)
+            panel:drawTextCentre(text("UI_NL_Social_ChooseSymbol"), w / 2, 100, 0.9, 0.9, 0.95, 1, UIFont.Medium)
+            if symbolTexture then
+                local texture = getTexture(symbolTexture)
+                if texture then
+                    panel:drawTextureScaled(texture, (w - 180) / 2, 145, 180, 180, 1, 1, 1, 1)
+                else
+                    panel:drawRect((w - 180) / 2, 145, 180, 180, 0.9, 0.08, 0.08, 0.11)
+                    panel:drawRectBorder((w - 180) / 2, 145, 180, 180, 0.8, 0.6, 0.6, 0.7)
+                end
+            end
         end
     end
 
     self.contentPanel.render = function(panel)
         ISPanelJoypad.render(panel)
         if self.screen == "selection" then
-            drawDisabledSideButton(panel, self.foundVillageButton)
+            if self.foundVillageButton and not self.foundVillageButton.enable then
+                drawDisabledSideButton(panel, self.foundVillageButton)
+            end
             drawDisabledSideButton(panel, self.missionBoardButton)
         end
     end
@@ -474,7 +554,7 @@ function NLJutsuTreeUI:createSelectionScreen()
     local sideButtonWidth = leftWidth - margin - 20
     local sideButtonHeight = math.floor(h * 0.055)
     local sideButtonGap = 8
-    local sideButtonY = statusY + statusHeight - (sideButtonHeight * 2) - sideButtonGap - 15
+    local sideButtonY = statusY + statusHeight - (sideButtonHeight * 4) - (sideButtonGap * 3) - 15
     local comingSoon = text("UI_NL_Tree_ComingSoon")
 
     self.foundVillageButton = self:addButton(
@@ -484,14 +564,32 @@ function NLJutsuTreeUI:createSelectionScreen()
         sideButtonHeight,
         text("UI_NL_Tree_FoundHiddenVillage"),
         self,
-        nil
+        NLJutsuTreeUI.onFoundVillage
     )
-    self.foundVillageButton.enable = false
-    setMouseTooltip(self.foundVillageButton, comingSoon)
+
+    self.viewVillageButton = self:addButton(
+        sideButtonX,
+        sideButtonY + sideButtonHeight + sideButtonGap,
+        sideButtonWidth,
+        sideButtonHeight,
+        text("UI_NL_Social_SeeVillage"),
+        self,
+        NLJutsuTreeUI.onViewVillage
+    )
+
+    self.teamInspectButton = self:addButton(
+        sideButtonX,
+        sideButtonY + (sideButtonHeight + sideButtonGap) * 2,
+        sideButtonWidth,
+        sideButtonHeight,
+        text("UI_NL_Social_TeamInspect"),
+        self,
+        NLJutsuTreeUI.onTeamInspect
+    )
 
     self.missionBoardButton = self:addButton(
         sideButtonX,
-        sideButtonY + sideButtonHeight + sideButtonGap,
+        sideButtonY + (sideButtonHeight + sideButtonGap) * 3,
         sideButtonWidth,
         sideButtonHeight,
         text("UI_NL_Tree_OpenMissionBoard"),
@@ -536,10 +634,159 @@ function NLJutsuTreeUI:update()
 end
 
 function NLJutsuTreeUI:updateSelectionButtons()
-    if self.foundVillageButton then
-        self.foundVillageButton:setVisible(
-            NinjaLineages.Progression.getNinjaRank(self.player) == "KAGE"
-        )
+    local village = NinjaLineages.Social.getMyVillage(self.player)
+    local isKageRank = NinjaLineages.Progression.getNinjaRank(self.player) == "KAGE"
+    if self.foundVillageButton then self.foundVillageButton:setVisible(isKageRank and not village) end
+    if self.viewVillageButton then self.viewVillageButton:setVisible(village ~= nil) end
+    if self.teamInspectButton then self.teamInspectButton:setVisible(true) end
+end
+
+function NLJutsuTreeUI:addSocialBackButton()
+    return self:addButton(20, 20, 100, 32, text("UI_NL_Tree_Back"), self, NLJutsuTreeUI.onSocialBack)
+end
+
+function NLJutsuTreeUI:onSocialBack()
+    self:createSelectionScreen()
+end
+
+function NLJutsuTreeUI:onFoundVillage()
+    self:createVillageCreationScreen()
+end
+
+function NLJutsuTreeUI:onViewVillage()
+    self:createVillageScreen()
+end
+
+function NLJutsuTreeUI:onTeamInspect()
+    self:createTeamScreen()
+end
+
+function NLJutsuTreeUI:createVillageCreationScreen()
+    self:clearControls()
+    self.screen = "village_create"
+    self.selectedVillageSymbol = self.selectedVillageSymbol or 1
+    local w, h = self.contentPanel.width, self.contentPanel.height
+    self:addSocialBackButton()
+    self:addButton(w / 2 - 150, 385, 50, 38, "<", self, NLJutsuTreeUI.onPreviousVillageSymbol)
+    self:addButton(w / 2 + 100, 385, 50, 38, ">", self, NLJutsuTreeUI.onNextVillageSymbol)
+    local found = self:addButton(w / 2 - 130, h - 90, 260, 42, text("UI_NL_Tree_FoundHiddenVillage"), self, NLJutsuTreeUI.onConfirmFoundVillage)
+    found.enable = #NinjaLineages.Social.VillageSymbols > 0
+end
+
+function NLJutsuTreeUI:onPreviousVillageSymbol()
+    local count = #NinjaLineages.Social.VillageSymbols
+    if count == 0 then return end
+    self.selectedVillageSymbol = ((self.selectedVillageSymbol or 1) - 2) % count + 1
+end
+
+function NLJutsuTreeUI:onNextVillageSymbol()
+    local count = #NinjaLineages.Social.VillageSymbols
+    if count == 0 then return end
+    self.selectedVillageSymbol = (self.selectedVillageSymbol or 1) % count + 1
+end
+
+local function onVillageNameEntered(ui, button)
+    if button.internal ~= "OK" then return end
+    local symbolTexture = NinjaLineages.Social.VillageSymbols[ui.selectedVillageSymbol or 1]
+    NinjaLineages.Social.request(ui.player, "socialCreateVillage", {
+        name = button.parent.entry:getText(),
+        symbolID = NinjaLineages.Social.getSymbolID(symbolTexture),
+    })
+end
+
+function NLJutsuTreeUI:onConfirmFoundVillage()
+    local box = ISTextBox:new(
+        0, 0, 440, 160, text("UI_NL_Social_EnterVillageName"), "",
+        self, onVillageNameEntered, self.playerNum
+    )
+    box:initialise()
+    box.entry:setMaxTextLength(32)
+    box:addToUIManager()
+end
+
+function NLJutsuTreeUI:createVillageScreen()
+    self:clearControls()
+    self.screen = "village"
+    self:addSocialBackButton()
+end
+
+local function onTeamRenameEntered(ui, button)
+    if button.internal ~= "OK" then return end
+    NinjaLineages.Social.request(ui.player, "socialRenameTeam", {
+        name = button.parent.entry:getText(),
+    })
+end
+
+function NLJutsuTreeUI:onRenameTeam()
+    local team = NinjaLineages.Social.getMyTeam(self.player)
+    if not team then return end
+    local box = ISTextBox:new(
+        0, 0, 440, 160, text("UI_NL_Social_RenameTeam"), team.name or "",
+        self, onTeamRenameEntered, self.playerNum
+    )
+    box:initialise()
+    box.entry:setMaxTextLength(32)
+    box:addToUIManager()
+end
+
+function NLJutsuTreeUI:onLeaveTeam()
+    NinjaLineages.Social.request(self.player, "socialLeaveTeam", {})
+end
+
+function NLJutsuTreeUI:onDisbandTeam()
+    NinjaLineages.Social.request(self.player, "socialDisbandTeam", {})
+end
+
+function NLJutsuTreeUI:onKickTeamMember(button)
+    NinjaLineages.Social.request(self.player, "socialKickTeamMember", {
+        targetKey = button.internal,
+    })
+end
+
+function NLJutsuTreeUI:createTeamScreen()
+    self:clearControls()
+    self.screen = "team"
+    local w, h = self.contentPanel.width, self.contentPanel.height
+    self:addSocialBackButton()
+    local team = NinjaLineages.Social.getMyTeam(self.player)
+    if not team then return end
+    local snapshot = NinjaLineages.Social.getSnapshot()
+    local playerKey = (snapshot.me and snapshot.me.playerKey)
+        or NinjaLineages.Social.getPlayerKey(self.player, true)
+    local isLeader = NinjaLineages.Social.isTeamLeader(self.player)
+    if isLeader then
+        self:addButton(w - 190, 75, 150, 34, text("UI_NL_Social_RenameTeam"), self, NLJutsuTreeUI.onRenameTeam)
+    end
+    if not team.villageID and isLeader then
+        self:addButton(w - 190, h - 65, 150, 34, text("UI_NL_Social_DisbandTeam"), self, NLJutsuTreeUI.onDisbandTeam)
+    else
+        self:addButton(w - 190, h - 65, 150, 34, text("UI_NL_Social_LeaveTeam"), self, NLJutsuTreeUI.onLeaveTeam)
+    end
+    if isLeader then
+        local y = 155
+        for _, memberKey in ipairs(team.members or {}) do
+            if memberKey ~= playerKey then
+                local kick = self:addButton(w - 190, y, 150, 28, text("UI_NL_Social_Kick"), self, NLJutsuTreeUI.onKickTeamMember)
+                kick.internal = memberKey
+            end
+            y = y + 34
+        end
+    end
+end
+
+function NLJutsuTreeUI:refreshSocialState()
+    if self.screen == "selection" then
+        self:updateSelectionButtons()
+    elseif self.screen == "team" then
+        self:createTeamScreen()
+    elseif self.screen == "village" then
+        if NinjaLineages.Social.getMyVillage(self.player) then
+            self:createVillageScreen()
+        else
+            self:createSelectionScreen()
+        end
+    elseif self.screen == "village_create" and NinjaLineages.Social.getMyVillage(self.player) then
+        self:createVillageScreen()
     end
 end
 
