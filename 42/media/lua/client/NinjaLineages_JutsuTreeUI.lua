@@ -377,6 +377,9 @@ function NLJutsuTreeUI:initialise()
                     panel:drawTextCentre(text("UI_NL_Social_NoVillageTeams") or "No teams in this village.", w / 2, 120, 0.8, 0.8, 0.85, 1, UIFont.Medium)
                 else
                     local boxW = 180
+                    local boxH = 215
+                    local slotSize = 70
+                    local slotGap = 10
                     local spacing = 20
                     local startX = (w - (#teamIDs * boxW + (#teamIDs - 1) * spacing)) / 2
                     local colY = 100
@@ -387,64 +390,59 @@ function NLJutsuTreeUI:initialise()
                             local colX = startX + (i - 1) * (boxW + spacing)
                             
                             -- Draw Team Box (Grey Border)
-                            panel:drawRectBorder(colX, colY, boxW, 210, 0.85, 0.34, 0.34, 0.42)
+                            panel:drawRectBorder(colX, colY, boxW, boxH, 0.85, 0.34, 0.34, 0.42)
 
                             -- Draw Team Name
                             panel:drawTextCentre(team.name, colX + boxW / 2, colY + 10, 0.95, 0.85, 0.65, 1, UIFont.Medium)
 
-                            -- Leader Box (Dark border, lighter when hovered)
-                            local leaderX = colX + 15
-                            local leaderY = colY + 35
-                            local leaderW = 150
-                            local leaderH = 45
+                            -- Leader Box
+                            local leaderX = colX + (boxW - slotSize) / 2
+                            local leaderY = colY + 50
                             local leaderBtn = self.slotButtons and self.slotButtons[teamID .. "_leader"]
                             local leaderHovered = leaderBtn and leaderBtn:isMouseOver()
                             local lbr, lbg, lbb = 0.22, 0.22, 0.28
                             if leaderHovered then lbr, lbg, lbb = 0.50, 0.50, 0.62 end
-                            panel:drawRectBorder(leaderX, leaderY, leaderW, leaderH, 0.85, lbr, lbg, lbb)
+                            panel:drawRectBorder(leaderX, leaderY, slotSize, slotSize, 0.85, lbr, lbg, lbb)
                             local leaderName = "No Leader"
                             local lr, lg, lb = 0.5, 0.5, 0.5
                             if team.leaderKey and team.leaderKey ~= "" then
                                 leaderName = village.memberNames and village.memberNames[team.leaderKey] or team.leaderKey
                                 lr, lg, lb = 0.9, 0.9, 0.95
                             end
-                            panel:drawTextCentre(leaderName, leaderX + leaderW / 2, leaderY + leaderH / 2 - 8, lr, lg, lb, 1, UIFont.Small)
+                            drawMemberName(panel, leaderName, leaderX, leaderY, slotSize, slotSize, lr, lg, lb)
 
                             -- Member 1 Box
-                            local m1X = colX + 15
-                            local m1Y = colY + 95
-                            local m1W = 70
-                            local m1H = 95
+                            local slotsWidth = slotSize * 2 + slotGap
+                            local m1X = colX + (boxW - slotsWidth) / 2
+                            local m1Y = leaderY + slotSize + slotGap
                             local m1Btn = self.slotButtons and self.slotButtons[teamID .. "_member1"]
                             local m1Hovered = m1Btn and m1Btn:isMouseOver()
                             local m1br, m1bg, m1bb = 0.22, 0.22, 0.28
                             if m1Hovered then m1br, m1bg, m1bb = 0.50, 0.50, 0.62 end
-                            panel:drawRectBorder(m1X, m1Y, m1W, m1H, 0.85, m1br, m1bg, m1bb)
+                            panel:drawRectBorder(m1X, m1Y, slotSize, slotSize, 0.85, m1br, m1bg, m1bb)
                             local m1Name = "No Member"
                             local m1r, m1g, m1b = 0.5, 0.5, 0.5
                             if team.member1Key and team.member1Key ~= "" then
                                 m1Name = village.memberNames and village.memberNames[team.member1Key] or team.member1Key
                                 m1r, m1g, m1b = 0.9, 0.9, 0.95
                             end
-                            drawMemberName(panel, m1Name, m1X, m1Y, m1W, m1H, m1r, m1g, m1b)
+                            drawMemberName(panel, m1Name, m1X, m1Y, slotSize, slotSize, m1r, m1g, m1b)
 
                             -- Member 2 Box
-                            local m2X = colX + 95
-                            local m2Y = colY + 95
-                            local m2W = 70
-                            local m2H = 95
+                            local m2X = m1X + slotSize + slotGap
+                            local m2Y = m1Y
                             local m2Btn = self.slotButtons and self.slotButtons[teamID .. "_member2"]
                             local m2Hovered = m2Btn and m2Btn:isMouseOver()
                             local m2br, m2bg, m2bb = 0.22, 0.22, 0.28
                             if m2Hovered then m2br, m2bg, m2bb = 0.50, 0.50, 0.62 end
-                            panel:drawRectBorder(m2X, m2Y, m2W, m2H, 0.85, m2br, m2bg, m2bb)
+                            panel:drawRectBorder(m2X, m2Y, slotSize, slotSize, 0.85, m2br, m2bg, m2bb)
                             local m2Name = "No Member"
                             local m2r, m2g, m2b = 0.5, 0.5, 0.5
                             if team.member2Key and team.member2Key ~= "" then
                                 m2Name = village.memberNames and village.memberNames[team.member2Key] or team.member2Key
                                 m2r, m2g, m2b = 0.9, 0.9, 0.95
                             end
-                            drawMemberName(panel, m2Name, m2X, m2Y, m2W, m2H, m2r, m2g, m2b)
+                            drawMemberName(panel, m2Name, m2X, m2Y, slotSize, slotSize, m2r, m2g, m2b)
                         end
                     end
                 end
@@ -1051,10 +1049,13 @@ function NLJutsuTreeUI:createVillageTeamsScreen()
 
         local teamIDs = village.teamIDs or {}
         local boxW = 180
+        local slotSize = 70
+        local slotGap = 10
         local spacing = 20
         local w = self.contentPanel.width
         local startX = (w - (#teamIDs * boxW + (#teamIDs - 1) * spacing)) / 2
         local colY = 100
+        self.slotButtons = {}
 
         for i, teamID in ipairs(teamIDs) do
             local team = NinjaLineages.Social.getSnapshot().teams[teamID]
@@ -1063,23 +1064,45 @@ function NLJutsuTreeUI:createVillageTeamsScreen()
 
                 local isTeamLeader = team.leaderKey and NinjaLineages.Social.getPlayerKey(self.player, true) == team.leaderKey
                 if isVillageKage or isTeamLeader then
-                    local nameBtn = self:addButton(colX, colY + 5, boxW, 24, "", self, function() self:onRenameTeamName(teamID) end)
+                    local nameWidth = getTextManager():MeasureStringX(UIFont.Medium, team.name)
+                    local nameHeight = getTextManager():getFontHeight(UIFont.Medium)
+                    local nameBtn = self:addButton(
+                        colX + (boxW - nameWidth) / 2,
+                        colY + 10,
+                        nameWidth,
+                        nameHeight,
+                        "",
+                        self,
+                        function() self:onRenameTeamName(teamID) end
+                    )
                     nameBtn.background = false
                     nameBtn.border = false
+                    nameBtn.backgroundColor.a = 0
+                    nameBtn.backgroundColorMouseOver.a = 0
+                    nameBtn.borderColor.a = 0
                 end
 
                 if isVillageKage then
-                    local leaderBtn = self:addButton(colX + 15, colY + 35, 150, 45, "", self, function() self:onSelectSlot(teamID, "leader") end)
+                    local leaderX = colX + (boxW - slotSize) / 2
+                    local leaderY = colY + 50
+                    local slotsWidth = slotSize * 2 + slotGap
+                    local member1X = colX + (boxW - slotsWidth) / 2
+                    local memberY = leaderY + slotSize + slotGap
+
+                    local leaderBtn = self:addButton(leaderX, leaderY, slotSize, slotSize, "", self, function() self:onSelectSlot(teamID, "leader") end)
                     leaderBtn.background = false
                     leaderBtn.border = false
+                    self.slotButtons[teamID .. "_leader"] = leaderBtn
 
-                    local m1Btn = self:addButton(colX + 15, colY + 95, 70, 95, "", self, function() self:onSelectSlot(teamID, "member1") end)
+                    local m1Btn = self:addButton(member1X, memberY, slotSize, slotSize, "", self, function() self:onSelectSlot(teamID, "member1") end)
                     m1Btn.background = false
                     m1Btn.border = false
+                    self.slotButtons[teamID .. "_member1"] = m1Btn
 
-                    local m2Btn = self:addButton(colX + 95, colY + 95, 70, 95, "", self, function() self:onSelectSlot(teamID, "member2") end)
+                    local m2Btn = self:addButton(member1X + slotSize + slotGap, memberY, slotSize, slotSize, "", self, function() self:onSelectSlot(teamID, "member2") end)
                     m2Btn.background = false
                     m2Btn.border = false
+                    self.slotButtons[teamID .. "_member2"] = m2Btn
                 end
             end
         end
