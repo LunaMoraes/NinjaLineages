@@ -27,6 +27,78 @@ local function spendChakraTowardStat(player, stats, stat, target, statPerChakra,
     stats:set(stat, direction > 0 and math.min(target, adjusted) or math.max(target, adjusted))
 end
 
+local function isStatMet(current, target)
+    if target == 0 then return current <= 0.01 end
+    if target == 1 then return current >= 0.99 end
+    return math.abs(current - target) <= 0.01
+end
+
+local function processStatRestorationLoop(player, state, now, actionId, stateUntilKey, stateNextTickKey, messageKey, statsToRestore)
+    if not state[stateUntilKey] then return end
+    
+    local resolved = Catalog.resolveBalance(actionId)
+    local processUntil = math.min(now, state[stateUntilKey])
+    
+    while state[stateNextTickKey]
+            and state[stateNextTickKey] <= processUntil
+            and state[stateNextTickKey] < state[stateUntilKey] do
+        
+        local stats = player:getStats()
+        local allDone = true
+        
+        for _, config in ipairs(statsToRestore) do
+            local current = stats:get(config.stat)
+            if not isStatMet(current, config.targetValue) then
+                allDone = false
+                break
+            end
+        end
+        
+        if allDone then
+            state[stateUntilKey] = now
+            break
+        end
+        
+        local step = resolved.costStep or 5
+        for _, config in ipairs(statsToRestore) do
+            local current = stats:get(config.stat)
+            if not isStatMet(current, config.targetValue) then
+                spendChakraTowardStat(
+                    player, stats, config.stat, config.targetValue,
+                    config.conversionRate, step
+                )
+            end
+        end
+        
+        allDone = true
+        for _, config in ipairs(statsToRestore) do
+            local current = stats:get(config.stat)
+            if not isStatMet(current, config.targetValue) then
+                allDone = false
+                break
+            end
+        end
+        
+        if allDone then
+            state[stateUntilKey] = now
+            break
+        end
+        
+        state[stateNextTickKey] = state[stateNextTickKey] + resolved.tickInterval
+        
+        if NinjaLineages.Chakra.getChakra(player) <= 0 then
+            state[stateUntilKey] = now
+            break
+        end
+    end
+    
+    if now >= state[stateUntilKey] then
+        state[stateUntilKey] = nil
+        state[stateNextTickKey] = nil
+        player:Say(getText(messageKey))
+    end
+end
+
 local function applyKamuiVisionPenalty(player)
     local data = NinjaLineages.getNLData(player)
     local level = math.min(3, (data.kamuiVisionLevel or 0) + 1)
@@ -133,89 +205,25 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
         end
     end
 
-    if state.calorieControlUntil then
-        local resolved = Catalog.resolveBalance("calorie_control")
-        local processUntil = math.min(now, state.calorieControlUntil)
-        while state.nextCalorieTick
-                and state.nextCalorieTick <= processUntil
-                and state.nextCalorieTick < state.calorieControlUntil do
-            local stats = player:getStats()
-            local hunger = stats:get(CharacterStat.HUNGER)
-            local thirst = stats:get(CharacterStat.THIRST)
-            if hunger <= 0.01 and thirst <= 0.01 then
-                state.calorieControlUntil = now
-                break
-            end
-            local step = resolved.costStep or 5
-            if hunger > 0.01 then
-                spendChakraTowardStat(
-                    player, stats, CharacterStat.HUNGER, 0,
-                    NinjaLineages.Constants.CalorieControl.CHAKRA_TO_HUNGER, step
-                )
-            end
-            if thirst > 0.01 then
-                spendChakraTowardStat(
-                    player, stats, CharacterStat.THIRST, 0,
-                    NinjaLineages.Constants.CalorieControl.CHAKRA_TO_THIRST, step
-                )
-            end
-            state.nextCalorieTick = state.nextCalorieTick + resolved.tickInterval
-            if NinjaLineages.Chakra.getChakra(player) <= 0 then
-                state.calorieControlUntil = now
-                break
-            end
-        end
-        if now >= state.calorieControlUntil then
-            state.calorieControlUntil = nil
-            state.nextCalorieTick = nil
-            player:Say(getText("UI_NL_Ability_calorie_control_Deactivated"))
-        end
-    end
+    processStatRestorationLoop(
+        player, state, now, "calorie_control",
+        "calorieControlUntil", "nextCalorieTick",
+        "UI_NL_Ability_calorie_control_Deactivated",
+        {
+            { stat = CharacterStat.HUNGER, targetValue = 0, conversionRate = NinjaLineages.Constants.CalorieControl.CHAKRA_TO_HUNGER },
+            { stat = CharacterStat.THIRST, targetValue = 0, conversionRate = NinjaLineages.Constants.CalorieControl.CHAKRA_TO_THIRST },
+        }
+    )
 
-    if state.physicalReinforcementUntil then
-        local resolved = Catalog.resolveBalance("physical_reinforcement")
-        local processUntil = math.min(now, state.physicalReinforcementUntil)
-        while state.nextPhysicalReinforcementTick
-                and state.nextPhysicalReinforcementTick <= processUntil
-                and state.nextPhysicalReinforcementTick < state.physicalReinforcementUntil do
-            local stats = player:getStats()
-            local endurance = stats:get(CharacterStat.ENDURANCE)
-            local fatigue = stats:get(CharacterStat.FATIGUE)
-            if endurance >= 1 and fatigue <= 0 then
-                state.physicalReinforcementUntil = now
-                break
-            end
-            local step = resolved.costStep or 5
-            if endurance < 1 then
-                spendChakraTowardStat(
-                    player, stats, CharacterStat.ENDURANCE, 1,
-                    NinjaLineages.Constants.PhysicalReinforcement.CHAKRA_TO_ENDURANCE, step
-                )
-            end
-            if fatigue > 0 then
-                spendChakraTowardStat(
-                    player, stats, CharacterStat.FATIGUE, 0,
-                    NinjaLineages.Constants.PhysicalReinforcement.CHAKRA_TO_FATIGUE, step
-                )
-            end
-            if stats:get(CharacterStat.ENDURANCE) >= 1
-                    and stats:get(CharacterStat.FATIGUE) <= 0 then
-                state.physicalReinforcementUntil = now
-                break
-            end
-            state.nextPhysicalReinforcementTick =
-                state.nextPhysicalReinforcementTick + resolved.tickInterval
-            if NinjaLineages.Chakra.getChakra(player) <= 0 then
-                state.physicalReinforcementUntil = now
-                break
-            end
-        end
-        if now >= state.physicalReinforcementUntil then
-            state.physicalReinforcementUntil = nil
-            state.nextPhysicalReinforcementTick = nil
-            player:Say(getText("UI_NL_ReinforcementExpired"))
-        end
-    end
+    processStatRestorationLoop(
+        player, state, now, "physical_reinforcement",
+        "physicalReinforcementUntil", "nextPhysicalReinforcementTick",
+        "UI_NL_ReinforcementExpired",
+        {
+            { stat = CharacterStat.ENDURANCE, targetValue = 1, conversionRate = NinjaLineages.Constants.PhysicalReinforcement.CHAKRA_TO_ENDURANCE },
+            { stat = CharacterStat.FATIGUE, targetValue = 0, conversionRate = NinjaLineages.Constants.PhysicalReinforcement.CHAKRA_TO_FATIGUE },
+        }
+    )
 
     local visionLevel = data.kamuiVisionLevel or 0
     while visionLevel > 0
