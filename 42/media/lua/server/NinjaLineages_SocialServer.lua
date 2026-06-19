@@ -870,6 +870,21 @@ function handlers.socialLeaveTeam(player)
     local teamID = playerKey and state.playerTeams[playerKey]
     local team = teamID and state.teams[teamID]
     if not team then return false, "no_team" end
+
+    local mission
+    if team.activeMissionId and team.villageID then
+        local candidate = state.missions[team.activeMissionId]
+        if candidate and candidate.status == "active" and candidate.villageId == team.villageID then
+            mission = candidate
+        end
+    end
+
+    if mission then
+        local village = state.villages[team.villageID]
+        if village then
+            applyReputationFlag(village, playerKey, "Deserter", 1, false)
+        end
+    end
     if not team.villageID and team.leaderKey == playerKey then
         disbandTeam(teamID)
         return true

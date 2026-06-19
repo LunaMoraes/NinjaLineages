@@ -120,7 +120,6 @@ module Base
     {
         DisplayCategory = Literature,
         ItemType = base:literature,
-        DisplayName = UI_item_NL_BingoBook,
         Weight = 0.5,
         Icon = Book,
         NumberOfPages = 1,

@@ -9,7 +9,7 @@ NinjaLineages = NinjaLineages or {}
 AcceptItemFunction = AcceptItemFunction or {}
 RecipeCodeOnTest = RecipeCodeOnTest or {}
 
-function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(item, result, player)
+function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(recipe, player)
     if not player then
         pcall(function()
             if getPlayer then player = getPlayer() end
@@ -21,8 +21,15 @@ function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(item, result, player)
         end
     end
     if not player then return false end
-    local resultType = result and result:getFullType() or ""
-    if resultType == "Base.NL_AlarmSeal" then
+    
+    local name = ""
+    if type(recipe) == "userdata" and recipe.getName then
+        name = recipe:getName()
+    elseif type(recipe) == "string" then
+        name = recipe
+    end
+
+    if string.find(name, "AlarmSeal") then
         return NinjaLineages.Progression.isCompleted(player, "alarm_seal")
     end
     return NinjaLineages.Progression.isCompleted(player, "storage_seal")
