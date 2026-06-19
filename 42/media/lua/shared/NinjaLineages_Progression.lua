@@ -20,6 +20,14 @@ local function getState(player)
     return state
 end
 
+local function refreshSocialProgressionSummary(player)
+    if not NinjaLineages.isClient()
+            and NinjaLineages.SocialServer
+            and NinjaLineages.SocialServer.updateProgressionSummary then
+        NinjaLineages.SocialServer.updateProgressionSummary(player)
+    end
+end
+
 function Progression.getState(player)
     return getState(player)
 end
@@ -33,6 +41,7 @@ function Progression.setNinjaXP(player, amount)
     local state = getState(player)
     state.ninjaXP = math.max(0, amount or 0)
     NinjaLineages.transmitPlayerData(player)
+    refreshSocialProgressionSummary(player)
 end
 
 function Progression.requestDebugAddXP(player, amount)
@@ -122,6 +131,7 @@ function Progression.completeCoreTrees(player)
     end
 
     NinjaLineages.transmitPlayerData(player)
+    refreshSocialProgressionSummary(player)
     return completed, Progression.getNinjaRank(player)
 end
 
@@ -143,7 +153,7 @@ end
 function Progression.isDisciplineLocked(player, disciplineId)
     local definition = NinjaLineages.TreeDefinitions.Disciplines[disciplineId]
     if not definition then return true end
-    
+
     local data = NinjaLineages.getNLData(player)
     if data.allDisciplinesUnlocked then
         return false
@@ -194,6 +204,7 @@ function Progression.awardXP(player, source, rawAmount, authoritative)
     if amount <= 0 then return 0 end
     state.ninjaXP = (state.ninjaXP or 0) + amount
     NinjaLineages.transmitPlayerData(player)
+    refreshSocialProgressionSummary(player)
     return amount
 end
 
@@ -297,6 +308,7 @@ function Progression.unlockNode(player, nodeId, bypass)
         state.nodes[nodeId] = "unlocked"
     end
     NinjaLineages.transmitPlayerData(player)
+    refreshSocialProgressionSummary(player)
     return true
 end
 
@@ -310,6 +322,7 @@ function Progression.completeTraining(player, nodeId, item)
     local state = getState(player)
     state.nodes[nodeId] = "completed"
     NinjaLineages.transmitPlayerData(player)
+    refreshSocialProgressionSummary(player)
     return true
 end
 

@@ -26,6 +26,7 @@ local function defaultState()
         playerVillages = {},
         pendingInvites = {},
         knownPlayers = {},
+        playerProgressionSummaries = {},
         reputationFlags = {},
         missions = {},
         pendingMissionXP = {},
@@ -48,6 +49,7 @@ local function ensureState()
     state.playerVillages = state.playerVillages or {}
     state.pendingInvites = state.pendingInvites or {}
     state.knownPlayers = state.knownPlayers or {}
+    state.playerProgressionSummaries = state.playerProgressionSummaries or {}
     state.reputationFlags = state.reputationFlags or {}
     state.missions = state.missions or {}
     state.pendingMissionXP = state.pendingMissionXP or {}
@@ -258,6 +260,19 @@ local function findOnlinePlayerByKey(playerKey)
         if not found and Social.getPlayerKey(candidate, true) == playerKey then found = candidate end
     end)
     return found
+end
+
+function Server.updateProgressionSummary(player)
+    if not player then return false end
+    ensureState()
+    local playerKey = Social.getPlayerKey(player, false)
+    if not playerKey then return false end
+    state.playerProgressionSummaries[playerKey] = {
+        rank = NinjaLineages.Progression.getNinjaRank(player),
+        ninjaXP = math.max(0, tonumber(NinjaLineages.Progression.getNinjaXP(player)) or 0),
+        updatedAt = now(),
+    }
+    return true
 end
 
 local function isNear(a, b)
@@ -502,6 +517,96 @@ local function expelVillageMember(village, targetKey)
     if village.memberNames then village.memberNames[targetKey] = nil end
     state.playerVillages[targetKey] = nil
     return true
+end
+
+local RANK_PRIORITY = {
+    NONE = 0,
+    GENIN = 1,
+    CHUNIN = 2,
+    JONIN = 3,
+    KAGE = 4,
+}
+
+local function progressionSummary(playerKey)
+    local player = findOnlinePlayerByKey(playerKey)
+    if player then Server.updateProgressionSummary(player) end
+    local summary = state.playerProgressionSummaries[playerKey] or {}
+    local rank = RANK_PRIORITY[summary.rank] and summary.rank or "NONE"
+    return {
+        rank = rank,
+        rankPriority = RANK_PRIORITY[rank],
+        ninjaXP = math.max(0, tonumber(summary.ninjaXP) or 0),
+    }
+end
+
+local function randomCandidate(candidates)
+    if #candidates == 1 then return candidates[1] end
+    if ZombRand then return candidates[ZombRand(#candidates) + 1] end
+    return candidates[math.random(1, #candidates)]
+end
+
+local function villageHasMember(village, wantedKey)
+    for _, memberKey in ipairs(village.members or {}) do
+        if memberKey == wantedKey then return true end
+    end
+    return false
+end
+
+local function isEligibleSuccessor(village, playerKey, deadKageKey)
+    return type(playerKey) == "string"
+        and playerKey ~= ""
+        and playerKey ~= deadKageKey
+        and villageHasMember(village, playerKey)
+        and state.playerVillages[playerKey] == village.id
+end
+
+local function selectAutomaticSuccessor(village, deadKageKey)
+    local bestRank = -1
+    local bestXP = -1
+    local tied = {}
+
+    for _, candidateKey in ipairs(village.members or {}) do
+        if isEligibleSuccessor(village, candidateKey, deadKageKey) then
+            local summary = progressionSummary(candidateKey)
+            if summary.rankPriority > bestRank
+                    or (summary.rankPriority == bestRank and summary.ninjaXP > bestXP) then
+                bestRank = summary.rankPriority
+                bestXP = summary.ninjaXP
+                tied = { candidateKey }
+            elseif summary.rankPriority == bestRank and summary.ninjaXP == bestXP then
+                table.insert(tied, candidateKey)
+            end
+        end
+    end
+
+    if #tied == 0 then return nil end
+    return randomCandidate(tied)
+end
+
+function Server.resolveKageSuccession(deadKage)
+    ensureState()
+    if not deadKage or not instanceof(deadKage, "IsoPlayer") then return false, "not_player" end
+    local deadKageKey = Social.getPlayerKey(deadKage, false)
+    if not deadKageKey then return false, "unstable_identity" end
+    local villageID = state.playerVillages[deadKageKey]
+    local village = villageID and state.villages[villageID]
+    if not village or village.kageKey ~= deadKageKey then return false, "not_kage" end
+
+    removePlayerFromVillageTeam(deadKageKey)
+
+    local successorKey = village.secondInCommandKey
+    if not isEligibleSuccessor(village, successorKey, deadKageKey) then
+        successorKey = selectAutomaticSuccessor(village, deadKageKey)
+    end
+
+    if successorKey then
+        village.kageKey = successorKey
+        return true, "kage_succeeded", successorKey
+    end
+
+    local success, reason = Server.disbandVillage(villageID)
+    if not success then return false, reason end
+    return true, "village_disbanded"
 end
 
 local function applyReputationFlag(village, targetKey, flagType, severityIncrement, expelMember)
@@ -867,7 +972,7 @@ function handlers.socialCreateVillage(player, args)
     local title = args and args.title
     if not name then return false, "invalid_name" end
     if not Social.getSymbol(symbolID) then return false, "invalid_symbol" end
-    
+
     local titleValid = false
     if title then
         for _, t in ipairs(Social.VillageTitles) do
@@ -1086,6 +1191,7 @@ local function onPlayerConnected(player)
     pruneInvites()
     local playerKey = Social.getPlayerKey(player, false)
     if playerKey then
+        Server.updateProgressionSummary(player)
         local displayName = Social.getPlayerDisplayName(player)
         state.knownPlayers[playerKey] = displayName
         for _, flag in pairs(state.reputationFlags) do
@@ -1107,7 +1213,20 @@ end
 
 local function everyMinute()
     ensureState()
+    forEachOnlinePlayer(Server.updateProgressionSummary)
     if pruneInvites() then broadcastSnapshots() end
+end
+
+local function onCharacterDeath(character)
+    if not character or not instanceof(character, "IsoPlayer") then return end
+    local success = Server.resolveKageSuccession(character)
+    if not success then return end
+    broadcastSnapshots()
+    broadcastReputationSnapshots()
+    if NinjaLineages.MissionServer
+            and NinjaLineages.MissionServer.broadcastSnapshots then
+        NinjaLineages.MissionServer.broadcastSnapshots()
+    end
 end
 
 NinjaLineages.addEventOnce(
@@ -1122,5 +1241,12 @@ NinjaLineages.addEventOnce(
 )
 if Events.OnConnected then
     NinjaLineages.addEventOnce("server.social.onConnected", Events.OnConnected, onPlayerConnected)
+end
+if Events.OnCharacterDeath then
+    NinjaLineages.addEventOnce(
+        "server.social.onCharacterDeath.kageSuccession",
+        Events.OnCharacterDeath,
+        onCharacterDeath
+    )
 end
 NinjaLineages.addEventOnce("server.social.everyMinute", Events.EveryOneMinute, everyMinute)
