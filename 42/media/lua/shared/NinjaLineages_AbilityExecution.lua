@@ -16,6 +16,18 @@ NinjaLineages.AbilityExecution.active = NinjaLineages.AbilityExecution.active or
 NinjaLineages.AbilityExecution.boundZombies = NinjaLineages.AbilityExecution.boundZombies or {}
 NinjaLineages.AbilityExecution.sharinganRolls = NinjaLineages.AbilityExecution.sharinganRolls or {}
 
+NinjaLineages.AbilityExecution.specializedExecutors = NinjaLineages.AbilityExecution.specializedExecutors or {}
+NinjaLineages.AbilityExecution.genericEffects = NinjaLineages.AbilityExecution.genericEffects or {}
+
+function NinjaLineages.AbilityExecution.registerSpecializedExecutor(name, func)
+    NinjaLineages.AbilityExecution.specializedExecutors[name] = func
+end
+
+function NinjaLineages.AbilityExecution.registerGenericEffect(kind, func)
+    NinjaLineages.AbilityExecution.genericEffects[kind] = func
+end
+
+
 -- Load refactored ability submodules
 require "abilities/NinjaLineages_BringerOfDarkness"
 require "abilities/NinjaLineages_Kirigakure"

@@ -478,7 +478,7 @@ local handSigns = {
     monkey = true, dragon = true, rat = true, bird = true, snake = true, ox = true,
     dog = true, horse = true, tiger = true, boar = true, ram = true, hare = true,
 }
-local genericEffects = {
+Catalog.genericEffects = {
     timed_state = true,
     world_sound = true,
     sound_timed_state = true,
@@ -490,24 +490,6 @@ local genericEffects = {
     forward_movement = true,
     heal_most_damaged = true,
     cell_stimulation = true,
-}
-local specializedExecutors = {
-    smoke_bomb = true,
-    bringer_of_darkness = true,
-    sharingan = true,
-    byakugan = true,
-    kamui = true,
-    binding_roots = true,
-    creation_rebirth = true,
-    kirigakure = true,
-    shinra_tensei = true,
-    corpse_odor_conditioning = true,
-    katon = true,
-    calorie_control = true,
-    chakra_needle = true,
-    earth_wall = true,
-    nervous_system_shock = true,
-    projectile_jutsu = true,
 }
 local specialRequirements = {
     mangekyo_unlocked = true,
@@ -825,12 +807,6 @@ function Catalog.validate()
             end
         end
         if definition.selectable ~= false then
-            if definition.effect and not genericEffects[definition.effect.kind] then
-                error("[JutsuCatalog] Unknown effect kind '" .. tostring(definition.effect.kind) .. "'")
-            end
-            if definition.executor and not specializedExecutors[definition.executor] then
-                error("[JutsuCatalog] Unknown executor '" .. tostring(definition.executor) .. "'")
-            end
             if not definition.effect and not definition.executor then
                 error("[JutsuCatalog] Selectable ability '" .. definition.id .. "' has no execution")
             end
@@ -842,6 +818,23 @@ function Catalog.validate()
         for _, prerequisite in ipairs((definition.node and definition.node.prerequisites) or {}) do
             if not nodeIds[prerequisite] then
                 error("[JutsuCatalog] Unknown prerequisite '" .. prerequisite .. "' on " .. definition.id)
+            end
+        end
+    end
+    return true
+end
+
+function Catalog.validateExecutors()
+    local specializedExecutors = NinjaLineages.AbilityExecution.specializedExecutors or {}
+    local genericEffects = NinjaLineages.AbilityExecution.genericEffects or {}
+
+    for _, definition in ipairs(Catalog.Definitions) do
+        if definition.selectable ~= false then
+            if definition.executor and not specializedExecutors[definition.executor] then
+                error("[JutsuCatalog] Missing specialized executor '" .. tostring(definition.executor) .. "' for ability " .. definition.id)
+            end
+            if definition.effect and not Catalog.genericEffects[definition.effect.kind] and not genericEffects[definition.effect.kind] then
+                error("[JutsuCatalog] Missing generic effect kind '" .. tostring(definition.effect.kind) .. "' for ability " .. definition.id)
             end
         end
     end

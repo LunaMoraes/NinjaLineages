@@ -26,7 +26,7 @@ local active = NinjaLineages.AbilityExecution.active
 local boundZombies = NinjaLineages.AbilityExecution.boundZombies
 local sharinganRolls = NinjaLineages.AbilityExecution.sharinganRolls
 
-local specializedExecutors = {}
+local specializedExecutors = NinjaLineages.AbilityExecution.specializedExecutors
 local KAMUI_SP_STEP_DISTANCE = 0.055
 local kamuiMoveVector = Vector2.new()
 
@@ -118,6 +118,12 @@ end
 local function executeGenericEffect(player, definition, resolved)
     local effect = definition.effect
     local data = NinjaLineages.getNLData(player)
+
+    local registered = NinjaLineages.AbilityExecution.genericEffects[effect.kind]
+    if registered then
+        return registered(player, definition, resolved)
+    end
+
     if effect.kind == "heal_most_damaged" then
         local part = mostDamagedPart(player)
         if not part then return false, "no_wounds" end
@@ -742,11 +748,11 @@ for _, definition in ipairs(Catalog.getSelectable()) do
             return executeCatalogAbility(player, actionDefinition)
         end)
     else
-        local executor = specializedExecutors[actionDefinition.executor]
-        if not executor then
-            error("[AbilityExecution] Missing specialized executor '" .. tostring(actionDefinition.executor) .. "'")
-        end
         Authority.register(actionDefinition.id, function(player, args)
+            local executor = specializedExecutors[actionDefinition.executor]
+            if not executor then
+                error("[AbilityExecution] Missing specialized executor '" .. tostring(actionDefinition.executor) .. "' for ability " .. actionDefinition.id)
+            end
             return executor(player, actionDefinition, args)
         end)
     end

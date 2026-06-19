@@ -126,3 +126,5 @@ if NinjaLineages.isServer() then
         everyOneMinute
     )
 end
+
+NinjaLineages.JutsuCatalog.validateExecutors()

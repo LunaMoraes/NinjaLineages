@@ -29,6 +29,8 @@ require "lineages/NinjaLineages_Rinnegan"
 require "lineages/NinjaLineages_Uzumaki"
 
 NinjaLineages.JutsuCatalog.registerSelectableAbilities()
+NinjaLineages.JutsuCatalog.validateExecutors()
+
 
 local consts = NinjaLineages.Constants
 local lastMinuteUpdateAt = {}
