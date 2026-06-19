@@ -314,6 +314,7 @@ local function onPlayerUpdate(player)
     NinjaLineages.HandSigns.update(player)
     NinjaLineages.AbilityAuthority.updatePending()
     NinjaLineages.AbilityAuthority.maintainLocalKamuiNoClip(player)
+    NinjaLineages.AbilityAuthority.updateLocalMovement(player)
     if not NinjaLineages.isClient() then
         NinjaLineages.AbilityAuthority.updatePlayer(player)
         if player:getPlayerNum() == 0 then NinjaLineages.AbilityAuthority.updateWorld() end

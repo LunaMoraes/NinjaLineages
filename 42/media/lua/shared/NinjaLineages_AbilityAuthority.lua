@@ -235,6 +235,28 @@ function Authority.handleResult(result)
                 and not (pending and pending.skipSeal) then
             NinjaLineages.HandSigns.playAbilitySeal(player, result.actionId)
         end
+
+        local definition = NinjaLineages.JutsuCatalog.get(result.actionId)
+        local effect = definition and definition.effect or {}
+        if effect.kind == "forward_movement" then
+            local forward = player:getForwardDirection()
+            if forward then
+                local resolved = NinjaLineages.JutsuCatalog.resolveBalance(result.actionId)
+                local now = NinjaLineages.Utils.Time.gameMinutes()
+                NinjaLineages.AbilityExecution = NinjaLineages.AbilityExecution or {}
+                NinjaLineages.AbilityExecution.active = NinjaLineages.AbilityExecution.active or {}
+                local active = NinjaLineages.AbilityExecution.active
+                active[player] = active[player] or {}
+                active[player].forwardMovement = {
+                    startedAt = now,
+                    endsAt = now + resolved.duration,
+                    directionX = forward:getX(),
+                    directionY = forward:getY(),
+                    distance = resolved.distance,
+                    travelled = 0,
+                }
+            end
+        end
     elseif result.reason == "cooldown" then
         player:Say(getText(
             "UI_NL_Error_AbilityOnCooldown",

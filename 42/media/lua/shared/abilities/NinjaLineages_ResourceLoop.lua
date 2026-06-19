@@ -116,16 +116,14 @@ local function applyKamuiVisionPenalty(player)
     NinjaLineages.transmitPlayerData(player)
 end
 
-function NinjaLineages.AbilityAuthority.updatePlayer(player)
-    local state = active[player] or {}
-    active[player] = state
-    local now = NinjaLineages.Utils.Time.gameMinutes()
-    local previousUpdateAt = state.lastUpdateAt or now
-    state.lastUpdateAt = now
-    local data = NinjaLineages.getNLData(player)
-
+function NinjaLineages.AbilityAuthority.updateLocalMovement(player)
+    if not player then return end
+    local state = active[player]
+    if not state then return end
+    
     local movement = state.forwardMovement
     if movement then
+        local now = NinjaLineages.Utils.Time.gameMinutes()
         local activeState, progress = NinjaLineages.Utils.Movement.updateDash(
             player,
             movement,
@@ -137,6 +135,15 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
             state.forwardMovement = nil
         end
     end
+end
+
+function NinjaLineages.AbilityAuthority.updatePlayer(player)
+    local state = active[player] or {}
+    active[player] = state
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    local previousUpdateAt = state.lastUpdateAt or now
+    state.lastUpdateAt = now
+    local data = NinjaLineages.getNLData(player)
 
     NinjaLineages.BringerOfDarkness.updatePlayer(player)
 
