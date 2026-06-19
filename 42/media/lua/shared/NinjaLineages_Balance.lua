@@ -143,6 +143,18 @@ NinjaLineages.Balance.Progression = {
 }
 
 NinjaLineages.Balance.Missions = {
+    Generated = {
+        PoolSize = 3,
+        GenerationIntervalHours = 1,
+        ExpiryHours = 24,
+        KillZombieRanges = {
+            D = { minimum = 10, maximum = 20 },
+            C = { minimum = 20, maximum = 40 },
+            B = { minimum = 40, maximum = 75 },
+            A = { minimum = 75, maximum = 125 },
+            S = { minimum = 125, maximum = 200 },
+        },
+    },
     NinjaXP = {
         D = 25,
         C = 50,

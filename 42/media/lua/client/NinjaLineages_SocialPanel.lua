@@ -199,6 +199,17 @@ function SocialPanel:drawTeam(panel, w)
         panel:drawText(line, 90, lineY, 0.84, 0.84, 0.9, 1, UIFont.Small)
         lineY = lineY + 28
     end
+    if mission.type == "kill_zombies" then
+        panel:drawText(
+            text(
+                "UI_NL_Mission_KillProgress",
+                tostring(mission.currentKillCount or 0),
+                tostring(mission.targetKillCount or 0)
+            ),
+            90, lineY, 0.95, 0.78, 0.45, 1, UIFont.Small
+        )
+        lineY = lineY + 28
+    end
     panel:drawText(
         text(
             "UI_NL_Mission_RewardPreview",

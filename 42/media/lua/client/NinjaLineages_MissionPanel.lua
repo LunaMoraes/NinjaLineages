@@ -33,6 +33,7 @@ function MissionPanel:new(host)
     return setmetatable({
         host = host,
         active = false,
+        managementTab = "custom",
         selectedTeamId = nil,
         teamCombo = nil,
         rankCombo = nil,
@@ -59,6 +60,15 @@ end
 
 function MissionPanel:addButton(x, y, width, height, title, callback)
     return self.host:addButton(x, y, width, height, title, self, callback)
+end
+
+local function makeCardHitbox(button)
+    button.background = false
+    button.border = false
+    button.displayBackground = false
+    button.isBaseBackgroundVisible = false
+    button.isHighlightedBackgroundVisible = false
+    button.isBorderVisible = false
 end
 
 function MissionPanel:openBoard()
@@ -99,15 +109,17 @@ function MissionPanel:getSelectedTeam()
     return nil
 end
 
-function MissionPanel:createManagementScreen()
-    local w = self.host.contentPanel.width
-    self:addButton(20, 20, 100, 32, text("UI_NL_Tree_Back"), MissionPanel.closeManagement)
+function MissionPanel:getSelectedMission(collection)
+    for _, mission in ipairs(collection or {}) do
+        if mission.id == self.selectedMissionId then return mission end
+    end
+    return nil
+end
 
-    local snapshot = NinjaLineages.Missions.getSnapshot()
-    local managedTeams = snapshot.managedTeams or {}
+function MissionPanel:addTeamCombo(y, callback)
+    local managedTeams = NinjaLineages.Missions.getSnapshot().managedTeams or {}
     if #managedTeams == 0 then return end
-
-    self.teamCombo = ISComboBox:new(70, 92, 300, 28, self, MissionPanel.onTeamChanged)
+    self.teamCombo = ISComboBox:new(70, y, 300, 28, self, callback)
     self.teamCombo:initialise()
     self.teamCombo:instantiate()
     self.host.contentPanel:addChild(self.teamCombo)
@@ -118,27 +130,58 @@ function MissionPanel:createManagementScreen()
     end
     self.teamCombo.selected = selectedIndex
     self.selectedTeamId = self.teamCombo:getSelectedData()
+end
 
+function MissionPanel:createManagementScreen()
+    local w = self.host.contentPanel.width
+    self:addButton(20, 20, 100, 32, text("UI_NL_Tree_Back"), MissionPanel.closeManagement)
+
+    local custom = self:addButton(
+        w / 2 - 205, 70, 195, 34,
+        text("UI_NL_Mission_CustomPanel"),
+        MissionPanel.onCustomTab
+    )
+    local available = self:addButton(
+        w / 2 + 10, 70, 195, 34,
+        text("UI_NL_Mission_AvailablePanel"),
+        MissionPanel.onAvailableTab
+    )
+    custom.enable = self.managementTab ~= "custom"
+    available.enable = self.managementTab ~= "available"
+
+    if self.managementTab == "available" then
+        self:createAvailableManagement()
+    else
+        self:createCustomManagement()
+    end
+end
+
+function MissionPanel:createCustomManagement()
+    local w = self.host.contentPanel.width
+    local snapshot = NinjaLineages.Missions.getSnapshot()
+    if #(snapshot.managedTeams or {}) == 0 then return end
+
+    self:addTeamCombo(132, MissionPanel.onTeamChanged)
     local team = self:getSelectedTeam()
     if not team or team.mission then
         if team and team.mission then self:createTerminalButtons(team.mission, w) end
         return
     end
 
-    self.titleEntry = ISTextEntryBox:new("", 70, 180, math.floor(w * 0.58), 28)
+    self.titleEntry = ISTextEntryBox:new("", 70, 210, math.floor(w * 0.58), 28)
     self.titleEntry:initialise()
     self.titleEntry:instantiate()
     self.titleEntry:setMaxTextLength(NinjaLineages.Missions.MAX_TITLE_LENGTH)
     self.host.contentPanel:addChild(self.titleEntry)
 
-    self.descriptionEntry = ISTextEntryBox:new("", 70, 250, math.floor(w * 0.58), 150)
+    self.descriptionEntry = ISTextEntryBox:new("", 70, 280, math.floor(w * 0.58), 135)
     self.descriptionEntry:initialise()
     self.descriptionEntry:instantiate()
     self.descriptionEntry:setMultipleLine(true)
     self.descriptionEntry:setMaxTextLength(NinjaLineages.Missions.MAX_DESCRIPTION_LENGTH)
     self.host.contentPanel:addChild(self.descriptionEntry)
 
-    self.rankCombo = ISComboBox:new(70, 445, 160, 28, self, nil)
+    self.rankCombo = ISComboBox:new(70, 460, 160, 28, self, nil)
     self.rankCombo:initialise()
     self.rankCombo:instantiate()
     self.host.contentPanel:addChild(self.rankCombo)
@@ -146,15 +189,11 @@ function MissionPanel:createManagementScreen()
         self.rankCombo:addOptionWithData(rank, rank)
     end
 
-    local assign = self:addButton(
-        250, 440, 180, 38,
-        text("UI_NL_Mission_Assign"),
-        MissionPanel.onAssign
-    )
+    local assign = self:addButton(250, 455, 180, 38, text("UI_NL_Mission_Assign"), MissionPanel.onAssign)
     assign.enable = (team.memberCount or 0) > 0 and #(snapshot.unlockedRanks or {}) > 0
 end
 
-local function getCardPosition(index, count, panelWidth)
+local function getCardPosition(index, count, panelWidth, startY)
     local columns = 4
     local cardWidth, cardHeight = 190, 112
     local horizontalGap, verticalGap = 18, 18
@@ -165,9 +204,65 @@ local function getCardPosition(index, count, panelWidth)
     local rowWidth = rowCount * cardWidth + (rowCount - 1) * horizontalGap
     local rowX = (panelWidth - rowWidth) / 2
     return rowX + column * (cardWidth + horizontalGap),
-        100 + row * (cardHeight + verticalGap),
+        startY + row * (cardHeight + verticalGap),
         cardWidth,
         cardHeight
+end
+
+function MissionPanel:createAvailableManagement()
+    local snapshot = NinjaLineages.Missions.getSnapshot()
+    local missions = snapshot.availableMissions or {}
+    local w = self.host.contentPanel.width
+    self.cardButtons = {}
+
+    local selectedExists = false
+    for index, mission in ipairs(missions) do
+        local x, y, cardWidth, cardHeight = getCardPosition(index, #missions, w, 135)
+        local button = self:addButton(x, y, cardWidth, cardHeight, "", MissionPanel.onAvailableCard)
+        makeCardHitbox(button)
+        button.missionId = mission.id
+        self.cardButtons[mission.id] = button
+        if mission.id == self.selectedMissionId then selectedExists = true end
+    end
+    if not selectedExists then self.selectedMissionId = missions[1] and missions[1].id or nil end
+
+    if #missions > 0 then
+        self:addTeamCombo(505, MissionPanel.onTeamChanged)
+        local selected = self:getSelectedMission(missions) or missions[1]
+        local team = self:getSelectedTeam()
+        local assign = self:addButton(
+            395, 500, 170, 38,
+            text("UI_NL_Mission_Assign"),
+            MissionPanel.onAssignGenerated
+        )
+        assign.enable = selected ~= nil
+            and team ~= nil
+            and (team.memberCount or 0) > 0
+            and team.mission == nil
+        local post = self:addButton(
+            585, 500, 180, 38,
+            text("UI_NL_Mission_DisplayOnBoard"),
+            MissionPanel.onPostGenerated
+        )
+        post.enable = selected ~= nil and selected.status == "available"
+    end
+end
+
+function MissionPanel:onCustomTab()
+    self.managementTab = "custom"
+    self.selectedMissionId = nil
+    self:refresh()
+end
+
+function MissionPanel:onAvailableTab()
+    self.managementTab = "available"
+    self.selectedMissionId = nil
+    self:refresh()
+end
+
+function MissionPanel:onAvailableCard(button)
+    self.selectedMissionId = button.missionId
+    self:refresh()
 end
 
 local BOARD_PAGE_SIZE = 8
@@ -196,31 +291,36 @@ function MissionPanel:createBoardScreen()
     self.cardButtons = {}
     local selectedExists = false
     for index, mission in ipairs(missions) do
-        local x, y, cardWidth, cardHeight = getCardPosition(index, #missions, w)
+        local x, y, cardWidth, cardHeight = getCardPosition(index, #missions, w, 82)
         local button = self:addButton(x, y, cardWidth, cardHeight, "", MissionPanel.onBoardCard)
-        button.background = false
-        button.border = false
+        makeCardHitbox(button)
         button.missionId = mission.id
         self.cardButtons[mission.id] = button
         if mission.id == self.selectedMissionId then selectedExists = true end
     end
-    if not selectedExists and missions[1] then
-        self.selectedMissionId = missions[1].id
+    if not selectedExists and missions[1] then self.selectedMissionId = missions[1].id end
+
+    local selected = self:getSelectedMission(missions) or missions[1]
+    if selected and selected.status == "posted" then
+        local accept = self:addButton(
+            w - 270, self.host.contentPanel.height - 78, 200, 38,
+            text("UI_NL_Mission_Accept"),
+            MissionPanel.onAcceptPosted
+        )
+        accept.missionId = selected.id
+        accept.enable = NinjaLineages.Missions.getSnapshot().canAcceptPosted == true
     end
 end
 
 function MissionPanel:onBoardCard(button)
     self.selectedMissionId = button.missionId
+    self:refresh()
 end
 
 function MissionPanel:changeBoardPage(delta)
     self.boardPage = math.max(1, (self.boardPage or 1) + delta)
     self.selectedMissionId = nil
-    self.host:clearControls()
-    self:clearState()
-    self.active = true
-    self.host.screen = "mission_board"
-    self:createBoardScreen()
+    self:refresh()
 end
 
 function MissionPanel:onPreviousBoardPage()
@@ -232,41 +332,38 @@ function MissionPanel:onNextBoardPage()
 end
 
 function MissionPanel:createTerminalButtons(mission, w)
-    local buttonWidth = 140
-    local gap = 18
-    local total = buttonWidth * 3 + gap * 2
-    local startX = (w - total) / 2
     local y = self.host.contentPanel.height - 75
-    local complete = self:addButton(
-        startX, y, buttonWidth, 38,
-        text("UI_NL_Mission_Complete"),
-        MissionPanel.onTerminalAction
-    )
-    complete.action = "missionComplete"
-    complete.missionId = mission.id
-    local fail = self:addButton(
-        startX + buttonWidth + gap, y, buttonWidth, 38,
-        text("UI_NL_Mission_Fail"),
-        MissionPanel.onTerminalAction
-    )
-    fail.action = "missionFail"
-    fail.missionId = mission.id
-    local cancel = self:addButton(
-        startX + (buttonWidth + gap) * 2, y, buttonWidth, 38,
-        text("UI_NL_Mission_Cancel"),
-        MissionPanel.onTerminalAction
-    )
-    cancel.action = "missionCancel"
-    cancel.missionId = mission.id
+    if mission.type == "kill_zombies" then
+        local cancel = self:addButton(
+            (w - 160) / 2, y, 160, 38,
+            text("UI_NL_Mission_Cancel"),
+            MissionPanel.onTerminalAction
+        )
+        cancel.action = "missionCancel"
+        cancel.missionId = mission.id
+        return
+    end
+
+    local buttonWidth, gap = 140, 18
+    local startX = (w - (buttonWidth * 3 + gap * 2)) / 2
+    for index, definition in ipairs({
+        { title = "UI_NL_Mission_Complete", action = "missionComplete" },
+        { title = "UI_NL_Mission_Fail", action = "missionFail" },
+        { title = "UI_NL_Mission_Cancel", action = "missionCancel" },
+    }) do
+        local button = self:addButton(
+            startX + (index - 1) * (buttonWidth + gap), y, buttonWidth, 38,
+            text(definition.title),
+            MissionPanel.onTerminalAction
+        )
+        button.action = definition.action
+        button.missionId = mission.id
+    end
 end
 
 function MissionPanel:onTeamChanged()
     self.selectedTeamId = self.teamCombo and self.teamCombo:getSelectedData()
-    self.host:clearControls()
-    self:clearState()
-    self.active = true
-    self.host.screen = "mission_manage"
-    self:createManagementScreen()
+    self:refresh()
 end
 
 function MissionPanel:onAssign()
@@ -281,6 +378,28 @@ function MissionPanel:onAssign()
     })
 end
 
+function MissionPanel:onAssignGenerated()
+    local team = self:getSelectedTeam()
+    if not team or not self.selectedMissionId then return end
+    NinjaLineages.Missions.request(self.host.player, "missionAssignGenerated", {
+        teamId = team.teamId,
+        missionId = self.selectedMissionId,
+    })
+end
+
+function MissionPanel:onPostGenerated()
+    if not self.selectedMissionId then return end
+    NinjaLineages.Missions.request(self.host.player, "missionPostGenerated", {
+        missionId = self.selectedMissionId,
+    })
+end
+
+function MissionPanel:onAcceptPosted(button)
+    NinjaLineages.Missions.request(self.host.player, "missionAcceptPosted", {
+        missionId = button.missionId,
+    })
+end
+
 local function confirmTerminal(panel, button, request)
     if button.internal ~= "YES" then return end
     NinjaLineages.Missions.request(
@@ -291,10 +410,10 @@ local function confirmTerminal(panel, button, request)
 end
 
 function MissionPanel:onTerminalAction(button)
-    local promptKey = "UI_NL_Mission_Confirm_" .. tostring(button.action)
     local modal = ISModalDialog:new(
-        0, 0, 420, 160, text(promptKey), true,
-        self, confirmTerminal, self.host.playerNum, {
+        0, 0, 420, 160,
+        text("UI_NL_Mission_Confirm_" .. tostring(button.action)),
+        true, self, confirmTerminal, self.host.playerNum, {
             action = button.action,
             missionId = button.missionId,
         }
@@ -319,6 +438,17 @@ function MissionPanel:drawMission(panel, mission, startY)
         panel:drawText(line, 90, y, 0.86, 0.86, 0.92, 1, UIFont.Small)
         y = y + 22
     end
+    if mission.type == "kill_zombies" then
+        panel:drawText(
+            text(
+                "UI_NL_Mission_KillProgress",
+                tostring(mission.currentKillCount or 0),
+                tostring(mission.targetKillCount or 0)
+            ),
+            90, y + 12, 0.95, 0.78, 0.45, 1, UIFont.Medium
+        )
+        y = y + 34
+    end
     panel:drawText(
         text("UI_NL_Mission_NinjaReward", tostring(mission.ninjaXpReward or 0)),
         90, y + 25, 0.75, 0.9, 0.75, 1, UIFont.Medium
@@ -339,14 +469,59 @@ function MissionPanel:drawCompactMission(panel, mission, x, y, width, height, ho
         text("UI_NL_Mission_BoardRank", mission.rank or "?"),
         x + 12, y + 42, 0.82, 0.82, 0.88, 1, UIFont.Small
     )
-    panel:drawText(
-        text("UI_NL_Mission_BoardTeam", mission.teamName or ""),
-        x + 12, y + 64, 0.82, 0.82, 0.88, 1, UIFont.Small
-    )
+    if mission.status ~= "posted" then
+        panel:drawText(
+            text("UI_NL_Mission_BoardTeam", mission.teamName or ""),
+            x + 12, y + 64, 0.82, 0.82, 0.88, 1, UIFont.Small
+        )
+    end
     panel:drawText(
         text("UI_NL_Mission_BoardStatus", text("UI_NL_Mission_Status_" .. tostring(mission.status))),
         x + 12, y + 86, 0.72, 0.86, 0.72, 1, UIFont.Small
     )
+end
+
+function MissionPanel:drawAvailableManagement(panel)
+    local missions = NinjaLineages.Missions.getSnapshot().availableMissions or {}
+    if #missions == 0 then
+        panel:drawTextCentre(
+            text("UI_NL_Mission_NoAvailable"),
+            panel.width / 2, 170, 0.75, 0.75, 0.82, 1, UIFont.Medium
+        )
+        return
+    end
+
+    local selected = self:getSelectedMission(missions) or missions[1]
+    for index, mission in ipairs(missions) do
+        local x, y, cardWidth, cardHeight = getCardPosition(index, #missions, panel.width, 135)
+        local button = self.cardButtons and self.cardButtons[mission.id]
+        self:drawCompactMission(
+            panel, mission, x, y, cardWidth, cardHeight,
+            button and button:isMouseOver(), mission.id == selected.id
+        )
+    end
+
+    local detailY = 285
+    panel:drawRect(70, detailY, panel.width - 140, 185, 0.72, 0.04, 0.04, 0.06)
+    panel:drawRectBorder(70, detailY, panel.width - 140, 185, 0.72, 0.30, 0.30, 0.38)
+    panel:drawText(selected.title or "", 90, detailY + 14, 0.95, 0.85, 0.65, 1, UIFont.Medium)
+    panel:drawText(selected.description or "", 90, detailY + 48, 0.86, 0.86, 0.92, 1, UIFont.Small)
+    panel:drawText(
+        text(
+            "UI_NL_Mission_KillTarget",
+            tostring(selected.targetKillCount or 0)
+        ),
+        90, detailY + 78, 0.95, 0.78, 0.45, 1, UIFont.Small
+    )
+    panel:drawText(
+        text(
+            "UI_NL_Mission_RewardPreview",
+            tostring(selected.ninjaXpReward or 0),
+            tostring(selected.villageXpReward or 0)
+        ),
+        90, detailY + 108, 0.72, 0.88, 0.72, 1, UIFont.Small
+    )
+    panel:drawText(text("UI_NL_Mission_SelectTeam"), 70, 480, 0.9, 0.9, 0.95, 1, UIFont.Small)
 end
 
 function MissionPanel:drawBoard(panel)
@@ -364,46 +539,49 @@ function MissionPanel:drawBoard(panel)
         )
     end
 
-    local selected
+    local selected = self:getSelectedMission(missions) or missions[1]
     for index, mission in ipairs(missions) do
-        local x, y, cardWidth, cardHeight = getCardPosition(index, #missions, w)
+        local x, y, cardWidth, cardHeight = getCardPosition(index, #missions, w, 82)
         local button = self.cardButtons and self.cardButtons[mission.id]
-        local isSelected = mission.id == self.selectedMissionId
-        if isSelected then selected = mission end
         self:drawCompactMission(
             panel, mission, x, y, cardWidth, cardHeight,
-            button and button:isMouseOver(), isSelected
+            button and button:isMouseOver(), mission.id == selected.id
         )
     end
 
-    selected = selected or missions[1]
-    if selected then
-        local rows = math.ceil(#missions / 4)
-        local detailsY = 100 + rows * 130 + 20
-        panel:drawRect(70, detailsY, w - 140, panel.height - detailsY - 35, 0.72, 0.04, 0.04, 0.06)
-        panel:drawRectBorder(70, detailsY, w - 140, panel.height - detailsY - 35, 0.72, 0.30, 0.30, 0.38)
-        panel:drawText(
-            selected.title or "", 90, detailsY + 16,
-            0.95, 0.85, 0.65, 1, UIFont.Medium
-        )
-        panel:drawText(
-            text("UI_NL_Mission_BoardDetail", selected.teamName or "", selected.rank or "?"),
-            90, detailsY + 48, 0.8, 0.8, 0.88, 1, UIFont.Small
-        )
-        local lineY = detailsY + 80
-        for _, line in ipairs(wrapText(selected.description, w - 200, UIFont.Small)) do
-            panel:drawText(line, 90, lineY, 0.86, 0.86, 0.92, 1, UIFont.Small)
-            lineY = lineY + 22
-        end
+    local detailsY = 350
+    local detailsHeight = panel.height - detailsY - 28
+    panel:drawRect(70, detailsY, w - 140, detailsHeight, 0.72, 0.04, 0.04, 0.06)
+    panel:drawRectBorder(70, detailsY, w - 140, detailsHeight, 0.72, 0.30, 0.30, 0.38)
+    panel:drawText(selected.title or "", 90, detailsY + 14, 0.95, 0.85, 0.65, 1, UIFont.Medium)
+    local detail = selected.status == "posted"
+        and text("UI_NL_Mission_BoardPostedDetail", selected.rank or "?")
+        or text("UI_NL_Mission_BoardDetail", selected.teamName or "", selected.rank or "?")
+    panel:drawText(detail, 90, detailsY + 45, 0.8, 0.8, 0.88, 1, UIFont.Small)
+    local lineY = detailsY + 72
+    for _, line in ipairs(wrapText(selected.description, w - 360, UIFont.Small)) do
+        panel:drawText(line, 90, lineY, 0.86, 0.86, 0.92, 1, UIFont.Small)
+        lineY = lineY + 20
+    end
+    if selected.type == "kill_zombies" and selected.status == "active" then
         panel:drawText(
             text(
-                "UI_NL_Mission_RewardPreview",
-                tostring(selected.ninjaXpReward or 0),
-                tostring(selected.villageXpReward or 0)
+                "UI_NL_Mission_KillProgress",
+                tostring(selected.currentKillCount or 0),
+                tostring(selected.targetKillCount or 0)
             ),
-            90, lineY + 16, 0.72, 0.88, 0.72, 1, UIFont.Small
+            90, lineY + 5, 0.95, 0.78, 0.45, 1, UIFont.Small
         )
+        lineY = lineY + 25
     end
+    panel:drawText(
+        text(
+            "UI_NL_Mission_RewardPreview",
+            tostring(selected.ninjaXpReward or 0),
+            tostring(selected.villageXpReward or 0)
+        ),
+        90, lineY + 8, 0.72, 0.88, 0.72, 1, UIFont.Small
+    )
 end
 
 function MissionPanel:prerender(panel)
@@ -412,35 +590,39 @@ function MissionPanel:prerender(panel)
         self:drawBoard(panel)
         return
     end
-    local w = panel.width
-    panel:drawTextCentre(text("UI_NL_Mission_ManageTitle"), w / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large)
 
-    local snapshot = NinjaLineages.Missions.getSnapshot()
-    if #(snapshot.managedTeams or {}) > 0 then
-        panel:drawText(text("UI_NL_Mission_SelectTeam"), 70, 70, 0.9, 0.9, 0.95, 1, UIFont.Small)
-        local team = self:getSelectedTeam()
-        if team and team.mission then
-            self:drawMission(panel, team.mission, 145)
-        elseif team then
-            panel:drawText(text("UI_NL_Mission_CustomTitle"), 70, 155, 0.9, 0.9, 0.95, 1, UIFont.Small)
-            panel:drawText(text("UI_NL_Mission_Description"), 70, 225, 0.9, 0.9, 0.95, 1, UIFont.Small)
-            panel:drawText(text("UI_NL_Mission_Rank"), 70, 420, 0.9, 0.9, 0.95, 1, UIFont.Small)
-            local rank = self.rankCombo and self.rankCombo:getSelectedData()
-            local ninjaXP, villageXP = NinjaLineages.Missions.getBalance(rank)
-            if ninjaXP and villageXP then
-                ninjaXP = NinjaLineages.Balance.scaleNinjaXP(ninjaXP)
-                panel:drawText(
-                    text("UI_NL_Mission_RewardPreview", tostring(ninjaXP), tostring(villageXP)),
-                    70, 485, 0.75, 0.9, 0.75, 1, UIFont.Small
-                )
-            end
-            if (team.memberCount or 0) < 1 then
-                panel:drawText(text("UI_NL_Mission_EmptyTeam"), 70, 515, 0.9, 0.55, 0.45, 1, UIFont.Small)
-            end
-        end
+    panel:drawTextCentre(
+        text("UI_NL_Mission_ManageTitle"),
+        panel.width / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large
+    )
+    if self.managementTab == "available" then
+        self:drawAvailableManagement(panel)
         return
     end
 
+    local snapshot = NinjaLineages.Missions.getSnapshot()
+    if #(snapshot.managedTeams or {}) == 0 then return end
+    panel:drawText(text("UI_NL_Mission_SelectTeam"), 70, 110, 0.9, 0.9, 0.95, 1, UIFont.Small)
+    local team = self:getSelectedTeam()
+    if team and team.mission then
+        self:drawMission(panel, team.mission, 185)
+    elseif team then
+        panel:drawText(text("UI_NL_Mission_CustomTitle"), 70, 185, 0.9, 0.9, 0.95, 1, UIFont.Small)
+        panel:drawText(text("UI_NL_Mission_Description"), 70, 255, 0.9, 0.9, 0.95, 1, UIFont.Small)
+        panel:drawText(text("UI_NL_Mission_Rank"), 70, 435, 0.9, 0.9, 0.95, 1, UIFont.Small)
+        local rank = self.rankCombo and self.rankCombo:getSelectedData()
+        local ninjaXP, villageXP = NinjaLineages.Missions.getBalance(rank)
+        if ninjaXP and villageXP then
+            ninjaXP = NinjaLineages.Balance.scaleNinjaXP(ninjaXP)
+            panel:drawText(
+                text("UI_NL_Mission_RewardPreview", tostring(ninjaXP), tostring(villageXP)),
+                70, 505, 0.75, 0.9, 0.75, 1, UIFont.Small
+            )
+        end
+        if (team.memberCount or 0) < 1 then
+            panel:drawText(text("UI_NL_Mission_EmptyTeam"), 70, 535, 0.9, 0.55, 0.45, 1, UIFont.Small)
+        end
+    end
 end
 
 function MissionPanel:refresh()

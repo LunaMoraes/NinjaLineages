@@ -1,6 +1,7 @@
 require "NinjaLineages_Missions"
 require "NinjaLineages_Progression"
 require "NinjaLineages_SocialServer"
+require "NinjaLineages_Utils"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.MissionServer = NinjaLineages.MissionServer or {}
@@ -19,6 +20,18 @@ local function now()
         if ok and value then return tonumber(value) or 0 end
     end
     return os.time()
+end
+
+local function worldAgeHours()
+    return NinjaLineages.Utils.Time.gameMinutes() / 60
+end
+
+local function translated(key, fallback, ...)
+    if getText then
+        local ok, value = pcall(getText, key, ...)
+        if ok and value and value ~= key then return value end
+    end
+    return fallback
 end
 
 local function copyRecord(source)
@@ -55,6 +68,118 @@ local function updateUnlockedRanks(village)
     end
 end
 
+local function nextMissionID(current)
+    local value = tonumber(current.nextMissionID) or 1
+    current.nextMissionID = value + 1
+    return "mission_" .. tostring(value)
+end
+
+local function randomBetween(minimum, maximum)
+    minimum = math.floor(tonumber(minimum) or 0)
+    maximum = math.floor(tonumber(maximum) or minimum)
+    if maximum < minimum then minimum, maximum = maximum, minimum end
+    if ZombRand then return ZombRand(minimum, maximum + 1) end
+    return math.random(minimum, maximum)
+end
+
+local function randomUnlockedRank(village)
+    local ranks = {}
+    for _, rank in ipairs(village.unlockedMissionRanks or {}) do
+        if Missions.isValidRank(rank) then table.insert(ranks, rank) end
+    end
+    if #ranks == 0 then return nil end
+    return ranks[randomBetween(1, #ranks)]
+end
+
+local function generatedConfig()
+    return NinjaLineages.Balance.Missions.Generated or {}
+end
+
+local function expireMissionIfNeeded(mission, currentWorldHour)
+    if not mission or (mission.status ~= "available" and mission.status ~= "posted") then
+        return false
+    end
+    if currentWorldHour < (tonumber(mission.expiryWorldHour) or math.huge) then
+        return false
+    end
+    mission.status = "expired"
+    mission.resolvedAt = now()
+    mission.expiredWorldHour = currentWorldHour
+    return true
+end
+
+local function createGeneratedMission(current, village, currentWorldHour)
+    local rank = randomUnlockedRank(village)
+    local range = rank and generatedConfig().KillZombieRanges
+        and generatedConfig().KillZombieRanges[rank]
+    local rawNinjaXP, villageXP = Missions.getBalance(rank)
+    if not rank or not range or not rawNinjaXP or not villageXP then return nil end
+
+    local target = randomBetween(range.minimum, range.maximum)
+    local missionID = nextMissionID(current)
+    current.missions[missionID] = {
+        id = missionID,
+        missionId = missionID,
+        villageId = village.id,
+        teamId = nil,
+        type = "kill_zombies",
+        rank = rank,
+        status = "available",
+        title = translated(
+            "UI_NL_Mission_GeneratedKillTitle",
+            tostring(rank) .. "-Rank Zombie Elimination",
+            tostring(rank)
+        ),
+        description = translated(
+            "UI_NL_Mission_GeneratedKillDescription",
+            "Eliminate " .. tostring(target) .. " zombies.",
+            tostring(target)
+        ),
+        targetKillCount = target,
+        currentKillCount = 0,
+        generatedWorldHour = currentWorldHour,
+        expiryWorldHour = currentWorldHour + (tonumber(generatedConfig().ExpiryHours) or 24),
+        generatedAt = now(),
+        ninjaXpReward = NinjaLineages.Balance.scaleNinjaXP(rawNinjaXP),
+        villageXpReward = villageXP,
+    }
+    return current.missions[missionID]
+end
+
+local function reconcileGeneratedPools()
+    local current = ensureMissionState()
+    local currentWorldHour = worldAgeHours()
+    local changed = false
+
+    for _, mission in pairs(current.missions) do
+        if expireMissionIfNeeded(mission, currentWorldHour) then changed = true end
+    end
+
+    local poolSize = math.max(0, math.floor(tonumber(generatedConfig().PoolSize) or 3))
+    for _, village in pairs(current.villages or {}) do
+        local count = 0
+        for _, mission in pairs(current.missions) do
+            if mission.villageId == village.id
+                    and mission.type == "kill_zombies"
+                    and (mission.status == "available" or mission.status == "posted") then
+                count = count + 1
+            end
+        end
+        while count < poolSize do
+            if not createGeneratedMission(current, village, currentWorldHour) then break end
+            count = count + 1
+            changed = true
+        end
+    end
+    return changed
+end
+
+function Server.reconcileGeneratedPools(shouldBroadcast)
+    local changed = reconcileGeneratedPools()
+    if changed and shouldBroadcast ~= false then Server.broadcastSnapshots() end
+    return changed
+end
+
 local function normalize()
     local current = ensureMissionState()
     for _, village in pairs(current.villages or {}) do
@@ -73,7 +198,12 @@ local function normalize()
             current.missions[missionID] = nil
         else
             mission.id = mission.id or missionID
-            mission.type = "custom"
+            mission.missionId = mission.missionId or mission.id
+            mission.type = mission.type or "custom"
+            if mission.type == "kill_zombies" then
+                mission.currentKillCount = math.max(0, tonumber(mission.currentKillCount) or 0)
+                mission.targetKillCount = math.max(1, tonumber(mission.targetKillCount) or 1)
+            end
             if mission.status == "active" then
                 local team = current.teams[mission.teamId]
                 if not team or team.activeMissionId ~= missionID then
@@ -93,12 +223,6 @@ local function normalize()
     end
 end
 
-local function nextMissionID(current)
-    local value = tonumber(current.nextMissionID) or 1
-    current.nextMissionID = value + 1
-    return "mission_" .. tostring(value)
-end
-
 local function leaderContext(player)
     local current = ensureMissionState()
     local playerKey = Social.getPlayerKey(player, false)
@@ -115,18 +239,24 @@ local function missionSnapshot(player)
     local current = ensureMissionState()
     local playerKey = Social.getPlayerKey(player, true)
     local teamID = playerKey and current.playerTeams[playerKey]
+    local team = teamID and current.teams[teamID]
     local villageID = playerKey and current.playerVillages[playerKey]
     local village = villageID and current.villages[villageID]
     local snapshot = {
         myMission = nil,
         villageMissions = {},
+        availableMissions = {},
         managedTeams = {},
         unlockedRanks = {},
+        canAcceptPosted = team ~= nil
+            and team.leaderKey == playerKey
+            and team.villageID == villageID
+            and #(team.members or {}) > 0
+            and team.activeMissionId == nil,
     }
 
-    if teamID then
-        local team = current.teams[teamID]
-        local mission = team and team.activeMissionId and current.missions[team.activeMissionId]
+    if team then
+        local mission = team.activeMissionId and current.missions[team.activeMissionId]
         if mission and mission.status == "active" then
             snapshot.myMission = copyRecord(mission)
             snapshot.myMission.teamName = team.name
@@ -134,6 +264,13 @@ local function missionSnapshot(player)
     end
 
     if village then
+        for _, mission in pairs(current.missions) do
+            if mission.villageId == village.id and mission.status == "posted" then
+                local entry = copyRecord(mission)
+                entry.teamName = translated("UI_NL_Mission_Unassigned", "Unassigned")
+                table.insert(snapshot.villageMissions, entry)
+            end
+        end
         for _, villageTeamID in ipairs(village.teamIDs or {}) do
             local villageTeam = current.teams[villageTeamID]
             local mission = villageTeam
@@ -146,6 +283,7 @@ local function missionSnapshot(player)
             end
         end
         table.sort(snapshot.villageMissions, function(a, b)
+            if a.status ~= b.status then return a.status == "posted" end
             if tostring(a.teamName) ~= tostring(b.teamName) then
                 return tostring(a.teamName) < tostring(b.teamName)
             end
@@ -157,18 +295,32 @@ local function missionSnapshot(player)
         for _, rank in ipairs(village.unlockedMissionRanks or {}) do
             table.insert(snapshot.unlockedRanks, rank)
         end
+        for _, mission in pairs(current.missions) do
+            if mission.villageId == village.id
+                    and mission.type == "kill_zombies"
+                    and (mission.status == "available" or mission.status == "posted") then
+                table.insert(snapshot.availableMissions, copyRecord(mission))
+            end
+        end
+        table.sort(snapshot.availableMissions, function(a, b)
+            if a.status ~= b.status then return a.status == "available" end
+            if a.rank ~= b.rank then return tostring(a.rank) < tostring(b.rank) end
+            return tostring(a.id) < tostring(b.id)
+        end)
+
         for _, managedTeamID in ipairs(village.teamIDs or {}) do
-            local team = current.teams[managedTeamID]
-            if team and team.villageID == village.id then
+            local managedTeam = current.teams[managedTeamID]
+            if managedTeam and managedTeam.villageID == village.id then
                 local entry = {
-                    teamId = team.id,
-                    teamName = team.name,
-                    memberCount = #(team.members or {}),
+                    teamId = managedTeam.id,
+                    teamName = managedTeam.name,
+                    memberCount = #(managedTeam.members or {}),
                 }
-                local mission = team.activeMissionId and current.missions[team.activeMissionId]
+                local mission = managedTeam.activeMissionId
+                    and current.missions[managedTeam.activeMissionId]
                 if mission and mission.status == "active" then
                     entry.mission = copyRecord(mission)
-                    entry.mission.teamName = team.name
+                    entry.mission.teamName = managedTeam.name
                 end
                 table.insert(snapshot.managedTeams, entry)
             end
@@ -261,6 +413,59 @@ local function creditExactNinjaXP(player, amount)
 end
 
 local applyPendingReward
+
+local function completeMission(current, village, mission, team)
+    if not current or not village or not mission or not team then return false end
+    if mission.status ~= "active" or team.activeMissionId ~= mission.id then return false end
+    if #(team.members or {}) < 1 then return false end
+
+    mission.status = "completed"
+    mission.resolvedAt = now()
+    mission.completedWorldHour = worldAgeHours()
+    if mission.type == "kill_zombies" then
+        mission.currentKillCount = math.min(
+            tonumber(mission.targetKillCount) or 1,
+            tonumber(mission.currentKillCount) or 0
+        )
+    end
+    team.activeMissionId = nil
+
+    local reward = math.max(0, tonumber(mission.ninjaXpReward) or 0)
+    for _, memberKey in ipairs(team.members or {}) do
+        current.pendingMissionXP[memberKey] =
+            (tonumber(current.pendingMissionXP[memberKey]) or 0) + reward
+    end
+    for _, memberKey in ipairs(team.members or {}) do
+        local onlinePlayer = findOnlinePlayer(memberKey)
+        if onlinePlayer then applyPendingReward(onlinePlayer) end
+    end
+
+    village.xp = math.max(0, tonumber(village.xp) or 0)
+        + math.max(0, tonumber(mission.villageXpReward) or 0)
+    updateUnlockedRanks(village)
+    return true
+end
+
+local function assignGeneratedMission(current, village, mission, team)
+    if not mission or mission.villageId ~= village.id or mission.type ~= "kill_zombies" then
+        return false, "mission_not_found"
+    end
+    if expireMissionIfNeeded(mission, worldAgeHours()) then return false, "mission_expired" end
+    if mission.status ~= "available" and mission.status ~= "posted" then
+        return false, "mission_not_available"
+    end
+    if not team or team.villageID ~= village.id then return false, "invalid_team" end
+    if #(team.members or {}) < 1 then return false, "empty_team" end
+    if team.activeMissionId then return false, "team_has_active_mission" end
+
+    mission.status = "active"
+    mission.teamId = team.id
+    mission.assignedAt = now()
+    mission.assignedWorldHour = worldAgeHours()
+    team.activeMissionId = mission.id
+    return true, "assigned"
+end
+
 local handlers = {}
 
 function handlers.missionRequestSnapshot(player)
@@ -306,9 +511,52 @@ function handlers.missionAssign(player, args)
         ninjaXpReward = NinjaLineages.Balance.scaleNinjaXP(rawNinjaXP),
         villageXpReward = villageXP,
         assignedAt = now(),
+        assignedWorldHour = worldAgeHours(),
     }
     team.activeMissionId = missionID
     return true, "assigned"
+end
+
+function handlers.missionPostGenerated(player, args)
+    local current, _, village, reason = leaderContext(player)
+    if not village then return false, reason end
+    local mission = args and args.missionId and current.missions[args.missionId]
+    if not mission or mission.villageId ~= village.id or mission.type ~= "kill_zombies" then
+        return false, "mission_not_found"
+    end
+    if expireMissionIfNeeded(mission, worldAgeHours()) then return false, "mission_expired" end
+    if mission.status == "posted" then return false, "mission_already_posted" end
+    if mission.status ~= "available" then return false, "mission_not_available" end
+    mission.status = "posted"
+    mission.postedAt = now()
+    mission.postedWorldHour = worldAgeHours()
+    return true, "posted"
+end
+
+function handlers.missionAssignGenerated(player, args)
+    local current, _, village, reason = leaderContext(player)
+    if not village then return false, reason end
+    local mission = args and args.missionId and current.missions[args.missionId]
+    local team = args and args.teamId and current.teams[args.teamId]
+    return assignGeneratedMission(current, village, mission, team)
+end
+
+function handlers.missionAcceptPosted(player, args)
+    local current = ensureMissionState()
+    local playerKey = Social.getPlayerKey(player, false)
+    if not playerKey then return false, "unstable_identity" end
+    local teamID = current.playerTeams[playerKey]
+    local team = teamID and current.teams[teamID]
+    if not team or team.leaderKey ~= playerKey then return false, "not_team_leader" end
+    local villageID = current.playerVillages[playerKey]
+    local village = villageID and current.villages[villageID]
+    if not village or team.villageID ~= village.id then return false, "invalid_team" end
+
+    local mission = args and args.missionId and current.missions[args.missionId]
+    if not mission or mission.villageId ~= village.id or mission.status ~= "posted" then
+        return false, "mission_not_posted"
+    end
+    return assignGeneratedMission(current, village, mission, team)
 end
 
 local function resolveActiveMission(player, args)
@@ -330,43 +578,28 @@ end
 function handlers.missionComplete(player, args)
     local current, village, mission, reason, team = resolveActiveMission(player, args)
     if not mission then return false, reason end
+    if mission.type ~= "custom" then return false, "automatic_mission" end
     if #(team.members or {}) < 1 then return false, "empty_team" end
-
-    mission.status = "completed"
-    mission.resolvedAt = now()
-    team.activeMissionId = nil
-
-    local reward = math.max(0, tonumber(mission.ninjaXpReward) or 0)
-    for _, memberKey in ipairs(team.members or {}) do
-        current.pendingMissionXP[memberKey] =
-            (tonumber(current.pendingMissionXP[memberKey]) or 0) + reward
-    end
-    for _, memberKey in ipairs(team.members or {}) do
-        local onlinePlayer = findOnlinePlayer(memberKey)
-        if onlinePlayer then applyPendingReward(onlinePlayer) end
-    end
-
-    village.xp = math.max(0, tonumber(village.xp) or 0)
-        + math.max(0, tonumber(mission.villageXpReward) or 0)
-    updateUnlockedRanks(village)
-    return true, "completed"
+    return completeMission(current, village, mission, team), "completed"
 end
 
-local function resolveWithoutReward(player, args, status)
+local function resolveWithoutReward(player, args, status, customOnly)
     local _, _, mission, reason, team = resolveActiveMission(player, args)
     if not mission then return false, reason end
+    if customOnly and mission.type ~= "custom" then return false, "automatic_mission" end
     mission.status = status
     mission.resolvedAt = now()
+    mission.resolvedWorldHour = worldAgeHours()
     team.activeMissionId = nil
     return true, status
 end
 
 function handlers.missionFail(player, args)
-    return resolveWithoutReward(player, args, "failed")
+    return resolveWithoutReward(player, args, "failed", true)
 end
 
 function handlers.missionCancel(player, args)
-    return resolveWithoutReward(player, args, "cancelled")
+    return resolveWithoutReward(player, args, "cancelled", false)
 end
 
 function Server.handleCommand(command, player, args)
@@ -405,14 +638,52 @@ applyPendingReward = function(player)
     current.pendingMissionXP[playerKey] = nil
 end
 
+local function onZombieDead(zombie)
+    local attacker = zombie and zombie.getAttackedBy and zombie:getAttackedBy()
+    if not attacker or not instanceof(attacker, "IsoPlayer") then return end
+
+    local current = ensureMissionState()
+    local playerKey = Social.getPlayerKey(attacker, false)
+    local teamID = playerKey and current.playerTeams[playerKey]
+    local team = teamID and current.teams[teamID]
+    local mission = team and team.activeMissionId and current.missions[team.activeMissionId]
+    if not mission
+            or mission.status ~= "active"
+            or mission.type ~= "kill_zombies"
+            or mission.teamId ~= team.id
+            or team.villageID ~= mission.villageId
+            or current.playerVillages[playerKey] ~= mission.villageId then
+        return
+    end
+
+    mission.currentKillCount = math.min(
+        tonumber(mission.targetKillCount) or 1,
+        (tonumber(mission.currentKillCount) or 0) + 1
+    )
+    local village = current.villages[mission.villageId]
+    if mission.currentKillCount >= (tonumber(mission.targetKillCount) or 1) then
+        completeMission(current, village, mission, team)
+        if NinjaLineages.SocialServer.broadcastSnapshots then
+            NinjaLineages.SocialServer.broadcastSnapshots()
+        end
+    end
+    broadcastSnapshots()
+end
+
 local function onPlayerConnected(player)
     normalize()
+    reconcileGeneratedPools()
     applyPendingReward(player)
     sendSnapshot(player)
 end
 
 local function onInitGlobalModData()
     normalize()
+    reconcileGeneratedPools()
+end
+
+local function everyHour()
+    if reconcileGeneratedPools() then broadcastSnapshots() end
 end
 
 NinjaLineages.addEventOnce(
@@ -425,6 +696,14 @@ NinjaLineages.addEventOnce(
     Events.OnClientCommand,
     onClientCommand
 )
+NinjaLineages.addEventOnce(
+    "server.missions.onZombieDead",
+    Events.OnZombieDead,
+    onZombieDead
+)
+if Events.EveryHours then
+    NinjaLineages.addEventOnce("server.missions.everyHour", Events.EveryHours, everyHour)
+end
 if Events.OnConnected then
     NinjaLineages.addEventOnce("server.missions.onConnected", Events.OnConnected, onPlayerConnected)
 end

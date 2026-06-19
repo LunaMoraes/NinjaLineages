@@ -831,6 +831,10 @@ function handlers.socialCreateVillage(player, args)
     }
     for _, memberKey in ipairs(members) do state.playerVillages[memberKey] = villageID end
     if team then team.villageID = villageID end
+    if NinjaLineages.MissionServer
+            and NinjaLineages.MissionServer.reconcileGeneratedPools then
+        NinjaLineages.MissionServer.reconcileGeneratedPools(false)
+    end
     return true
 end
 
@@ -971,7 +975,6 @@ function Server.handleCommand(command, player, args)
         result(player, success, reason, command)
         broadcastSnapshots()
         if success
-                and command == "socialLeaveVillage"
                 and NinjaLineages.MissionServer
                 and NinjaLineages.MissionServer.broadcastSnapshots then
             NinjaLineages.MissionServer.broadcastSnapshots()

@@ -8,10 +8,13 @@ local Missions = NinjaLineages.Missions
 
 Missions.RANKS = { "D", "C", "B", "A", "S" }
 Missions.STATUSES = {
+    available = true,
+    posted = true,
     active = true,
     completed = true,
     failed = true,
     cancelled = true,
+    expired = true,
 }
 Missions.MAX_TITLE_LENGTH = 64
 Missions.MAX_DESCRIPTION_LENGTH = 500
@@ -19,8 +22,10 @@ Missions.MAX_DESCRIPTION_LENGTH = 500
 Missions._snapshot = Missions._snapshot or {
     myMission = nil,
     villageMissions = {},
+    availableMissions = {},
     managedTeams = {},
     unlockedRanks = {},
+    canAcceptPosted = false,
 }
 
 function Missions.isValidRank(rank)
@@ -46,8 +51,10 @@ end
 function Missions.setSnapshot(snapshot)
     if type(snapshot) ~= "table" then return false end
     snapshot.villageMissions = snapshot.villageMissions or {}
+    snapshot.availableMissions = snapshot.availableMissions or {}
     snapshot.managedTeams = snapshot.managedTeams or {}
     snapshot.unlockedRanks = snapshot.unlockedRanks or {}
+    snapshot.canAcceptPosted = snapshot.canAcceptPosted == true
     Missions._snapshot = snapshot
     return true
 end
