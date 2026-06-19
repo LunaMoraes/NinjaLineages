@@ -24,6 +24,22 @@ NinjaLineages.Constants.CommonJutsu = {
     },
 }
 
+NinjaLineages.Constants.GenJutsu = {
+    BringerOfDarkness = {
+        VISUAL_DURATION_MS = 1000,
+        VISUAL_HOLD_MS = 650,
+        CIRCLE_SEGMENTS = 64,
+        CIRCLE_THICKNESS = 2.0,
+        CIRCLE_COLOR = {
+            R = 0.32,
+            G = 0.08,
+            B = 0.48,
+        },
+        CIRCLE_ALPHA = 0.85,
+        BLIND_ITEM = "Base.NL_BringerOfDarknessBlind",
+    },
+}
+
 NinjaLineages.Constants.Uchiha = {
     Audio = {
         ACTIVATION_VOICE = "NLSharinganActivation",

@@ -17,6 +17,7 @@ NinjaLineages.AbilityExecution.boundZombies = NinjaLineages.AbilityExecution.bou
 NinjaLineages.AbilityExecution.sharinganRolls = NinjaLineages.AbilityExecution.sharinganRolls or {}
 
 -- Load refactored ability submodules
+require "abilities/NinjaLineages_BringerOfDarkness"
 require "abilities/NinjaLineages_AlarmSeals"
 require "abilities/NinjaLineages_CombatHooks"
 require "abilities/NinjaLineages_ResourceLoop"

@@ -158,4 +158,7 @@ function NinjaLineages.AbilityAuthority.updateWorld()
             pvpDodgeHits[key] = nil
         end
     end
+    if NinjaLineages.BringerOfDarkness then
+        NinjaLineages.BringerOfDarkness.updateZombies()
+    end
 end

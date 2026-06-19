@@ -61,40 +61,7 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
         end
     end
 
-    local function syncTrait(endField, addedField, trait)
-        if data[endField] and now < data[endField] then
-            if not player:hasTrait(trait) then
-                player:getCharacterTraits():add(trait)
-                data[addedField] = true
-            end
-        elseif data[endField] then
-            if data[addedField] then player:getCharacterTraits():remove(trait) end
-            data[endField] = nil
-            data[addedField] = nil
-        end
-    end
-
-    syncTrait("quietStepEndTime", "addedGracefulByJutsu", CharacterTrait.GRACEFUL)
-    if data.veilPresenceEndTime and now < data.veilPresenceEndTime then
-        if not player:hasTrait(CharacterTrait.GRACEFUL) then
-            player:getCharacterTraits():add(CharacterTrait.GRACEFUL)
-            data.veilAddedGraceful = true
-        end
-        if not player:hasTrait(CharacterTrait.INCONSPICUOUS) then
-            player:getCharacterTraits():add(CharacterTrait.INCONSPICUOUS)
-            data.veilAddedInconspicuous = true
-        end
-    elseif data.veilPresenceEndTime then
-        if data.veilAddedGraceful and not (data.quietStepEndTime and now < data.quietStepEndTime) then
-            player:getCharacterTraits():remove(CharacterTrait.GRACEFUL)
-        end
-        if data.veilAddedInconspicuous then
-            player:getCharacterTraits():remove(CharacterTrait.INCONSPICUOUS)
-        end
-        data.veilPresenceEndTime = nil
-        data.veilAddedGraceful = nil
-        data.veilAddedInconspicuous = nil
-    end
+    NinjaLineages.BringerOfDarkness.updatePlayer(player)
 
     if data.reinforcementEndTime then
         local stats = player:getStats()
@@ -314,6 +281,7 @@ function NinjaLineages.AbilityAuthority.resetPlayerActiveState(player)
         state.kamuiUntil = nil
         NinjaLineages.KamuiState.restore(player, state)
     end
+    NinjaLineages.BringerOfDarkness.clear(player)
     active[player] = nil
 end
 

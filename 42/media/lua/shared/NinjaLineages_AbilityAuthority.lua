@@ -303,6 +303,11 @@ function Authority.handleEvent(args)
                 and NinjaLineages.JutsuEffects.addKatonStream then
             NinjaLineages.JutsuEffects.addKatonStream(args)
         end
+    elseif args.kind == "bringer_of_darkness_circle" then
+        if NinjaLineages.JutsuEffects
+                and NinjaLineages.JutsuEffects.addBringerOfDarknessCircle then
+            NinjaLineages.JutsuEffects.addBringerOfDarknessCircle(args)
+        end
     elseif args.kind == "katon_fire" then
         if NinjaLineages.isServer() or not NinjaLineages.isClient() then
             local cell = getCell()

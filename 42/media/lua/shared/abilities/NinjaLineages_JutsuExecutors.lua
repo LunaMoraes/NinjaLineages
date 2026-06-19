@@ -240,6 +240,57 @@ local function executeCatalogAbility(player, definition)
     return true
 end
 
+specializedExecutors.smoke_bomb = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+
+    local square = player:getCurrentSquare()
+    local cell = square and square:getCell()
+    if not square or not cell then return false, "blocked_placement" end
+
+    local item = instanceItem("Base.SmokeBomb")
+    if not item or not instanceof(item, "HandWeapon") then return false, "server_error" end
+
+    local trap = IsoTrap.new(player, item, cell, square)
+    local placed = pcall(function() trap:place() end)
+    if not placed then return false, "blocked_placement" end
+    if not commit(player, definition, resolved, cost) then return false, "chakra" end
+    return true
+end
+
+specializedExecutors.bringer_of_darkness = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+    if not commit(player, definition, resolved, cost) then return false, "chakra" end
+
+    local expiresAt = NinjaLineages.Utils.Time.gameMinutes() + resolved.duration
+    for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, resolved.radius)) do
+        NinjaLineages.BringerOfDarkness.apply(entry.zombie, expiresAt)
+    end
+
+    for _, target in ipairs(NinjaLineages.Targeting.collectHostilePlayers(player, {
+        range = resolved.radius,
+    })) do
+        NinjaLineages.BringerOfDarkness.apply(target.object, expiresAt)
+    end
+
+    return true, nil, nil, {
+        event = {
+            kind = "bringer_of_darkness_circle",
+            x = player:getX(),
+            y = player:getY(),
+            z = math.floor(player:getZ()),
+            radius = resolved.radius,
+        },
+    }
+end
+
 specializedExecutors.shinra_tensei = function(player, definition)
     local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
     if not validRequirements then return false, requirementReason end

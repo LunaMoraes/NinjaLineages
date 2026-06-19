@@ -105,12 +105,12 @@ end
 
 Catalog.Definitions = {
     {
-        id = "quiet_step",
+        id = "smoke_bomb",
         category = "common",
         node = { discipline = "genjutsu", rank = "GENIN", order = 10 },
         handSigns = { "rat", "snake", "hare" },
-        balance = { cost = "BASIC", cooldown = "STANDARD", duration = "STANDARD" },
-        effect = { kind = "timed_state", stateField = "quietStepEndTime", durationScale = true },
+        balance = { cost = "BASIC", cooldown = "STANDARD" },
+        executor = "smoke_bomb",
     },
     {
         id = "false_sound",
@@ -121,25 +121,25 @@ Catalog.Definitions = {
         effect = { kind = "world_sound", projected = true },
     },
     {
-        id = "veil_presence",
+        id = "bringer_of_darkness",
         category = "common",
         node = {
             discipline = "genjutsu", rank = "CHUNIN", order = 10,
-            prerequisites = { "quiet_step", "false_sound" },
+            prerequisites = { "smoke_bomb", "false_sound" },
         },
         handSigns = { "snake", "rat", "tiger" },
         balance = {
-            cost = "STANDARD", cooldown = "LONG", radius = "STANDARD",
-            duration = "LONG", indoorBonusDuration = "STANDARD",
+            cost = "STANDARD", cooldown = "LONG", radius = "LARGE",
+            duration = "LONG",
         },
-        effect = { kind = "sound_timed_state", stateField = "veilPresenceEndTime" },
+        executor = "bringer_of_darkness",
     },
     {
         id = "killing_intent",
         category = "common",
         node = {
             discipline = "genjutsu", rank = "JONIN", order = 10,
-            prerequisites = { "veil_presence" },
+            prerequisites = { "bringer_of_darkness" },
         },
         handSigns = { "tiger", "dragon", "tiger" },
         balance = { cost = "MAJOR", cooldown = "VERY_LONG", radius = "STANDARD", control = "CHUNIN" },
@@ -476,6 +476,8 @@ local genericEffects = {
     cell_stimulation = true,
 }
 local specializedExecutors = {
+    smoke_bomb = true,
+    bringer_of_darkness = true,
     sharingan = true,
     byakugan = true,
     kamui = true,

@@ -2,6 +2,7 @@ NinjaLineages = NinjaLineages or {}
 NinjaLineages.JutsuEffects = NinjaLineages.JutsuEffects or {}
 
 local activeKatonStreams = {}
+local activeBringerOfDarknessCircles = {}
 local katonFireTexture = nil
 local katonTextureProbed = false
 local katonTextureRenderFailed = false
@@ -21,6 +22,17 @@ function NinjaLineages.JutsuEffects.addKatonStream(args)
         durationMs = args.durationMs or 750,
         startedAtMs = NinjaLineages.Utils.Time.realMilliseconds(),
     }
+end
+
+function NinjaLineages.JutsuEffects.addBringerOfDarknessCircle(args)
+    if not args or not args.x or not args.y or not args.z or not args.radius then return end
+    table.insert(activeBringerOfDarknessCircles, {
+        x = args.x,
+        y = args.y,
+        z = args.z,
+        radius = args.radius,
+        startedAtMs = NinjaLineages.Utils.Time.realMilliseconds(),
+    })
 end
 
 local function resolveKatonTexture()
@@ -118,6 +130,36 @@ local function renderEffects()
             activeKatonStreams[streamId] = nil
         else
             renderKatonStream(stream, math.max(0, progress))
+        end
+    end
+
+    local constants = NinjaLineages.Constants.GenJutsu.BringerOfDarkness
+    for i = #activeBringerOfDarknessCircles, 1, -1 do
+        local circle = activeBringerOfDarknessCircles[i]
+        local elapsed = nowMs - circle.startedAtMs
+        if elapsed >= constants.VISUAL_DURATION_MS then
+            table.remove(activeBringerOfDarknessCircles, i)
+        elseif elapsed >= 0 then
+            local alpha = constants.CIRCLE_ALPHA
+            if elapsed > constants.VISUAL_HOLD_MS then
+                local fadeDuration = constants.VISUAL_DURATION_MS - constants.VISUAL_HOLD_MS
+                alpha = alpha * math.max(
+                    0,
+                    1 - ((elapsed - constants.VISUAL_HOLD_MS) / fadeDuration)
+                )
+            end
+            renderIsoCircle(
+                circle.x,
+                circle.y,
+                circle.z,
+                circle.radius,
+                constants.CIRCLE_SEGMENTS,
+                constants.CIRCLE_THICKNESS,
+                constants.CIRCLE_COLOR.R,
+                constants.CIRCLE_COLOR.G,
+                constants.CIRCLE_COLOR.B,
+                alpha
+            )
         end
     end
 end
