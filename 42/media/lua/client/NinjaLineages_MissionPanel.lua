@@ -38,11 +38,15 @@ function MissionPanel:new(host)
         rankCombo = nil,
         titleEntry = nil,
         descriptionEntry = nil,
+        cardButtons = nil,
+        selectedMissionId = nil,
+        boardPage = 1,
     }, self)
 end
 
 function MissionPanel:isActive()
-    return self.active == true and self.host.screen == "missions"
+    return self.active == true
+        and (self.host.screen == "mission_board" or self.host.screen == "mission_manage")
 end
 
 function MissionPanel:clearState()
@@ -50,24 +54,40 @@ function MissionPanel:clearState()
     self.rankCombo = nil
     self.titleEntry = nil
     self.descriptionEntry = nil
+    self.cardButtons = nil
 end
 
 function MissionPanel:addButton(x, y, width, height, title, callback)
     return self.host:addButton(x, y, width, height, title, self, callback)
 end
 
-function MissionPanel:open()
+function MissionPanel:openBoard()
     self.host:clearControls()
     self:clearState()
     self.active = true
-    self.host.screen = "missions"
-    self:createScreen()
+    self.host.screen = "mission_board"
+    self:createBoardScreen()
     NinjaLineages.Missions.request(self.host.player, "missionRequestSnapshot", {})
 end
 
-function MissionPanel:close()
+function MissionPanel:openManage()
+    if not NinjaLineages.Social.isKage(self.host.player) then return end
+    self.host:clearControls()
+    self:clearState()
+    self.active = true
+    self.host.screen = "mission_manage"
+    self:createManagementScreen()
+    NinjaLineages.Missions.request(self.host.player, "missionRequestSnapshot", {})
+end
+
+function MissionPanel:closeBoard()
     self.active = false
     self.host:createSelectionScreen()
+end
+
+function MissionPanel:closeManagement()
+    self.active = false
+    self.host.socialPanel:open("village")
 end
 
 function MissionPanel:getSelectedTeam()
@@ -79,9 +99,9 @@ function MissionPanel:getSelectedTeam()
     return nil
 end
 
-function MissionPanel:createScreen()
+function MissionPanel:createManagementScreen()
     local w = self.host.contentPanel.width
-    self:addButton(20, 20, 100, 32, text("UI_NL_Tree_Back"), MissionPanel.close)
+    self:addButton(20, 20, 100, 32, text("UI_NL_Tree_Back"), MissionPanel.closeManagement)
 
     local snapshot = NinjaLineages.Missions.getSnapshot()
     local managedTeams = snapshot.managedTeams or {}
@@ -134,6 +154,83 @@ function MissionPanel:createScreen()
     assign.enable = (team.memberCount or 0) > 0 and #(snapshot.unlockedRanks or {}) > 0
 end
 
+local function getCardPosition(index, count, panelWidth)
+    local columns = 4
+    local cardWidth, cardHeight = 190, 112
+    local horizontalGap, verticalGap = 18, 18
+    local row = math.floor((index - 1) / columns)
+    local column = (index - 1) % columns
+    local rowStart = row * columns + 1
+    local rowCount = math.min(columns, count - rowStart + 1)
+    local rowWidth = rowCount * cardWidth + (rowCount - 1) * horizontalGap
+    local rowX = (panelWidth - rowWidth) / 2
+    return rowX + column * (cardWidth + horizontalGap),
+        100 + row * (cardHeight + verticalGap),
+        cardWidth,
+        cardHeight
+end
+
+local BOARD_PAGE_SIZE = 8
+
+function MissionPanel:getBoardPageMissions()
+    local allMissions = NinjaLineages.Missions.getSnapshot().villageMissions or {}
+    local pageCount = math.max(1, math.ceil(#allMissions / BOARD_PAGE_SIZE))
+    self.boardPage = math.max(1, math.min(self.boardPage or 1, pageCount))
+    local first = ((self.boardPage - 1) * BOARD_PAGE_SIZE) + 1
+    local last = math.min(#allMissions, first + BOARD_PAGE_SIZE - 1)
+    local pageMissions = {}
+    for index = first, last do table.insert(pageMissions, allMissions[index]) end
+    return pageMissions, pageCount
+end
+
+function MissionPanel:createBoardScreen()
+    local w = self.host.contentPanel.width
+    self:addButton(20, 20, 100, 32, text("UI_NL_Tree_Back"), MissionPanel.closeBoard)
+    local missions, pageCount = self:getBoardPageMissions()
+    if pageCount > 1 then
+        local previous = self:addButton(w - 150, 20, 48, 32, "<", MissionPanel.onPreviousBoardPage)
+        previous.enable = self.boardPage > 1
+        local nextPage = self:addButton(w - 70, 20, 48, 32, ">", MissionPanel.onNextBoardPage)
+        nextPage.enable = self.boardPage < pageCount
+    end
+    self.cardButtons = {}
+    local selectedExists = false
+    for index, mission in ipairs(missions) do
+        local x, y, cardWidth, cardHeight = getCardPosition(index, #missions, w)
+        local button = self:addButton(x, y, cardWidth, cardHeight, "", MissionPanel.onBoardCard)
+        button.background = false
+        button.border = false
+        button.missionId = mission.id
+        self.cardButtons[mission.id] = button
+        if mission.id == self.selectedMissionId then selectedExists = true end
+    end
+    if not selectedExists and missions[1] then
+        self.selectedMissionId = missions[1].id
+    end
+end
+
+function MissionPanel:onBoardCard(button)
+    self.selectedMissionId = button.missionId
+end
+
+function MissionPanel:changeBoardPage(delta)
+    self.boardPage = math.max(1, (self.boardPage or 1) + delta)
+    self.selectedMissionId = nil
+    self.host:clearControls()
+    self:clearState()
+    self.active = true
+    self.host.screen = "mission_board"
+    self:createBoardScreen()
+end
+
+function MissionPanel:onPreviousBoardPage()
+    self:changeBoardPage(-1)
+end
+
+function MissionPanel:onNextBoardPage()
+    self:changeBoardPage(1)
+end
+
 function MissionPanel:createTerminalButtons(mission, w)
     local buttonWidth = 140
     local gap = 18
@@ -168,8 +265,8 @@ function MissionPanel:onTeamChanged()
     self.host:clearControls()
     self:clearState()
     self.active = true
-    self.host.screen = "missions"
-    self:createScreen()
+    self.host.screen = "mission_manage"
+    self:createManagementScreen()
 end
 
 function MissionPanel:onAssign()
@@ -232,10 +329,91 @@ function MissionPanel:drawMission(panel, mission, startY)
     )
 end
 
+function MissionPanel:drawCompactMission(panel, mission, x, y, width, height, hovered, selected)
+    local borderR, borderG, borderB = 0.34, 0.34, 0.42
+    if hovered or selected then borderR, borderG, borderB = 0.95, 0.72, 0.32 end
+    panel:drawRect(x, y, width, height, 0.94, 0.07, 0.07, 0.09)
+    panel:drawRectBorder(x, y, width, height, 0.92, borderR, borderG, borderB)
+    panel:drawTextCentre(mission.title or "", x + width / 2, y + 10, 0.95, 0.9, 0.78, 1, UIFont.Small)
+    panel:drawText(
+        text("UI_NL_Mission_BoardRank", mission.rank or "?"),
+        x + 12, y + 42, 0.82, 0.82, 0.88, 1, UIFont.Small
+    )
+    panel:drawText(
+        text("UI_NL_Mission_BoardTeam", mission.teamName or ""),
+        x + 12, y + 64, 0.82, 0.82, 0.88, 1, UIFont.Small
+    )
+    panel:drawText(
+        text("UI_NL_Mission_BoardStatus", text("UI_NL_Mission_Status_" .. tostring(mission.status))),
+        x + 12, y + 86, 0.72, 0.86, 0.72, 1, UIFont.Small
+    )
+end
+
+function MissionPanel:drawBoard(panel)
+    local w = panel.width
+    local missions, pageCount = self:getBoardPageMissions()
+    panel:drawTextCentre(text("UI_NL_Mission_BoardTitle"), w / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large)
+    if #missions == 0 then
+        panel:drawTextCentre(text("UI_NL_Mission_BoardEmpty"), w / 2, 130, 0.75, 0.75, 0.82, 1, UIFont.Medium)
+        return
+    end
+    if pageCount > 1 then
+        panel:drawTextRight(
+            text("UI_NL_Mission_BoardPage", tostring(self.boardPage), tostring(pageCount)),
+            w - 165, 28, 0.72, 0.72, 0.8, 1, UIFont.Small
+        )
+    end
+
+    local selected
+    for index, mission in ipairs(missions) do
+        local x, y, cardWidth, cardHeight = getCardPosition(index, #missions, w)
+        local button = self.cardButtons and self.cardButtons[mission.id]
+        local isSelected = mission.id == self.selectedMissionId
+        if isSelected then selected = mission end
+        self:drawCompactMission(
+            panel, mission, x, y, cardWidth, cardHeight,
+            button and button:isMouseOver(), isSelected
+        )
+    end
+
+    selected = selected or missions[1]
+    if selected then
+        local rows = math.ceil(#missions / 4)
+        local detailsY = 100 + rows * 130 + 20
+        panel:drawRect(70, detailsY, w - 140, panel.height - detailsY - 35, 0.72, 0.04, 0.04, 0.06)
+        panel:drawRectBorder(70, detailsY, w - 140, panel.height - detailsY - 35, 0.72, 0.30, 0.30, 0.38)
+        panel:drawText(
+            selected.title or "", 90, detailsY + 16,
+            0.95, 0.85, 0.65, 1, UIFont.Medium
+        )
+        panel:drawText(
+            text("UI_NL_Mission_BoardDetail", selected.teamName or "", selected.rank or "?"),
+            90, detailsY + 48, 0.8, 0.8, 0.88, 1, UIFont.Small
+        )
+        local lineY = detailsY + 80
+        for _, line in ipairs(wrapText(selected.description, w - 200, UIFont.Small)) do
+            panel:drawText(line, 90, lineY, 0.86, 0.86, 0.92, 1, UIFont.Small)
+            lineY = lineY + 22
+        end
+        panel:drawText(
+            text(
+                "UI_NL_Mission_RewardPreview",
+                tostring(selected.ninjaXpReward or 0),
+                tostring(selected.villageXpReward or 0)
+            ),
+            90, lineY + 16, 0.72, 0.88, 0.72, 1, UIFont.Small
+        )
+    end
+end
+
 function MissionPanel:prerender(panel)
     if not self:isActive() then return end
+    if self.host.screen == "mission_board" then
+        self:drawBoard(panel)
+        return
+    end
     local w = panel.width
-    panel:drawTextCentre(text("UI_NL_Mission_Title"), w / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large)
+    panel:drawTextCentre(text("UI_NL_Mission_ManageTitle"), w / 2, 28, 0.95, 0.85, 0.65, 1, UIFont.Large)
 
     local snapshot = NinjaLineages.Missions.getSnapshot()
     if #(snapshot.managedTeams or {}) > 0 then
@@ -263,22 +441,18 @@ function MissionPanel:prerender(panel)
         return
     end
 
-    if snapshot.myMission then
-        panel:drawTextCentre(
-            text("UI_NL_Mission_AssignedTeam", snapshot.myMission.teamName or ""),
-            w / 2, 82, 0.8, 0.8, 0.88, 1, UIFont.Medium
-        )
-        self:drawMission(panel, snapshot.myMission, 130)
-    else
-        panel:drawTextCentre(text("UI_NL_Mission_NoActive"), w / 2, 130, 0.75, 0.75, 0.82, 1, UIFont.Medium)
-    end
 end
 
 function MissionPanel:refresh()
     if not self:isActive() then return end
+    local screen = self.host.screen
     self.host:clearControls()
     self:clearState()
     self.active = true
-    self.host.screen = "missions"
-    self:createScreen()
+    self.host.screen = screen
+    if screen == "mission_board" then
+        self:createBoardScreen()
+    else
+        self:createManagementScreen()
+    end
 end

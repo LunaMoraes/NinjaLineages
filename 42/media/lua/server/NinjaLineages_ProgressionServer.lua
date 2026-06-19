@@ -120,6 +120,21 @@ local function handleDebugToggleAllUnlocked(player)
     })
 end
 
+local function handleDebugCompleteCoreTrees(player)
+    if not canUseDebugCommands(player) then
+        sendState(player, "debugResult", { ok = false, action = "completeCoreTrees" })
+        return
+    end
+
+    local completed, rank = NinjaLineages.Progression.completeCoreTrees(player)
+    sendState(player, "debugResult", {
+        ok = true,
+        action = "completeCoreTrees",
+        completed = completed,
+        rank = rank,
+    })
+end
+
 local function revealGeneExperimentation(player)
     local data = NinjaLineages.getNLData(player)
     data.visibleDisciplines = data.visibleDisciplines or {}
@@ -147,6 +162,8 @@ local function onClientCommand(module, command, player, args)
         handleDebugToggleAllVisible(player)
     elseif command == "debugToggleAllUnlocked" then
         handleDebugToggleAllUnlocked(player)
+    elseif command == "debugCompleteCoreTrees" then
+        handleDebugCompleteCoreTrees(player)
     end
 end
 

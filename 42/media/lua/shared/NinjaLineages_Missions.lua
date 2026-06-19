@@ -18,6 +18,7 @@ Missions.MAX_DESCRIPTION_LENGTH = 500
 
 Missions._snapshot = Missions._snapshot or {
     myMission = nil,
+    villageMissions = {},
     managedTeams = {},
     unlockedRanks = {},
 }
@@ -44,6 +45,7 @@ end
 
 function Missions.setSnapshot(snapshot)
     if type(snapshot) ~= "table" then return false end
+    snapshot.villageMissions = snapshot.villageMissions or {}
     snapshot.managedTeams = snapshot.managedTeams or {}
     snapshot.unlockedRanks = snapshot.unlockedRanks or {}
     Missions._snapshot = snapshot

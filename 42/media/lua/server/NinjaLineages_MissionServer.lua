@@ -119,6 +119,7 @@ local function missionSnapshot(player)
     local village = villageID and current.villages[villageID]
     local snapshot = {
         myMission = nil,
+        villageMissions = {},
         managedTeams = {},
         unlockedRanks = {},
     }
@@ -130,6 +131,26 @@ local function missionSnapshot(player)
             snapshot.myMission = copyRecord(mission)
             snapshot.myMission.teamName = team.name
         end
+    end
+
+    if village then
+        for _, villageTeamID in ipairs(village.teamIDs or {}) do
+            local villageTeam = current.teams[villageTeamID]
+            local mission = villageTeam
+                and villageTeam.activeMissionId
+                and current.missions[villageTeam.activeMissionId]
+            if mission and mission.status == "active" then
+                local entry = copyRecord(mission)
+                entry.teamName = villageTeam.name
+                table.insert(snapshot.villageMissions, entry)
+            end
+        end
+        table.sort(snapshot.villageMissions, function(a, b)
+            if tostring(a.teamName) ~= tostring(b.teamName) then
+                return tostring(a.teamName) < tostring(b.teamName)
+            end
+            return tostring(a.title) < tostring(b.title)
+        end)
     end
 
     if village and village.kageKey == playerKey then

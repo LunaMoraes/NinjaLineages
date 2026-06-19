@@ -4,6 +4,7 @@ require "ISUI/ISTextBox"
 require "ISUI/ISTextEntryBox"
 require "ISUI/ISComboBox"
 require "NinjaLineages_Social"
+require "NinjaLineages_Missions"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.SocialPanel = NinjaLineages.SocialPanel or {}
@@ -167,6 +168,46 @@ function SocialPanel:drawTeam(panel, w)
     if team.villageID then
         panel:drawText(text("UI_NL_Social_VillageTeamNotice"), 70, y + 12, 0.72, 0.72, 0.8, 1, UIFont.Small)
     end
+
+    local mission = NinjaLineages.Missions.getSnapshot().myMission
+    local missionY = math.max(320, y + 55)
+    panel:drawText(text("UI_NL_Mission_TeamSection"), 70, missionY, 0.95, 0.85, 0.65, 1, UIFont.Medium)
+    if not mission then
+        panel:drawText(text("UI_NL_Mission_NoActive"), 90, missionY + 38, 0.72, 0.72, 0.8, 1, UIFont.Small)
+        return
+    end
+
+    panel:drawText(
+        mission.title or "", 90, missionY + 38,
+        0.95, 0.95, 0.98, 1, UIFont.Medium
+    )
+    panel:drawText(
+        text("UI_NL_Mission_TeamSummary", mission.rank or "?", text("UI_NL_Mission_Status_" .. tostring(mission.status))),
+        90, missionY + 70, 0.78, 0.78, 0.86, 1, UIFont.Small
+    )
+    local description = tostring(mission.description or "")
+    local line, lineY = "", missionY + 104
+    for word in description:gmatch("%S+") do
+        local candidate = line == "" and word or (line .. " " .. word)
+        if line ~= "" and getTextManager():MeasureStringX(UIFont.Small, candidate) > w - 320 then
+            panel:drawText(line, 90, lineY, 0.84, 0.84, 0.9, 1, UIFont.Small)
+            line, lineY = word, lineY + 22
+        else
+            line = candidate
+        end
+    end
+    if line ~= "" then
+        panel:drawText(line, 90, lineY, 0.84, 0.84, 0.9, 1, UIFont.Small)
+        lineY = lineY + 28
+    end
+    panel:drawText(
+        text(
+            "UI_NL_Mission_RewardPreview",
+            tostring(mission.ninjaXpReward or 0),
+            tostring(mission.villageXpReward or 0)
+        ),
+        90, lineY, 0.72, 0.88, 0.72, 1, UIFont.Small
+    )
 end
 
 function SocialPanel:drawVillage(panel, w)
@@ -425,6 +466,11 @@ function SocialPanel:createVillageScreen()
             text("UI_NL_Reputation_Manage"),
             SocialPanel.onManageReputation
         )
+        self:addButton(
+            math.floor(w * 0.55), 364, 160, 32,
+            text("UI_NL_Mission_Manage"),
+            SocialPanel.onManageMissions
+        )
         local textWidth = getTextManager():MeasureStringX(UIFont.Large, village.name)
         self:addButton(
             290 + textWidth + 15, 82, 70, 24,
@@ -436,6 +482,10 @@ end
 
 function SocialPanel:onManageReputation()
     self:open("reputation")
+end
+
+function SocialPanel:onManageMissions()
+    self.host.missionPanel:openManage()
 end
 
 function SocialPanel:createReputationScreen()

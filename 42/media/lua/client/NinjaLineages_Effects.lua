@@ -195,7 +195,29 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
             opt2.enable = false
         end
 
-        -- 5. Unlock Mangekyo (moved from Uchiha)
+        -- 5. Complete core trees and immediately reach the resulting ninja rank
+        debugSubMenu:addOption(getText("UI_NL_Debug_CompleteCoreTrees"), player, function(p)
+            if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugCompleteCoreTrees then
+                local requested, completed, rank =
+                    NinjaLineages.Progression.requestDebugCompleteCoreTrees(p)
+                if requested and not NinjaLineages.isClient() then
+                    p:Say(getText(
+                        "UI_NL_Debug_CoreTreesComplete",
+                        tostring(completed or 0),
+                        tostring(rank or "NONE")
+                    ))
+                    for _, ui in pairs(NLJutsuTreeUI.instances) do
+                        if ui.screen == "selection" then
+                            ui:createSelectionScreen()
+                        elseif ui.screen == "discipline" then
+                            ui:refreshDisciplineState()
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- 6. Unlock Mangekyo (moved from Uchiha)
         if NinjaLineages.Uchiha and NinjaLineages.Uchiha.canUseKamuiTestUnlock and NinjaLineages.Uchiha.canUseKamuiTestUnlock(player) then
             debugSubMenu:addOption(getText("UI_NL_Ability_Kamui_TestUnlock"), player, NinjaLineages.Uchiha.unlockKamuiForSinglePlayerTest)
         end
@@ -225,6 +247,19 @@ local function onDebugServerCommand(module, command, args)
         for _, ui in pairs(NLJutsuTreeUI.instances) do
             if ui.screen == "selection" then
                 ui:createSelectionScreen()
+            end
+        end
+    elseif args.action == "completeCoreTrees" then
+        player:Say(getText(
+            "UI_NL_Debug_CoreTreesComplete",
+            tostring(args.completed or 0),
+            tostring(args.rank or "NONE")
+        ))
+        for _, ui in pairs(NLJutsuTreeUI.instances) do
+            if ui.screen == "selection" then
+                ui:createSelectionScreen()
+            elseif ui.screen == "discipline" then
+                ui:refreshDisciplineState()
             end
         end
     end

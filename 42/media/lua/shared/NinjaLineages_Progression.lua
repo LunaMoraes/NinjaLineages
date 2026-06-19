@@ -79,6 +79,52 @@ function Progression.requestDebugSetAllUnlocked(player)
     return data.allDisciplinesUnlocked
 end
 
+function Progression.requestDebugCompleteCoreTrees(player)
+    if NinjaLineages.isClient() then
+        sendClientCommand(player, "NinjaLineages", "debugCompleteCoreTrees", {})
+        return true
+    end
+    local completed, rank = Progression.completeCoreTrees(player)
+    return true, completed, rank
+end
+
+function Progression.completeCoreTrees(player)
+    if not player or NinjaLineages.isClient() then return 0, "NONE" end
+    local allowedDisciplines = {
+        ninjutsu = true,
+        medical = true,
+        taijutsu = true,
+        kenjutsu = true,
+    }
+    local state = getState(player)
+    local completed = 0
+
+    for _, tier in ipairs({ "GENIN", "CHUNIN", "JONIN" }) do
+        local tierNodes = {}
+        for nodeID, definition in pairs(Trees.Nodes) do
+            if allowedDisciplines[definition.discipline] and definition.tier == tier then
+                table.insert(tierNodes, {
+                    id = nodeID,
+                    order = tonumber(definition.order) or 0,
+                })
+            end
+        end
+        table.sort(tierNodes, function(a, b)
+            if a.order ~= b.order then return a.order < b.order end
+            return a.id < b.id
+        end)
+        for _, node in ipairs(tierNodes) do
+            if state.nodes[node.id] ~= "completed" then
+                state.nodes[node.id] = "completed"
+                completed = completed + 1
+            end
+        end
+    end
+
+    NinjaLineages.transmitPlayerData(player)
+    return completed, Progression.getNinjaRank(player)
+end
+
 function Progression.isDisciplineVisible(player, disciplineId)
     local definition = NinjaLineages.TreeDefinitions.Disciplines[disciplineId]
     if not definition then return false end

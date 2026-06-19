@@ -648,7 +648,7 @@ function NLJutsuTreeUI:onTeamInspect()
 end
 
 function NLJutsuTreeUI:onMissionBoard()
-    self.missionPanel:open()
+    self.missionPanel:openBoard()
 end
 
 function NLJutsuTreeUI:refreshSocialState()
@@ -657,6 +657,11 @@ end
 
 function NLJutsuTreeUI:refreshMissionState()
     self.missionPanel:refresh()
+    if self.socialPanel
+            and self.socialPanel:isActive()
+            and self.socialPanel.screen == "team" then
+        self.socialPanel:refresh()
+    end
 end
 
 function NLJutsuTreeUI:createDisciplineScreen(disciplineId)
