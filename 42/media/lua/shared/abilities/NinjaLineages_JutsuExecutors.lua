@@ -466,6 +466,14 @@ local function toggleEye(player, lineage)
     local data = NinjaLineages.getNLData(player)
     if not data.eyePowerActive and NinjaLineages.Chakra.getChakra(player) <= 0 then return false, "chakra" end
     data.eyePowerActive = not data.eyePowerActive
+    print(string.format(
+        "[DEBUG-NL-SHARINGAN-MP] ACTIVATE side=%s player=%s lineage=%s active=%s stage=%s",
+        NinjaLineages.isServer() and "server" or "singleplayer",
+        tostring(player:getOnlineID()),
+        tostring(lineage),
+        tostring(data.eyePowerActive),
+        tostring(lineage == "sharingan" and NinjaLineages.getSharinganStage(player) or "n/a")
+    ))
     NinjaLineages.transmitPlayerData(player)
     return true, nil, nil, {
         eyePowerActive = data.eyePowerActive,

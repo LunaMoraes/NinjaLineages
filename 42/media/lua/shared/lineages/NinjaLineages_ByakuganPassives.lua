@@ -84,36 +84,68 @@ end
 
 function ByakuganPassives.applyByakugan(player)
     if not isLivePlayer(player) then return end
-    if NinjaLineages.isClient() then return end
 
     local data = NinjaLineages.getNLData(player)
     if not data then return end
 
-    local changed = false
     local active = NinjaLineages.hasByakugan(player)
         and data.eyePowerActive == true
         and NinjaLineages.Chakra.getChakra(player) > 0
 
-    if active then
-        changed = ensureByakuganSight(player, data) or changed
-        changed = addOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED) or changed
-        changed = addOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING) or changed
-    else
-        if data.eyePowerActive and NinjaLineages.hasByakugan(player) then
-            data.eyePowerActive = false
-            changed = true
+    if NinjaLineages.isServer() then
+        local lastSyncedActive = data.byakuganSyncedActive
+        if lastSyncedActive ~= active then
+            data.byakuganSyncedActive = active
+            sendServerCommand(player, "NinjaLineages", "abilityEvent", {
+                kind = "byakuganSync",
+                active = active,
+                casterOnlineId = player:getOnlineID(),
+            })
+            NinjaLineages.transmitPlayerData(player)
         end
-
-        changed = removeTrackedByakuganSight(player, data) or changed
-        changed = removeOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED) or changed
-        changed = removeOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING) or changed
-    end
-    if changed then
-        NinjaLineages.transmitPlayerData(player)
+    elseif not NinjaLineages.isClient() then
+        -- Singleplayer fallback
+        local changed = false
+        if active then
+            changed = ensureByakuganSight(player, data) or changed
+            changed = addOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED) or changed
+            changed = addOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING) or changed
+        else
+            if data.eyePowerActive and NinjaLineages.hasByakugan(player) then
+                data.eyePowerActive = false
+                changed = true
+            end
+            changed = removeTrackedByakuganSight(player, data) or changed
+            changed = removeOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED) or changed
+            changed = removeOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING) or changed
+        end
+        if changed then
+            NinjaLineages.transmitPlayerData(player)
+        end
     end
 end
 
 if NinjaLineages.isServer() or not NinjaLineages.isClient() then
     NinjaLineages.registerPlayerUpdate("byakugan.update", ByakuganPassives.applyByakugan)
     NinjaLineages.registerEveryMinute("byakugan.everyMinute", ByakuganPassives.applyByakugan)
+end
+
+if NinjaLineages.isClient() then
+    require "NinjaLineages_AbilityAuthority"
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("byakuganSync", function(args)
+        local player = NinjaLineages.AbilityAuthority.findLocalPlayer(args.casterOnlineId)
+        if player then
+            local data = NinjaLineages.getNLData(player)
+            if args.active then
+                ensureByakuganSight(player, data)
+                addOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED)
+                addOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING)
+            else
+                removeTrackedByakuganSight(player, data)
+                removeOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED)
+                removeOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING)
+            end
+        end
+    end)
 end

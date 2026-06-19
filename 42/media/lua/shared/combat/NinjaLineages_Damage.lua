@@ -62,6 +62,24 @@ function NinjaLineages.Damage.applyPlayerDamage(caster, targetPlayer, payload)
         return false, { reason = reason }
     end
 
+    -- Check Sharingan PvP dodge (server-authoritative jutsu dodge)
+    local targetData = NinjaLineages.getNLData(targetPlayer)
+    if NinjaLineages.hasSharingan(targetPlayer) and targetData.eyePowerActive then
+        local stage = NinjaLineages.getSharinganStage(targetPlayer)
+        local chance = NinjaLineages.Constants.Uchiha.SharinganDodgeChance[stage] or 0
+        local active = NinjaLineages.AbilityExecution and NinjaLineages.AbilityExecution.active or {}
+        local kamuiActive = active[targetPlayer] and active[targetPlayer].kamuiUntil
+        local dodged = kamuiActive or ZombRand(1, 101) <= chance
+        if dodged then
+            sendServerCommand("NinjaLineages", "abilityEvent", {
+                kind = "sharingan_evade",
+                casterOnlineId = targetPlayer:getOnlineID(),
+            })
+            debugLog("DODGED_PVP_JUTSU target=" .. tostring(targetPlayer:getUsername()))
+            return false, { reason = "dodged" }
+        end
+    end
+
     local damage = math.max(0, tonumber(payload and payload.damage) or 0)
     local bodyDamage = targetPlayer:getBodyDamage()
     local parts = bodyDamage and bodyDamage:getBodyParts()

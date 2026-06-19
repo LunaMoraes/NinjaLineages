@@ -62,6 +62,7 @@ local function handleZombieDashRequest(player, args)
     if not zombieId then return end
     local zombie = ServerLogic.getZombieByOnlineID(zombieId)
     if zombie then
+        if zombie:isKnockedDown() or zombie:isFalling() or zombie:isProne() or zombie:isGettingUp() then return end
         local modData = zombie:getModData()
         if modData.isZombieNinja then
             local now = NinjaLineages.Utils.Time.gameMinutes()

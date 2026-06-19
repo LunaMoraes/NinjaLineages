@@ -48,6 +48,8 @@ local function onClientCommand(module, command, player, args)
 
     if command == "abilityRequest" then
         handleAbilityRequest(player, args)
+    elseif command == "sharinganEvadeBroadcast" then
+        sendServerCommand("NinjaLineages", "abilityEvent", args)
     end
 end
 

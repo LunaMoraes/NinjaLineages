@@ -204,6 +204,12 @@ function Authority.handleResult(result)
     if result.ok then
         if result.state and result.state.eyePowerActive ~= nil then
             NinjaLineages.getNLData(player).eyePowerActive = result.state.eyePowerActive == true
+            print(string.format(
+                "[DEBUG-NL-SHARINGAN-MP] RESULT side=client player=%s action=%s active=%s",
+                tostring(player:getOnlineID()),
+                tostring(result.actionId),
+                tostring(NinjaLineages.getNLData(player).eyePowerActive)
+            ))
         end
         if result.state and result.state.voice then
             pcall(function() player:playerVoiceSound(result.state.voice) end)
