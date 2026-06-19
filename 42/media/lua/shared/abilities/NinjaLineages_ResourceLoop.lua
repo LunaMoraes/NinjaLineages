@@ -95,7 +95,15 @@ local function processStatRestorationLoop(player, state, now, actionId, stateUnt
     if now >= state[stateUntilKey] then
         state[stateUntilKey] = nil
         state[stateNextTickKey] = nil
-        player:Say(getText(messageKey))
+        if NinjaLineages.isServer() then
+            sendServerCommand("NinjaLineages", "abilityEvent", {
+                kind = "stat_restoration_completed",
+                targetId = player:getOnlineID(),
+                messageKey = messageKey
+            })
+        else
+            player:Say(getText(messageKey))
+        end
     end
 end
 
@@ -304,6 +312,24 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
         if chakra <= 0 then data.eyePowerActive = false end
     end
     NinjaLineages.Chakra.setChakra(player, chakra)
+end
+
+function NinjaLineages.AbilityAuthority.pruneDeadPlayers(deadPlayerIDs)
+    if not deadPlayerIDs then return end
+    for _, id in ipairs(deadPlayerIDs) do
+        local key = "online:" .. tostring(id)
+        active[key] = nil
+    end
+end
+
+if NinjaLineages.isClient() then
+    NinjaLineages.AbilityAuthority.registerEventHandler("stat_restoration_completed", function(args)
+        if not args or not args.targetId or not args.messageKey then return end
+        local player = getPlayerByOnlineID(args.targetId)
+        if player and player.Say then
+            player:Say(getText(args.messageKey))
+        end
+    end)
 end
 
 function NinjaLineages.AbilityAuthority.resetPlayerActiveState(player)
