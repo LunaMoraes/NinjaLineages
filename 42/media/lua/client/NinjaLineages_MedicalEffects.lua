@@ -159,3 +159,28 @@ local function renderEffects()
 end
 
 NinjaLineages.addEventOnce("client.medicalEffects.onPostRender", Events.OnPostRender, renderEffects)
+
+if Events and Events.OnServerCommand then
+    require "NinjaLineages_AbilityAuthority"
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("chakra_needle_line", function(args)
+        if args.startGameMinutes and NinjaLineages.MedicalEffects.addProjectile then
+            NinjaLineages.MedicalEffects.addProjectile(args)
+        elseif NinjaLineages.MedicalEffects.addLine then
+            NinjaLineages.MedicalEffects.addLine(args)
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("projectile_resolved", function(args)
+        if NinjaLineages.MedicalEffects.resolveProjectile then
+            NinjaLineages.MedicalEffects.resolveProjectile(args)
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("nervous_system_shock_lines", function(args)
+        if NinjaLineages.MedicalEffects.addLines then
+            NinjaLineages.MedicalEffects.addLines(args)
+        end
+    end)
+end
+

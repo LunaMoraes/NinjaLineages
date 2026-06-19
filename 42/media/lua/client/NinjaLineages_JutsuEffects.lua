@@ -165,3 +165,20 @@ local function renderEffects()
 end
 
 NinjaLineages.addEventOnce("client.jutsuEffects.onPostRender", Events.OnPostRender, renderEffects)
+
+if Events and Events.OnServerCommand then
+    require "NinjaLineages_AbilityAuthority"
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("katon_stream_started", function(args)
+        if NinjaLineages.JutsuEffects.addKatonStream then
+            NinjaLineages.JutsuEffects.addKatonStream(args)
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("bringer_of_darkness_circle", function(args)
+        if NinjaLineages.JutsuEffects.addBringerOfDarknessCircle then
+            NinjaLineages.JutsuEffects.addBringerOfDarknessCircle(args)
+        end
+    end)
+end
+

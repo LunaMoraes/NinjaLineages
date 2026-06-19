@@ -158,3 +158,9 @@ Authority.register("alarm_seal", function(player, args)
     NinjaLineages.Chakra.spendChakra(player, cost)
     return true
 end)
+
+Authority.registerEventHandler("alarm_triggered", function(args)
+    local player = Authority.findLocalPlayer(args.casterOnlineId)
+    if player then player:Say(getText("UI_NL_Ability_AlarmSeal_Triggered")) end
+end)
+

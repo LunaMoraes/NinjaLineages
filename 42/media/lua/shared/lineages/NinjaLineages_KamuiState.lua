@@ -1,5 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_JutsuCatalog"
+require "NinjaLineages_AbilityAuthority"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.KamuiState = NinjaLineages.KamuiState or {}
@@ -167,3 +168,11 @@ end
 function KamuiState.getLocalState(player)
     return kamuiLocalState[player]
 end
+
+NinjaLineages.AbilityAuthority.registerEventHandler("kamui_noclip", function(args)
+    local player = NinjaLineages.AbilityAuthority.findLocalPlayer(args.casterOnlineId)
+    if player then
+        KamuiState.applyLocal(player, args)
+    end
+end)
+

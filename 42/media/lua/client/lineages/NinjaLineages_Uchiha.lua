@@ -167,3 +167,23 @@ if not NinjaLineages.isClient() and Events.OnCharacterDeath then
         NinjaLineages.UchihaPassives.unlockMangekyoIfEligible
     )
 end
+
+NinjaLineages.AbilityAuthority.registerEventHandler("sharingan_evade", function(args)
+    local player = NinjaLineages.AbilityAuthority.findLocalPlayer(args.casterOnlineId)
+    if player then
+        player:setHitReaction("EvasiveBlocked")
+        pcall(function() player:playSound(consts.Uchiha.Audio.DODGE_EFFECT) end)
+        player:Say(getText("UI_NL_Ability_Sharingan_Evade"))
+    end
+end)
+
+NinjaLineages.AbilityAuthority.registerEventHandler("mangekyo_unlocked", function(args)
+    local player = NinjaLineages.AbilityAuthority.findLocalPlayer(args.casterOnlineId)
+    if player then
+        player:Say(getText("UI_NL_Unlock_MangekyoAwakened"))
+        if NinjaLineages.Moodles then
+            NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.9)
+        end
+    end
+end)
+

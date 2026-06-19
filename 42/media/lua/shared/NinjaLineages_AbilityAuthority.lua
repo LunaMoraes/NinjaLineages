@@ -7,6 +7,13 @@ NinjaLineages.AbilityAuthority = NinjaLineages.AbilityAuthority or {}
 
 local Authority = NinjaLineages.AbilityAuthority
 
+Authority.eventHandlers = Authority.eventHandlers or {}
+
+function Authority.registerEventHandler(kind, func)
+    if not kind or type(func) ~= "function" then return end
+    Authority.eventHandlers[kind] = func
+end
+
 function Authority.maintainLocalKamuiNoClip(player)
     NinjaLineages.KamuiState.maintain(player)
 end
@@ -172,7 +179,7 @@ local function abilityDisplayName(actionId)
     return tostring(actionId)
 end
 
-local function findLocalPlayer(onlineId, localPlayerNum)
+function Authority.findLocalPlayer(onlineId, localPlayerNum)
     if localPlayerNum ~= nil and getSpecificPlayer then
         local localPlayer = getSpecificPlayer(localPlayerNum)
         if localPlayer then return localPlayer end
@@ -184,6 +191,7 @@ local function findLocalPlayer(onlineId, localPlayerNum)
     end
     return nil
 end
+local findLocalPlayer = Authority.findLocalPlayer
 
 function Authority.handleResult(result)
     if not result then return end
@@ -241,84 +249,13 @@ function Authority.pruneSeenRequests()
 end
 
 function Authority.handleEvent(args)
-    if not args then return end
-    if args.kind == "shinra_tensei_pulse"
-            and NinjaLineages.Rinnegan
-            and NinjaLineages.Rinnegan.addPulse then
-        NinjaLineages.Rinnegan.addPulse(args.x, args.y, args.z)
-        local caster = nil
-        if args.casterOnlineId and getPlayerByOnlineID then
-            caster = getPlayerByOnlineID(args.casterOnlineId)
-        end
-        if not caster then
-            caster = findLocalPlayer(args.casterOnlineId)
-        end
-        if caster then
-            pcall(function()
-                caster:playerVoiceSound(NinjaLineages.Constants.Rinnegan.ShinraTensei.ACTIVATION_VOICE)
-            end)
-        end
-    elseif args.kind == "alarm_triggered" then
-        local player = findLocalPlayer(args.casterOnlineId)
-        if player then player:Say(getText("UI_NL_Ability_AlarmSeal_Triggered")) end
-    elseif args.kind == "sharingan_evade" then
-        local player = findLocalPlayer(args.casterOnlineId)
-        if player then
-            player:setHitReaction("EvasiveBlocked")
-            pcall(function() player:playSound(NinjaLineages.Constants.Uchiha.Audio.DODGE_EFFECT) end)
-            player:Say(getText("UI_NL_Ability_Sharingan_Evade"))
-        end
-    elseif args.kind == "kamui_noclip" then
-        local player = findLocalPlayer(args.casterOnlineId)
-        if player then
-            NinjaLineages.KamuiState.applyLocal(player, args)
-        end
-    elseif args.kind == "mangekyo_unlocked" then
-        local player = findLocalPlayer(args.casterOnlineId)
-        if player then
-            player:Say(getText("UI_NL_Unlock_MangekyoAwakened"))
-            if NinjaLineages.Moodles then
-                NinjaLineages.Moodles.setValue("NLSharinganTomoe", player, 0.9)
-            end
-        end
-    elseif args.kind == "chakra_needle_line" then
-        if NinjaLineages.MedicalEffects then
-            if args.startGameMinutes and NinjaLineages.MedicalEffects.addProjectile then
-                NinjaLineages.MedicalEffects.addProjectile(args)
-            elseif NinjaLineages.MedicalEffects.addLine then
-                NinjaLineages.MedicalEffects.addLine(args)
-            end
-        end
-    elseif args.kind == "projectile_resolved" then
-        if NinjaLineages.MedicalEffects
-                and NinjaLineages.MedicalEffects.resolveProjectile then
-            NinjaLineages.MedicalEffects.resolveProjectile(args)
-        end
-    elseif args.kind == "nervous_system_shock_lines" then
-        if NinjaLineages.MedicalEffects and NinjaLineages.MedicalEffects.addLines then
-            NinjaLineages.MedicalEffects.addLines(args)
-        end
-    elseif args.kind == "katon_stream_started" then
-        if NinjaLineages.JutsuEffects
-                and NinjaLineages.JutsuEffects.addKatonStream then
-            NinjaLineages.JutsuEffects.addKatonStream(args)
-        end
-    elseif args.kind == "bringer_of_darkness_circle" then
-        if NinjaLineages.JutsuEffects
-                and NinjaLineages.JutsuEffects.addBringerOfDarknessCircle then
-            NinjaLineages.JutsuEffects.addBringerOfDarknessCircle(args)
-        end
-    elseif args.kind == "katon_fire" then
-        if NinjaLineages.isServer() or not NinjaLineages.isClient() then
-            local cell = getCell()
-            if cell and args.squares then
-                for _, sq in ipairs(args.squares) do
-                    local square = cell:getGridSquare(sq.x, sq.y, sq.z)
-                    if square then
-                        IsoFireManager.StartFire(cell, square, true, 100, 500)
-                    end
-                end
-            end
+    if not args or not args.kind then return end
+
+    local handler = Authority.eventHandlers[args.kind]
+    if handler then
+        local ok, err = pcall(handler, args)
+        if not ok then
+            print("ERROR: [AbilityAuthority] Event handler failed for '" .. tostring(args.kind) .. "': " .. tostring(err))
         end
     end
 end

@@ -807,3 +807,18 @@ Authority.register("storage_unseal", function(player, args)
     end
     return true
 end)
+
+Authority.registerEventHandler("katon_fire", function(args)
+    if NinjaLineages.isServer() or not NinjaLineages.isClient() then
+        local cell = getCell()
+        if cell and args.squares then
+            for _, sq in ipairs(args.squares) do
+                local square = cell:getGridSquare(sq.x, sq.y, sq.z)
+                if square then
+                    IsoFireManager.StartFire(cell, square, true, 100, 500)
+                end
+            end
+        end
+    end
+end)
+

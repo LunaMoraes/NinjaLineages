@@ -56,3 +56,20 @@ NinjaLineages.registerPlayerUpdate("rinnegan.shinraTenseiPush", function()
 end)
 
 NinjaLineages.addEventOnce("client.rinnegan.onPostRender", Events.OnPostRender, renderPulses)
+
+NinjaLineages.AbilityAuthority.registerEventHandler("shinra_tensei_pulse", function(args)
+    addPulse(args.x, args.y, args.z)
+    local caster = nil
+    if args.casterOnlineId and getPlayerByOnlineID then
+        caster = getPlayerByOnlineID(args.casterOnlineId)
+    end
+    if not caster then
+        caster = NinjaLineages.AbilityAuthority.findLocalPlayer(args.casterOnlineId)
+    end
+    if caster then
+        pcall(function()
+            caster:playerVoiceSound(consts.Rinnegan.ShinraTensei.ACTIVATION_VOICE)
+        end)
+    end
+end)
+
