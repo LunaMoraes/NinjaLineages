@@ -13,6 +13,7 @@ NLJutsuTreeUI = ISCollapsableWindow:derive("NLJutsuTreeUI")
 NLJutsuTreeUI.instances = NLJutsuTreeUI.instances or {}
 
 local selectionBgTex = nil
+local cardBorderTex = nil
 local tierOrder = { GENIN = 1, CHUNIN = 2, JONIN = 3 }
 
 local function text(key, ...)
@@ -450,12 +451,24 @@ function NLJutsuTreeUI:createSelectionScreen()
             end
 
             -- 3. Draw border on top of the card image
-            local borderCol = { r = 1, g = 1, b = 1, a = 0.6 }
-            if btn.enable and (btn:isMouseOver() or btn.joypadFocused) then
-                borderCol = { r = 0.8, g = 0.65, b = 0.2, a = 1.0 } -- Gold hover border
+            if not cardBorderTex then
+                cardBorderTex = getTexture("media/ui/jutsuTree/NL_UI_CardBorder_Discipline.png")
+                    or getTexture("media/ui/NL_UI_CardBorder_Discipline.png")
             end
-            if btn:shouldDrawBorder() then
-                btn:drawRectBorder(0, 0, btn.width, btn.height, borderCol.a, borderCol.r, borderCol.g, borderCol.b)
+            if cardBorderTex then
+                local r, g, b, a = 1.0, 1.0, 1.0, 1.0
+                if not btn.enable then
+                    r, g, b = 0.5, 0.5, 0.5 -- slightly darken border for locked/disabled cards
+                end
+                btn:drawTextureScaled(cardBorderTex, 0, 0, btn.width, btn.height, a, r, g, b)
+            else
+                local borderCol = { r = 1, g = 1, b = 1, a = 0.6 }
+                if btn.enable and (btn:isMouseOver() or btn.joypadFocused) then
+                    borderCol = { r = 0.8, g = 0.65, b = 0.2, a = 1.0 } -- Gold hover border
+                end
+                if btn:shouldDrawBorder() then
+                    btn:drawRectBorder(0, 0, btn.width, btn.height, borderCol.a, borderCol.r, borderCol.g, borderCol.b)
+                end
             end
 
             -- 5. Call ISButton.render(btn) to handle standard rendering
