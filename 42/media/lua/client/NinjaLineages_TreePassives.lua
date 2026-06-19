@@ -93,27 +93,13 @@ local function everyMinute(player, elapsedMinutes)
         player:getXp():AddXP(Perks.Fitness, fitnessXP * elapsed)
     end
 
-    local recovery = math.max(
-        rankValue(player, "fitness"),
-        rankValue(player, "combat_body")
-    )
-    if recovery > 0 then
-        recovery = recovery * elapsed
-        stats:set(CharacterStat.ENDURANCE, math.min(
-            Balance.Progression.NormalizedMaximum,
-            stats:get(CharacterStat.ENDURANCE) + recovery
-        ))
-        stats:set(CharacterStat.FATIGUE, math.max(0, stats:get(CharacterStat.FATIGUE) - recovery))
-    end
-
-    local painReduction = rankValue(player, "combat_body")
-    if painReduction > 0 then
-        painReduction = painReduction * elapsed
+    local stiffnessRecovery = rankValue(player, "combat_body") * elapsed
+    if stiffnessRecovery > 0 then
         local parts = player:getBodyDamage():getBodyParts()
         for i = 0, parts:size() - 1 do
             local part = parts:get(i)
             pcall(function()
-                part:setAdditionalPain(math.max(0, part:getAdditionalPain() - painReduction))
+                part:setStiffness(math.max(0, part:getStiffness() - stiffnessRecovery))
             end)
         end
     end

@@ -48,10 +48,15 @@ local function isPvPMeleeHit(player, attacker, weapon)
 end
 
 local function broadcastSharinganEvade(player)
-    sendServerCommand(player, "NinjaLineages", "abilityEvent", {
+    local event = {
         kind = "sharingan_evade",
         casterOnlineId = player:getOnlineID(),
-    })
+    }
+    if NinjaLineages.isServer() then
+        sendServerCommand(player, "NinjaLineages", "abilityEvent", event)
+    else
+        NinjaLineages.AbilityAuthority.handleEvent(event)
+    end
 end
 
 local function sharinganPvPMeleeEvade(attacker, player, weapon, damage)

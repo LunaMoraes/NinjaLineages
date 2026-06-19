@@ -1,18 +1,16 @@
-require "NinjaLineages_Traits"
-require "NinjaLineages_JutsuCatalog"
-require "lineages/NinjaLineages_KamuiState"
-
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.AbilityAuthority = NinjaLineages.AbilityAuthority or {}
 
 local Authority = NinjaLineages.AbilityAuthority
-
 Authority.eventHandlers = Authority.eventHandlers or {}
 
 function Authority.registerEventHandler(kind, func)
     if not kind or type(func) ~= "function" then return end
     Authority.eventHandlers[kind] = func
 end
+
+require "NinjaLineages_Traits"
+require "NinjaLineages_JutsuCatalog"
 
 function Authority.maintainLocalKamuiNoClip(player)
     NinjaLineages.KamuiState.maintain(player)

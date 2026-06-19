@@ -10,6 +10,7 @@ NinjaLineages.Uchiha = NinjaLineages.Uchiha or {}
 
 local consts = NinjaLineages.Constants
 local observedSharinganStages = setmetatable({}, { __mode = "k" })
+local dodgeSoundIds = setmetatable({}, { __mode = "k" })
 
 local function isKamuiVisionItem(item)
     if not item then return false end
@@ -171,9 +172,16 @@ end
 NinjaLineages.AbilityAuthority.registerEventHandler("sharingan_evade", function(args)
     local player = NinjaLineages.AbilityAuthority.findLocalPlayer(args.casterOnlineId)
     if player then
+        player:setHitReaction("")
         player:setHitReaction("EvasiveBlocked")
-        pcall(function() player:playSound(consts.Uchiha.Audio.DODGE_EFFECT) end)
-        player:Say(getText("UI_NL_Ability_Sharingan_Evade"))
+        pcall(function()
+            local emitter = player:getEmitter()
+            if dodgeSoundIds[player] then
+                emitter:stopSound(dodgeSoundIds[player])
+            end
+            dodgeSoundIds[player] = emitter:playSound(consts.Uchiha.Audio.DODGE_EFFECT)
+        end)
+        HaloTextHelper.addText(player, getText("UI_NL_Ability_Sharingan_Evade"))
     end
 end)
 

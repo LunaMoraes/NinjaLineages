@@ -17,6 +17,8 @@ NinjaLineages.AbilityExecution = NinjaLineages.AbilityExecution or {}
 NinjaLineages.AbilityExecution.active = NinjaLineages.AbilityExecution.active or {}
 NinjaLineages.AbilityExecution.boundZombies = NinjaLineages.AbilityExecution.boundZombies or {}
 NinjaLineages.AbilityExecution.sharinganRolls = NinjaLineages.AbilityExecution.sharinganRolls or {}
+NinjaLineages.AbilityExecution.specializedExecutors = NinjaLineages.AbilityExecution.specializedExecutors or {}
+NinjaLineages.AbilityExecution.genericEffects = NinjaLineages.AbilityExecution.genericEffects or {}
 
 local Authority = NinjaLineages.AbilityAuthority
 local Balance = NinjaLineages.Balance
