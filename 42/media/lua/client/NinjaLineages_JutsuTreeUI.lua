@@ -12,6 +12,7 @@ require "NinjaLineages_MissionPanel"
 NLJutsuTreeUI = ISCollapsableWindow:derive("NLJutsuTreeUI")
 NLJutsuTreeUI.instances = NLJutsuTreeUI.instances or {}
 
+local selectionBgTex = nil
 local tierOrder = { GENIN = 1, CHUNIN = 2, JONIN = 3 }
 
 local function text(key, ...)
@@ -137,6 +138,14 @@ function NLJutsuTreeUI:initialise()
         local margin = math.floor(w * 0.03)
 
         if self.screen == "selection" then
+            if not selectionBgTex then
+                selectionBgTex = getTexture("media/ui/jutsuTree/NL_UI_BG_ShinobiAcademy_Selection.png")
+                    or getTexture("media/ui/NL_UI_BG_ShinobiAcademy_Selection.png")
+            end
+            if selectionBgTex then
+                panel:drawTextureScaled(selectionBgTex, 0, 0, w, h, 1.0, 1.0, 1.0, 1.0)
+            end
+
             local margin = 20
             local leftWidth = 250
             local statusHeight = math.floor(h * 0.76)
