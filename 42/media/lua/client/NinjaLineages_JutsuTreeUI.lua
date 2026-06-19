@@ -14,6 +14,7 @@ NLJutsuTreeUI.instances = NLJutsuTreeUI.instances or {}
 
 local selectionBgTex = nil
 local cardBorderTex = nil
+local statusOverlayTex = nil
 local tierOrder = { GENIN = 1, CHUNIN = 2, JONIN = 3 }
 
 local function text(key, ...)
@@ -156,13 +157,21 @@ function NLJutsuTreeUI:initialise()
             panel:drawTextCentre(text("UI_NL_Tree_SelectionTitle") or "Shinobi Disciplines", w / 2, math.floor(h * 0.06), 0.95, 0.85, 0.65, 1, UIFont.Large)
 
             -- Draw a beautiful container box on the left side of the selection screen
-            panel:drawRect(margin, statusY, leftWidth - margin, statusHeight, 0.92, 0.08, 0.08, 0.11)
-            panel:drawRectBorder(margin, statusY, leftWidth - margin, statusHeight, 0.6, 1.0, 1.0, 1.0)
+            if not statusOverlayTex then
+                statusOverlayTex = getTexture("media/ui/jutsuTree/NL_UI_Panel_Status_Overlay.png")
+                    or getTexture("media/ui/NL_UI_Panel_Status_Overlay.png")
+            end
+            if statusOverlayTex then
+                panel:drawTextureScaled(statusOverlayTex, margin, statusY, leftWidth - margin, statusHeight, 1.0, 1.0, 1.0, 1.0)
+            else
+                panel:drawRect(margin, statusY, leftWidth - margin, statusHeight, 0.92, 0.08, 0.08, 0.11)
+                panel:drawRectBorder(margin, statusY, leftWidth - margin, statusHeight, 0.6, 1.0, 1.0, 1.0)
+            end
             
-            local boxX = margin + 15
+            local boxX = margin + 25
             local boxY = statusY + 20
             panel:drawText("STATUS", boxX, boxY, 1, 1, 1, 1, UIFont.Medium)
-            panel:drawText("Rank: " .. text("UI_NL_Rank_" .. NinjaLineages.Progression.getNinjaRank(self.player)), boxX, boxY + 30, 0.85, 0.85, 0.9, 1, UIFont.Small)
+            panel:drawText("Rank: " .. text("UI_NL_Rank_" .. NinjaLineages.Progression.getNinjaRank(self.player)), boxX, boxY + 25, 0.85, 0.85, 0.9, 1, UIFont.Small)
 
             local rank = NinjaLineages.Progression.getNinjaRank(self.player)
             local rankImage = nil
@@ -180,21 +189,21 @@ function NLJutsuTreeUI:initialise()
             if rankImage then
                 local tex = getTexture(rankImage)
                 if tex then
-                    panel:drawTextureScaled(tex, imgX, boxY + 50, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
+                    panel:drawTextureScaled(tex, imgX, boxY + 45, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
                 end
             end
 
-            panel:drawText("Ninja XP: " .. math.floor(NinjaLineages.Progression.getNinjaXP(self.player)), boxX, boxY + 155, 0.85, 0.85, 0.9, 1, UIFont.Small)
+            panel:drawText("Ninja XP: " .. math.floor(NinjaLineages.Progression.getNinjaXP(self.player)), boxX, boxY + 145, 0.85, 0.85, 0.9, 1, UIFont.Small)
 
             local village = NinjaLineages.Social.getMyVillage(self.player)
             if village then
-                panel:drawText("Village: " .. village.name, boxX, boxY + 180, 0.85, 0.85, 0.9, 1, UIFont.Small)
+                panel:drawText("Village: " .. village.name, boxX, boxY + 165, 0.85, 0.85, 0.9, 1, UIFont.Small)
 
                 local symbolTexture = NinjaLineages.Social.getSymbol(village.symbolID)
                 local texture = symbolTexture and getTexture(symbolTexture)
                 if texture then
-                    self:drawBandanaPlate(panel, imgX, boxY + 220, imgSize)
-                    panel:drawTextureScaled(texture, imgX, boxY + 220, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
+                    self:drawBandanaPlate(panel, imgX, boxY + 200, imgSize)
+                    panel:drawTextureScaled(texture, imgX, boxY + 200, imgSize, imgSize, 1.0, 1.0, 1.0, 1.0)
                 end
             end
 
@@ -566,11 +575,11 @@ function NLJutsuTreeUI:createSelectionScreen()
         self.rightArrowBtn.font = UIFont.Medium
     end
 
-    local sideButtonX = margin + 10
-    local sideButtonWidth = leftWidth - margin - 20
+    local sideButtonX = margin + 20
+    local sideButtonWidth = leftWidth - margin - 40
     local sideButtonHeight = math.floor(h * 0.055)
     local sideButtonGap = 8
-    local sideButtonY = statusY + statusHeight - (sideButtonHeight * 4) - (sideButtonGap * 3) - 15
+    local sideButtonY = statusY + statusHeight - (sideButtonHeight * 4) - (sideButtonGap * 3) - 20
     self.foundVillageButton = self:addButton(
         sideButtonX,
         sideButtonY,
