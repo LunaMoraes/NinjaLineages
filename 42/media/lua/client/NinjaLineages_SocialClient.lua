@@ -166,6 +166,12 @@ local function onServerCommand(module, command, args)
         if args and args.ok then
             if args.reason == "village_team_created" then
                 say(translated("UI_NL_Social_PromptAddMembers", "Empty team created. Click the slots to add members."))
+            elseif args.reason == "village_left" then
+                say(translated("UI_NL_Social_VillageLeft", "You left the village."))
+            elseif args.reason == "mission_deserted" then
+                say(translated("UI_NL_Social_MissionDeserted", "You deserted your active mission."))
+            elseif args.reason == "mission_betrayed" then
+                say(translated("UI_NL_Social_MissionBetrayed", "You betrayed the active mission."))
             elseif args.reason ~= "declined" then
                 say(translated("UI_NL_Social_ActionComplete", "Social action completed."))
             end

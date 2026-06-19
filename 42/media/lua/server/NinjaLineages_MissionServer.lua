@@ -236,6 +236,10 @@ local function broadcastSnapshots()
     forEachOnlinePlayer(sendSnapshot)
 end
 
+function Server.broadcastSnapshots()
+    broadcastSnapshots()
+end
+
 local function findOnlinePlayer(playerKey)
     local found
     forEachOnlinePlayer(function(candidate)

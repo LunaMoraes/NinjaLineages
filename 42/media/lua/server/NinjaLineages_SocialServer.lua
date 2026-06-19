@@ -431,6 +431,41 @@ local function expelVillageMember(village, targetKey)
     return true
 end
 
+local function applyReputationFlag(village, targetKey, flagType, severityIncrement, expelMember)
+    if not village or not targetKey or not Social.isValidReputationFlagType(flagType) then
+        return false
+    end
+
+    local increment = math.max(1, math.floor(tonumber(severityIncrement) or 1))
+    local recordID = reputationRecordID(targetKey, village.id, flagType)
+    local flag = state.reputationFlags[recordID]
+    if flag then
+        flag.severity = math.min(
+            Social.MAX_FLAG_SEVERITY,
+            math.max(1, tonumber(flag.severity) or 1) + increment
+        )
+        flag.targetPlayerName = state.knownPlayers[targetKey]
+            or flag.targetPlayerName
+            or "Unknown"
+        flag.sourceVillageName = village.name
+    else
+        state.reputationFlags[recordID] = {
+            targetPlayerId = targetKey,
+            targetPlayerName = state.knownPlayers[targetKey] or "Unknown",
+            sourceVillageId = village.id,
+            sourceVillageName = village.name,
+            flagType = flagType,
+            severity = math.min(Social.MAX_FLAG_SEVERITY, increment),
+        }
+    end
+
+    if expelMember == true and state.playerVillages[targetKey] == village.id then
+        expelVillageMember(village, targetKey)
+        rebuildIndexes()
+    end
+    return true
+end
+
 local function createInvite(kind, inviter, target, proposedName)
     local inviterKey = Social.getPlayerKey(inviter, false)
     local targetKey = Social.getPlayerKey(target, false)
@@ -558,30 +593,7 @@ function handlers.socialApplyReputationFlag(player, args)
     if targetKey == actorKey then return false, "cannot_flag_self" end
     if not Social.isValidReputationFlagType(flagType) then return false, "invalid_flag_type" end
 
-    local recordID = reputationRecordID(targetKey, villageID, flagType)
-    local flag = state.reputationFlags[recordID]
-    if flag then
-        flag.severity = math.min(
-            Social.MAX_FLAG_SEVERITY,
-            math.max(1, tonumber(flag.severity) or 1) + 1
-        )
-        flag.targetPlayerName = state.knownPlayers[targetKey]
-        flag.sourceVillageName = village.name
-    else
-        state.reputationFlags[recordID] = {
-            targetPlayerId = targetKey,
-            targetPlayerName = state.knownPlayers[targetKey],
-            sourceVillageId = villageID,
-            sourceVillageName = village.name,
-            flagType = flagType,
-            severity = 1,
-        }
-    end
-
-    if state.playerVillages[targetKey] == villageID then
-        expelVillageMember(village, targetKey)
-        rebuildIndexes()
-    end
+    applyReputationFlag(village, targetKey, flagType, 1, true)
     return true, "reputation_flag_applied"
 end
 
@@ -690,6 +702,63 @@ function handlers.socialLeaveTeam(player)
     if team.leaderKey == playerKey then team.leaderKey = nil end
     if not team.villageID and #team.members <= 1 then disbandTeam(teamID) end
     return true
+end
+
+function handlers.socialLeaveVillage(player)
+    local playerKey = Social.getPlayerKey(player, false)
+    if not playerKey then return false, "unstable_identity" end
+
+    local villageID = state.playerVillages[playerKey]
+    local village = villageID and state.villages[villageID]
+    if not village then return false, "no_village" end
+    if village.kageKey == playerKey then return false, "kage_cannot_leave" end
+
+    local teamID = state.playerTeams[playerKey]
+    local team = teamID and state.teams[teamID]
+    if team and team.villageID ~= villageID then team = nil end
+
+    local mission
+    if team and team.activeMissionId then
+        local candidate = state.missions[team.activeMissionId]
+        if candidate
+                and candidate.status == "active"
+                and candidate.teamId == team.id
+                and candidate.villageId == villageID then
+            mission = candidate
+        end
+    end
+
+    if mission and team.leaderKey == playerKey then
+        local associates = copyTable(team.members)
+        applyReputationFlag(village, playerKey, "Traitor", 1, false)
+        for _, memberKey in ipairs(associates) do
+            if memberKey ~= playerKey then
+                applyReputationFlag(
+                    village,
+                    memberKey,
+                    "Betrayal Associate",
+                    1,
+                    false
+                )
+            end
+        end
+
+        mission.status = "failed"
+        mission.resolvedAt = now()
+        team.activeMissionId = nil
+        expelVillageMember(village, playerKey)
+        rebuildIndexes()
+        return true, "mission_betrayed"
+    end
+
+    if mission then
+        applyReputationFlag(village, playerKey, "Deserter", 1, true)
+        return true, "mission_deserted"
+    end
+
+    expelVillageMember(village, playerKey)
+    rebuildIndexes()
+    return true, "village_left"
 end
 
 function handlers.socialDisbandTeam(player)
@@ -901,6 +970,12 @@ function Server.handleCommand(command, player, args)
     if command ~= "socialRequestSnapshot" then
         result(player, success, reason, command)
         broadcastSnapshots()
+        if success
+                and command == "socialLeaveVillage"
+                and NinjaLineages.MissionServer
+                and NinjaLineages.MissionServer.broadcastSnapshots then
+            NinjaLineages.MissionServer.broadcastSnapshots()
+        end
     end
     return true
 end

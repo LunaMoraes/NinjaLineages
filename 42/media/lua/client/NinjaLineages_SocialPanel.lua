@@ -476,6 +476,12 @@ function SocialPanel:createVillageScreen()
             text("UI_NL_Social_Rename") or "Rename",
             SocialPanel.onRenameVillage
         )
+    elseif village then
+        self:addButton(
+            math.floor(w * 0.55), 322, 160, 32,
+            text("UI_NL_Social_LeaveVillage"),
+            SocialPanel.onLeaveVillage
+        )
     end
 end
 
@@ -722,6 +728,29 @@ function SocialPanel:onRenameVillage()
     box:initialise()
     box.entry:setMaxTextLength(32)
     box:addToUIManager()
+end
+
+local function confirmLeaveVillage(socialPanel, button)
+    if button.internal ~= "YES" then return end
+    NinjaLineages.Social.request(socialPanel.host.player, "socialLeaveVillage", {})
+end
+
+function SocialPanel:onLeaveVillage()
+    local promptKey = "UI_NL_Social_ConfirmLeaveVillage"
+    local team = NinjaLineages.Social.getMyTeam(self.host.player)
+    local mission = NinjaLineages.Missions.getSnapshot().myMission
+    if mission and team and NinjaLineages.Social.isTeamLeader(self.host.player) then
+        promptKey = "UI_NL_Social_ConfirmLeaveVillageBetrayal"
+    elseif mission then
+        promptKey = "UI_NL_Social_ConfirmLeaveVillageDeserter"
+    end
+
+    local modal = ISModalDialog:new(
+        0, 0, 440, 180, text(promptKey), true,
+        self, confirmLeaveVillage, self.host.playerNum
+    )
+    modal:initialise()
+    modal:addToUIManager()
 end
 
 local function onTeamRenameEntered(socialPanel, button)
