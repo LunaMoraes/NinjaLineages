@@ -243,3 +243,12 @@ function mechanics.execute(player)
     )
     return true
 end
+
+function mechanics.executeVisual(player)
+    if not player then return end
+    local targets = mechanics.collectTargets(player)
+    local startedAt = NinjaLineages.Utils.Time.gameMinutes()
+    for _, target in ipairs(targets) do
+        beginPush(player, target, startedAt)
+    end
+end

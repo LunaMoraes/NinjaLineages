@@ -50,9 +50,7 @@ local function renderPulses()
 end
 
 NinjaLineages.registerPlayerUpdate("rinnegan.shinraTenseiPush", function()
-    if not NinjaLineages.isClient() then
-        mechanics.update()
-    end
+    mechanics.update()
 end)
 
 NinjaLineages.addEventOnce("client.rinnegan.onPostRender", Events.OnPostRender, renderPulses)
@@ -70,6 +68,9 @@ NinjaLineages.AbilityAuthority.registerEventHandler("shinra_tensei_pulse", funct
         pcall(function()
             caster:playerVoiceSound(consts.Rinnegan.ShinraTensei.ACTIVATION_VOICE)
         end)
+        if NinjaLineages.RinneganMechanics.executeVisual then
+            NinjaLineages.RinneganMechanics.executeVisual(caster)
+        end
     end
 end)
 
