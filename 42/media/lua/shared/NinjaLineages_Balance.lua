@@ -40,6 +40,7 @@ NinjaLineages.Balance.DurationTier = {
     STANDARD = 6,
     LONG = 12,
     VERY_LONG = 24,
+    WORLD_HOUR = 60,
 }
 
 NinjaLineages.Balance.RadiusTier = {

@@ -1,7 +1,7 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Items"
-require "NinjaLineages_CreationRebirthScroll"
+require "NinjaLineages_RareScrollsClient"
 require "NinjaLineages_BingoBook"
 require "NinjaLineages_MissionClient"
 require "NinjaLineages_Chakra"

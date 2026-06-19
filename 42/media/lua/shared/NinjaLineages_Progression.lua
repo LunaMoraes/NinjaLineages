@@ -2,6 +2,7 @@ require "NinjaLineages_Traits"
 require "NinjaLineages_Skills"
 require "NinjaLineages_Balance"
 require "NinjaLineages_TreeDefinitions"
+require "NinjaLineages_RareScrolls"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Progression = NinjaLineages.Progression or {}
@@ -355,10 +356,12 @@ function Progression.getNinjaScore(player)
     end
 
     local data = NinjaLineages.getNLData(player)
-    local rareFlags = { "creationRebirthUnlocked", "mangekyoUnlocked" }
-    for _, flag in ipairs(rareFlags) do
-        if data[flag] then score = score + Balance.Progression.RankNodeWeight.RARE end
+    for _, definition in pairs(NinjaLineages.RareScrolls.Definitions) do
+        if data[definition.unlockField] then
+            score = score + Balance.Progression.RankNodeWeight.RARE
+        end
     end
+    if data.mangekyoUnlocked then score = score + Balance.Progression.RankNodeWeight.RARE end
 
     local skills = NinjaLineages.Skills.getChakraControlLevel(player)
         + NinjaLineages.Skills.getJutsuProwessLevel(player)

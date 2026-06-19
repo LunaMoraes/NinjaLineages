@@ -1,5 +1,6 @@
 require "NinjaLineages_Balance"
 require "NinjaLineages_Utils"
+require "NinjaLineages_RareScrolls"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.JutsuCatalog = NinjaLineages.JutsuCatalog or {}
@@ -144,6 +145,21 @@ Catalog.Definitions = {
         handSigns = { "tiger", "dragon", "tiger" },
         balance = { cost = "MAJOR", cooldown = "VERY_LONG", radius = "STANDARD", control = "CHUNIN" },
         effect = { kind = "area_control" },
+    },
+    {
+        id = "kirigakure",
+        category = "common",
+        discipline = "genjutsu",
+        requirements = {
+            { kind = "rare_unlock", id = "kirigakure" },
+        },
+        handSigns = { "snake", "rat", "dragon", "tiger" },
+        balance = {
+            cost = "ULTIMATE",
+            cooldown = "VERY_LONG",
+            duration = "WORLD_HOUR",
+        },
+        executor = "kirigakure",
     },
     {
         id = "chakra_focus",
@@ -418,7 +434,7 @@ Catalog.Definitions = {
         },
         requirements = {
             { kind = "lineage", id = "senju" },
-            { kind = "special", id = "creation_rebirth_unlocked" },
+            { kind = "rare_unlock", id = "creation_rebirth" },
         },
         balance = {
             costStep = "HARSH",
@@ -483,6 +499,7 @@ local specializedExecutors = {
     kamui = true,
     binding_roots = true,
     creation_rebirth = true,
+    kirigakure = true,
     shinra_tensei = true,
     corpse_odor_conditioning = true,
     katon = true,
@@ -494,7 +511,6 @@ local specializedExecutors = {
 }
 local specialRequirements = {
     mangekyo_unlocked = true,
-    creation_rebirth_unlocked = true,
 }
 local lineageRequirements = {
     uchiha = true,
@@ -650,13 +666,13 @@ function Catalog.checkRequirements(player, definition)
     for _, requirement in ipairs(definition.requirements or {}) do
         if requirement.kind == "lineage" and not checkLineage(player, requirement.id) then
             return false, "lineage"
+        elseif requirement.kind == "rare_unlock" then
+            if not NinjaLineages.RareScrolls.isUnlocked(player, requirement.id) then
+                return false, "locked"
+            end
         elseif requirement.kind == "special" then
             if requirement.id == "mangekyo_unlocked"
                     and not NinjaLineages.getNLData(player).mangekyoUnlocked then
-                return false, "locked"
-            elseif requirement.id == "creation_rebirth_unlocked"
-                    and (not NinjaLineages.CreationRebirth
-                        or not NinjaLineages.CreationRebirth.isUnlocked(player)) then
                 return false, "locked"
             end
         end
@@ -706,6 +722,7 @@ function Catalog.toAbility(definition)
     return {
         id = definition.id,
         lineage = definition.category,
+        discipline = definition.discipline or (definition.node and definition.node.discipline),
         nodeId = definition.node and definition.id or nil,
         name = view.nameKey,
         nameFallback = view.nameFallback,
@@ -786,6 +803,9 @@ function Catalog.validate()
             nodeIds[value.id] = true
             Catalog.ByNodeId[value.id] = definition
         end
+        if definition.discipline and not Catalog.Disciplines[definition.discipline] then
+            error("[JutsuCatalog] Unknown discipline '" .. tostring(definition.discipline) .. "' on " .. definition.id)
+        end
 
         for _, sign in ipairs(definition.handSigns or {}) do
             if not handSigns[sign] then error("[JutsuCatalog] Unknown hand sign '" .. tostring(sign) .. "'") end
@@ -795,7 +815,12 @@ function Catalog.validate()
                 error("[JutsuCatalog] Unknown lineage requirement '" .. tostring(requirement.id) .. "'")
             elseif requirement.kind == "special" and not specialRequirements[requirement.id] then
                 error("[JutsuCatalog] Unknown special requirement '" .. tostring(requirement.id) .. "'")
-            elseif requirement.kind ~= "lineage" and requirement.kind ~= "special" then
+            elseif requirement.kind == "rare_unlock"
+                    and not NinjaLineages.RareScrolls.get(requirement.id) then
+                error("[JutsuCatalog] Unknown rare unlock requirement '" .. tostring(requirement.id) .. "'")
+            elseif requirement.kind ~= "lineage"
+                    and requirement.kind ~= "special"
+                    and requirement.kind ~= "rare_unlock" then
                 error("[JutsuCatalog] Unknown requirement kind '" .. tostring(requirement.kind) .. "'")
             end
         end

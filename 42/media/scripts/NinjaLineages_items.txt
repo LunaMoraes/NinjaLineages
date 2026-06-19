@@ -99,6 +99,18 @@ module Base
         Tags = base:isfirefuel;base:isfiretinder,
     }
 
+    item NL_KirigakureScroll
+    {
+        DisplayCategory = Literature,
+        ItemType = base:literature,
+        DisplayName = UI_item_NL_KirigakureScroll,
+        Weight = 0.1,
+        Icon = NLSealIcon,
+        NumberOfPages = 360,
+        ReadType = book,
+        Tags = base:isfirefuel;base:isfiretinder,
+    }
+
     item NL_BingoBook
     {
         DisplayCategory = Literature,

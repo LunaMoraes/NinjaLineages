@@ -64,7 +64,7 @@ showAbilityRadial = function(player)
     end
 
     for _, ability in ipairs(abilities) do
-        local discId = nil
+        local discId = ability.discipline
         if ability.nodeId then
             local node = NinjaLineages.TreeDefinitions.getNode(ability.nodeId)
             if node and node.discipline then

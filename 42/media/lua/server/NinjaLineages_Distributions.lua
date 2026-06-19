@@ -1,7 +1,5 @@
 require "Items/ProceduralDistributions"
-
-local SCROLL_TYPE = "Base.NL_CreationRebirthScroll"
-local SCROLL_WEIGHT = 0.2
+require "NinjaLineages_RareScrolls"
 
 local function containsItem(items, fullType)
     for i = 1, #items, 2 do
@@ -20,16 +18,24 @@ local function containsBook(items)
     return false
 end
 
-local function addCreationRebirthScroll()
+local function addRareScrolls()
     if not ProceduralDistributions or not ProceduralDistributions.list then return end
 
     for _, distribution in pairs(ProceduralDistributions.list) do
         local items = distribution and distribution.items
-        if items and containsBook(items) and not containsItem(items, SCROLL_TYPE) then
-            table.insert(items, SCROLL_TYPE)
-            table.insert(items, SCROLL_WEIGHT)
+        if items and containsBook(items) then
+            for _, definition in pairs(NinjaLineages.RareScrolls.Definitions) do
+                if not containsItem(items, definition.itemType) then
+                    table.insert(items, definition.itemType)
+                    table.insert(items, definition.lootWeight)
+                end
+            end
         end
     end
 end
 
-NinjaLineages.addEventOnce("server.distributions.onPostDistributionMerge", Events.OnPostDistributionMerge, addCreationRebirthScroll)
+NinjaLineages.addEventOnce(
+    "server.distributions.onPostDistributionMerge",
+    Events.OnPostDistributionMerge,
+    addRareScrolls
+)

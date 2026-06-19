@@ -9,6 +9,7 @@ require "combat/NinjaLineages_CombatRuntime"
 require "combat/NinjaLineages_EarthWall"
 require "lineages/NinjaLineages_KamuiState"
 require "disciplines/NinjaLineages_ScrollUtils"
+require "abilities/NinjaLineages_Kirigakure"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.AbilityAuthority = NinjaLineages.AbilityAuthority or {}
@@ -337,6 +338,20 @@ specializedExecutors.creation_rebirth = function(player, definition)
     local now = NinjaLineages.Utils.Time.gameMinutes()
     active[player].creationRebirthUntil = now + resolved.duration
     active[player].nextRebirthTick = now
+    return true
+end
+
+specializedExecutors.kirigakure = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+    if not NinjaLineages.Kirigakure.activate(resolved.duration) then
+        return false, "server_error"
+    end
+    if not commit(player, definition, resolved, cost) then return false, "chakra" end
+    NinjaLineages.transmitPlayerData(player)
     return true
 end
 

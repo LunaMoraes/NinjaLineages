@@ -18,6 +18,7 @@ NinjaLineages.AbilityExecution.sharinganRolls = NinjaLineages.AbilityExecution.s
 
 -- Load refactored ability submodules
 require "abilities/NinjaLineages_BringerOfDarkness"
+require "abilities/NinjaLineages_Kirigakure"
 require "abilities/NinjaLineages_AlarmSeals"
 require "abilities/NinjaLineages_CombatHooks"
 require "abilities/NinjaLineages_ResourceLoop"
