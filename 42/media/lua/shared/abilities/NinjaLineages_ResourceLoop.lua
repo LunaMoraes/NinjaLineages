@@ -214,6 +214,16 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
     end
 
     processStatRestorationLoop(
+        player, state, now, "chakra_focus",
+        "chakraFocusUntil", "nextChakraFocusTick",
+        "UI_NL_Ability_chakra_focus_Deactivated",
+        {
+            { stat = CharacterStat.PANIC, targetValue = 0, conversionRate = NinjaLineages.Constants.ChakraFocus.CHAKRA_TO_PANIC },
+            { stat = CharacterStat.STRESS, targetValue = 0, conversionRate = NinjaLineages.Constants.ChakraFocus.CHAKRA_TO_STRESS },
+        }
+    )
+
+    processStatRestorationLoop(
         player, state, now, "calorie_control",
         "calorieControlUntil", "nextCalorieTick",
         "UI_NL_Ability_calorie_control_Deactivated",

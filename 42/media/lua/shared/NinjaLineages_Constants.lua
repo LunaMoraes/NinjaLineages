@@ -129,3 +129,8 @@ NinjaLineages.Constants.PhysicalReinforcement = {
     CHAKRA_TO_ENDURANCE = 0.005,
     CHAKRA_TO_FATIGUE = 0.01,
 }
+
+NinjaLineages.Constants.ChakraFocus = {
+    CHAKRA_TO_PANIC = 0.5,
+    CHAKRA_TO_STRESS = 0.005,
+}

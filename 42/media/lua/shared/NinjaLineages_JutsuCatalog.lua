@@ -172,7 +172,13 @@ Catalog.Definitions = {
         category = "common",
         node = { discipline = "ninjutsu", rank = "GENIN", order = 30 },
         handSigns = { "ram", "dragon", "tiger" },
-        balance = { cost = "BASIC", cooldown = "STANDARD", mastery = "JONIN" },
+        balance = { 
+            cost = "BASIC", 
+            cooldown = "STANDARD", 
+            mastery = "JONIN",
+            duration = "SHORT",
+            tickInterval = "RAPID_TICK"
+        },
         effect = { kind = "restore_focus" },
     },
     {

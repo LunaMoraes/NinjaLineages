@@ -136,10 +136,10 @@ local function executeGenericEffect(player, definition, resolved)
         local changed = NinjaLineages.Utils.Healing.healPart(player:getBodyDamage(), part, values)
         if not changed then return false, "no_wounds" end
     elseif effect.kind == "restore_focus" then
-        local stats = player:getStats()
-        local effectiveness = NinjaLineages.Skills.getJutsuEffectiveness(NinjaLineages.Skills.getJutsuProwessLevel(player))
-        stats:set(CharacterStat.PANIC, math.max(0, stats:get(CharacterStat.PANIC) - resolved.mastery * effectiveness * 100))
-        stats:set(CharacterStat.STRESS, math.max(0, stats:get(CharacterStat.STRESS) - resolved.mastery * effectiveness))
+        local now = NinjaLineages.Utils.Time.gameMinutes()
+        active[player] = active[player] or {}
+        active[player].chakraFocusUntil = now + resolved.duration
+        active[player].nextChakraFocusTick = now + resolved.tickInterval
     elseif effect.kind == "forward_movement" then
         local forward = player:getForwardDirection()
         if not forward then return false, "invalid_target" end
