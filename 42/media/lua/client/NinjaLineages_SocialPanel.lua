@@ -155,7 +155,6 @@ function SocialPanel:drawTeam(panel, w)
     end
 
     panel:drawTextCentre(team.name or team.id, w / 2, 82, 1, 1, 1, 1, UIFont.Medium)
-    panel:drawTextCentre("ID: " .. tostring(team.id), w / 2, 112, 0.6, 0.6, 0.7, 1, UIFont.Small)
     local y = 155
     for _, memberKey in ipairs(team.members or {}) do
         local suffix = team.leaderKey == memberKey and "  [Leader]" or ""
