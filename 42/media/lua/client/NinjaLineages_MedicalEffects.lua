@@ -31,20 +31,6 @@ function NinjaLineages.MedicalEffects.addLine(args)
     )
 end
 
-function NinjaLineages.MedicalEffects.addLines(args)
-    if not args or not args.lines then return end
-    local consts = NinjaLineages.Constants.Medical.NervousSystemShock
-    for _, line in ipairs(args.lines) do
-        addLineInternal(
-            args.fromX, args.fromY, args.fromZ,
-            line.toX, line.toY, line.toZ,
-            consts.COLOR,
-            consts.THICKNESS,
-            consts.VISUAL_DURATION_MS
-        )
-    end
-end
-
 function NinjaLineages.MedicalEffects.addProjectile(args)
     if not args then return end
     local consts = NinjaLineages.Constants.Medical.ChakraNeedle
@@ -177,9 +163,12 @@ if Events and Events.OnServerCommand then
         end
     end)
 
-    NinjaLineages.AbilityAuthority.registerEventHandler("nervous_system_shock_lines", function(args)
-        if NinjaLineages.MedicalEffects.addLines then
-            NinjaLineages.MedicalEffects.addLines(args)
+    NinjaLineages.AbilityAuthority.registerEventHandler("nervous_system_shock_projectiles", function(args)
+        if not args or not args.projectiles then return end
+        for _, projectile in ipairs(args.projectiles) do
+            if NinjaLineages.MedicalEffects.addProjectile then
+                NinjaLineages.MedicalEffects.addProjectile(projectile)
+            end
         end
     end)
 end

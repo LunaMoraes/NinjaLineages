@@ -118,11 +118,6 @@ NinjaLineages.Constants.Medical = {
         THICKNESS = 2.0,
         COLOR = { R = 0.25, G = 0.55, B = 1.0 },
     },
-    NervousSystemShock = {
-        VISUAL_DURATION_MS = 400,
-        THICKNESS = 2.5,
-        COLOR = { R = 0.65, G = 0.25, B = 0.85 },
-    },
 }
 
 NinjaLineages.Constants.CalorieControl = {

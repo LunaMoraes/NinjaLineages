@@ -591,18 +591,9 @@ specializedExecutors.earth_wall = function(player, definition)
 end
 
 
-specializedExecutors.chakra_needle = function(player, definition, args)
-    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
-    if not validRequirements then return false, requirementReason end
-    local resolved = Catalog.resolveBalance(definition)
-    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
-    if not valid then return false, reason, remaining end
-
-    local targets = NinjaLineages.Targeting.resolveRequestedTargets(player, resolved.targeting, args)
-    local target = targets[1]
-    if not target then return false, "no_target" end
-
+local function launchChakraNeedleProjectile(player, definition, resolved, target, startGameMinutes)
     local projectileDefinition = definition.projectile or {}
+    local speed = 40
     local projectileConfig = {
         casterObject = player,
         casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
@@ -616,7 +607,7 @@ specializedExecutors.chakra_needle = function(player, definition, args)
         targetOnlineId = target.onlineId,
         targetX = target.x,
         targetY = target.y,
-        speed = 40,
+        speed = speed,
         maximumTravelDistance = resolved.targeting.range * 2,
         damagePayload = {
             damage = rollDamage(resolved),
@@ -628,24 +619,45 @@ specializedExecutors.chakra_needle = function(player, definition, args)
     }
 
     local projectile = NinjaLineages.CombatRuntime.createProjectile(projectileConfig)
+    return {
+        projectileId = projectile.projectileId,
+        fromX = player:getX(),
+        fromY = player:getY(),
+        fromZ = math.floor(player:getZ()),
+        toX = target.x,
+        toY = target.y,
+        toZ = math.floor(target.z),
+        casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
+        startGameMinutes = startGameMinutes,
+        speed = speed,
+    }
+end
+
+specializedExecutors.chakra_needle = function(player, definition, args)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+
+    local targets = NinjaLineages.Targeting.resolveRequestedTargets(player, resolved.targeting, args)
+    local target = targets[1]
+    if not target then return false, "no_target" end
+
+    local projectileEvent = launchChakraNeedleProjectile(
+        player,
+        definition,
+        resolved,
+        target,
+        NinjaLineages.Utils.Time.gameMinutes()
+    )
+    projectileEvent.kind = "chakra_needle_line"
 
     commit(player, definition, resolved, cost)
     NinjaLineages.transmitPlayerData(player)
 
     return true, nil, nil, {
-        event = {
-            kind = "chakra_needle_line",
-            projectileId = projectile.projectileId,
-            fromX = player:getX(),
-            fromY = player:getY(),
-            fromZ = math.floor(player:getZ()),
-            toX = target.x,
-            toY = target.y,
-            toZ = math.floor(target.z),
-            casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
-            startGameMinutes = NinjaLineages.Utils.Time.gameMinutes(),
-            speed = 40,
-        },
+        event = projectileEvent,
     }
 end
 
@@ -656,35 +668,28 @@ specializedExecutors.nervous_system_shock = function(player, definition, args)
     local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
     if not valid then return false, reason, remaining end
 
-    local targets = resolveRequestedZombies(player, resolved.targeting, args)
+    local targets = NinjaLineages.Targeting.resolveRequestedTargets(player, resolved.targeting, args)
     if #targets == 0 then return false, "no_target" end
 
-    local lines = {}
+    local projectiles = {}
+    local startGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
     local maxTargets = math.min(resolved.targeting.maxTargets or #targets, #targets)
     for i = 1, maxTargets do
-        local zombie = targets[i].zombie
-        NinjaLineages.Utils.Combat.applyDamageAndControl(
+        table.insert(projectiles, launchChakraNeedleProjectile(
             player,
-            zombie,
-            rollDamage(resolved),
-            resolved.control.tier
-        )
-        table.insert(lines, {
-            toX = zombie:getX(),
-            toY = zombie:getY(),
-            toZ = math.floor(zombie:getZ()),
-        })
+            definition,
+            resolved,
+            targets[i],
+            startGameMinutes
+        ))
     end
 
     commit(player, definition, resolved, cost)
     NinjaLineages.transmitPlayerData(player)
     return true, nil, nil, {
         event = {
-            kind = "nervous_system_shock_lines",
-            fromX = player:getX(),
-            fromY = player:getY(),
-            fromZ = math.floor(player:getZ()),
-            lines = lines,
+            kind = "nervous_system_shock_projectiles",
+            projectiles = projectiles,
             casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
         },
     }

@@ -332,6 +332,12 @@ Catalog.Definitions = {
             damage = "MODERATE", control = "JONIN",
         },
         executor = "nervous_system_shock",
+        projectile = {
+            trackingType = "homing",
+            visual = "chakra_needle_line",
+            collisionMask = "jutsu_projectile",
+            targetPriority = "zombie_then_hostile_player",
+        },
     },
     {
         id = "field_surgery",
