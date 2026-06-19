@@ -161,6 +161,18 @@ if Events and Events.OnServerCommand then
         if NinjaLineages.MedicalEffects.resolveProjectile then
             NinjaLineages.MedicalEffects.resolveProjectile(args)
         end
+        if args.result == "target_hit" and args.targetKind == "zombie" and args.targetOnlineId then
+            local z = NinjaLineages.Utils.Zombies.getByOnlineID(args.targetOnlineId)
+            local caster = args.casterOnlineId and getPlayerByOnlineID(args.casterOnlineId) or getSpecificPlayer(0)
+            if z and caster and not z:isDead() then
+                if args.damagePayload and args.damagePayload.damage then
+                    NinjaLineages.Damage.applyZombieDamage(caster, z, args.damagePayload.damage)
+                end
+                if args.damagePayload and args.damagePayload.controlTier then
+                    NinjaLineages.Utils.Combat.applyControlTier(z, args.damagePayload.controlTier)
+                end
+            end
+        end
     end)
 
     NinjaLineages.AbilityAuthority.registerEventHandler("nervous_system_shock_projectiles", function(args)

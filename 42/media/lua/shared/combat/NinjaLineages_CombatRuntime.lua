@@ -265,6 +265,10 @@ local function broadcastResolution(projectile, result, x, y, z)
         x = x,
         y = y,
         z = z,
+        targetOnlineId = projectile.targetOnlineId,
+        targetKind = projectile.targetKind,
+        damagePayload = projectile.damagePayload,
+        casterOnlineId = projectile.casterOnlineId,
     }
     if NinjaLineages.isServer() then
         sendServerCommand("NinjaLineages", "abilityEvent", event)

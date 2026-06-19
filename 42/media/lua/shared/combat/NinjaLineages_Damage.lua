@@ -35,9 +35,7 @@ end
 
 function NinjaLineages.Damage.applyZombieDamage(caster, zombie, damage)
     if not zombie or zombie:isDead() then return end
-    if NinjaLineages.isClient() then
-        return false
-    end
+
 
     pcall(function() zombie:setAttackedBy(caster) end)
     local ok, health = pcall(function() return zombie:getHealth() end)
