@@ -191,8 +191,14 @@ Catalog.Definitions = {
         category = "common",
         node = { discipline = "ninjutsu", rank = "GENIN", order = 10 },
         handSigns = { "tiger", "horse", "ox" },
-        balance = { cost = "STANDARD", cooldown = "LONG", duration = "STANDARD", recovery = "GENIN" },
-        effect = { kind = "timed_state", stateField = "reinforcementEndTime", durationScale = true },
+        balance = {
+            cost = "STANDARD",
+            cooldown = "LONG",
+            duration = "STANDARD",
+            tickInterval = "RAPID_TICK",
+            costStep = "STANDARD",
+        },
+        executor = "physical_reinforcement",
     },
     {
         id = "katon",

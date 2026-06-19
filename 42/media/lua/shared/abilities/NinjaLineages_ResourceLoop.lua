@@ -14,6 +14,19 @@ local active = NinjaLineages.AbilityExecution.active
 local Catalog = NinjaLineages.JutsuCatalog
 local Balance = NinjaLineages.Balance
 
+local function spendChakraTowardStat(player, stats, stat, target, statPerChakra, maximumSpend)
+    local current = stats:get(stat)
+    local direction = target >= current and 1 or -1
+    local chakraSpent = math.min(
+        maximumSpend,
+        NinjaLineages.Chakra.getChakra(player),
+        math.abs(target - current) / statPerChakra
+    )
+    if chakraSpent <= 0 or not NinjaLineages.Chakra.spendChakra(player, chakraSpent) then return end
+    local adjusted = current + (direction * chakraSpent * statPerChakra)
+    stats:set(stat, direction > 0 and math.min(target, adjusted) or math.max(target, adjusted))
+end
+
 local function applyKamuiVisionPenalty(player)
     local data = NinjaLineages.getNLData(player)
     local level = math.min(3, (data.kamuiVisionLevel or 0) + 1)
@@ -46,21 +59,6 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
     end
 
     NinjaLineages.BringerOfDarkness.updatePlayer(player)
-
-    if data.reinforcementEndTime then
-        local stats = player:getStats()
-        local reinforcement = Catalog.resolveBalance("physical_reinforcement")
-        local reinforcementElapsed = math.max(
-            0,
-            math.min(now, data.reinforcementEndTime) - previousUpdateAt
-        )
-        local recovery = (reinforcement.recovery or 0)
-            * NinjaLineages.Constants.Chakra.BASE_REGEN_PCT_PER_MINUTE
-            * reinforcementElapsed
-        stats:set(CharacterStat.FATIGUE, math.max(0, stats:get(CharacterStat.FATIGUE) - recovery))
-        stats:set(CharacterStat.ENDURANCE, math.min(1, stats:get(CharacterStat.ENDURANCE) + recovery))
-        if now >= data.reinforcementEndTime then data.reinforcementEndTime = nil end
-    end
 
     if data.bleedingSuppressionEndTime and now < data.bleedingSuppressionEndTime then
         local parts = player:getBodyDamage():getBodyParts()
@@ -136,44 +134,86 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
     end
 
     if state.calorieControlUntil then
-        local calorieDef = Catalog.get("calorie_control")
-        local resolved = Catalog.resolveBalance(calorieDef)
+        local resolved = Catalog.resolveBalance("calorie_control")
         local processUntil = math.min(now, state.calorieControlUntil)
-
         while state.nextCalorieTick
                 and state.nextCalorieTick <= processUntil
                 and state.nextCalorieTick < state.calorieControlUntil do
-
             local stats = player:getStats()
-            local currentHunger = stats:get(CharacterStat.HUNGER)
-            local currentThirst = stats:get(CharacterStat.THIRST)
-
-            if currentHunger > 0.01 or currentThirst > 0.01 then
-                local step = resolved.costStep or 5
-                if NinjaLineages.Chakra.getChakra(player) >= step then
-                    NinjaLineages.Chakra.spendChakra(player, step)
-
-                    local hungerRestore = step * NinjaLineages.Constants.CalorieControl.CHAKRA_TO_HUNGER
-                    local thirstRestore = step * NinjaLineages.Constants.CalorieControl.CHAKRA_TO_THIRST
-
-                    stats:set(CharacterStat.HUNGER, math.max(0, currentHunger - hungerRestore))
-                    stats:set(CharacterStat.THIRST, math.max(0, currentThirst - thirstRestore))
-                else
-                    state.calorieControlUntil = now
-                    break
-                end
-            else
+            local hunger = stats:get(CharacterStat.HUNGER)
+            local thirst = stats:get(CharacterStat.THIRST)
+            if hunger <= 0.01 and thirst <= 0.01 then
                 state.calorieControlUntil = now
                 break
             end
-
+            local step = resolved.costStep or 5
+            if hunger > 0.01 then
+                spendChakraTowardStat(
+                    player, stats, CharacterStat.HUNGER, 0,
+                    NinjaLineages.Constants.CalorieControl.CHAKRA_TO_HUNGER, step
+                )
+            end
+            if thirst > 0.01 then
+                spendChakraTowardStat(
+                    player, stats, CharacterStat.THIRST, 0,
+                    NinjaLineages.Constants.CalorieControl.CHAKRA_TO_THIRST, step
+                )
+            end
             state.nextCalorieTick = state.nextCalorieTick + resolved.tickInterval
+            if NinjaLineages.Chakra.getChakra(player) <= 0 then
+                state.calorieControlUntil = now
+                break
+            end
         end
-
         if now >= state.calorieControlUntil then
             state.calorieControlUntil = nil
             state.nextCalorieTick = nil
             player:Say(getText("UI_NL_Ability_calorie_control_Deactivated"))
+        end
+    end
+
+    if state.physicalReinforcementUntil then
+        local resolved = Catalog.resolveBalance("physical_reinforcement")
+        local processUntil = math.min(now, state.physicalReinforcementUntil)
+        while state.nextPhysicalReinforcementTick
+                and state.nextPhysicalReinforcementTick <= processUntil
+                and state.nextPhysicalReinforcementTick < state.physicalReinforcementUntil do
+            local stats = player:getStats()
+            local endurance = stats:get(CharacterStat.ENDURANCE)
+            local fatigue = stats:get(CharacterStat.FATIGUE)
+            if endurance >= 1 and fatigue <= 0 then
+                state.physicalReinforcementUntil = now
+                break
+            end
+            local step = resolved.costStep or 5
+            if endurance < 1 then
+                spendChakraTowardStat(
+                    player, stats, CharacterStat.ENDURANCE, 1,
+                    NinjaLineages.Constants.PhysicalReinforcement.CHAKRA_TO_ENDURANCE, step
+                )
+            end
+            if fatigue > 0 then
+                spendChakraTowardStat(
+                    player, stats, CharacterStat.FATIGUE, 0,
+                    NinjaLineages.Constants.PhysicalReinforcement.CHAKRA_TO_FATIGUE, step
+                )
+            end
+            if stats:get(CharacterStat.ENDURANCE) >= 1
+                    and stats:get(CharacterStat.FATIGUE) <= 0 then
+                state.physicalReinforcementUntil = now
+                break
+            end
+            state.nextPhysicalReinforcementTick =
+                state.nextPhysicalReinforcementTick + resolved.tickInterval
+            if NinjaLineages.Chakra.getChakra(player) <= 0 then
+                state.physicalReinforcementUntil = now
+                break
+            end
+        end
+        if now >= state.physicalReinforcementUntil then
+            state.physicalReinforcementUntil = nil
+            state.nextPhysicalReinforcementTick = nil
+            player:Say(getText("UI_NL_ReinforcementExpired"))
         end
     end
 

@@ -712,6 +712,28 @@ specializedExecutors.calorie_control = function(player, definition)
     return true
 end
 
+specializedExecutors.physical_reinforcement = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+
+    local stats = player:getStats()
+    if stats:get(CharacterStat.ENDURANCE) >= 1 and stats:get(CharacterStat.FATIGUE) <= 0 then
+        return false, "nourishing"
+    end
+
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+
+    active[player] = active[player] or {}
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    active[player].physicalReinforcementUntil = now + resolved.duration
+    active[player].nextPhysicalReinforcementTick = now
+
+    commit(player, definition, resolved, cost)
+    return true
+end
+
 function NinjaLineages.AbilityAuthority.updateLocalKamuiPhaseMovement(player)
     if not player or NinjaLineages.isClient() or NinjaLineages.isServer() then return end
     local state = active[player]
