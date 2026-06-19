@@ -177,7 +177,7 @@ if Events and Events.OnServerCommand then
 
     NinjaLineages.AbilityAuthority.registerEventHandler("nervous_system_shock_projectiles", function(args)
         if not args or not args.projectiles then return end
-        for _, projectile in ipairs(args.projectiles) do
+        for _, projectile in pairs(args.projectiles) do
             if NinjaLineages.MedicalEffects.addProjectile then
                 NinjaLineages.MedicalEffects.addProjectile(projectile)
             end
