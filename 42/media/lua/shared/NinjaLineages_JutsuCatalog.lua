@@ -108,6 +108,9 @@ Catalog.Definitions = {
     {
         id = "smoke_bomb",
         category = "common",
+        presentation = {
+            icon = "media/ui/jutsuTree/nodes/smoke_bomb.png",
+        },
         node = { discipline = "genjutsu", rank = "GENIN", order = 10 },
         handSigns = { "rat", "snake", "hare" },
         balance = { cost = "BASIC", cooldown = "STANDARD" },
@@ -149,6 +152,9 @@ Catalog.Definitions = {
     {
         id = "kirigakure",
         category = "common",
+        presentation = {
+            icon = "media/ui/jutsuTree/nodes/kirigakure.png",
+        },
         discipline = "genjutsu",
         requirements = {
             { kind = "rare_unlock", id = "kirigakure" },
