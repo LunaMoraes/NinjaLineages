@@ -35,6 +35,17 @@ function NinjaLineages.safeCall(kind, id, fn, ...)
     end
 end
 
+function NinjaLineages.runListeners(registry, kind, ...)
+    if not registry then return end
+    for _, item in ipairs(registry) do
+        if type(item) == "function" then
+            NinjaLineages.safeCall(kind, "anonymous", item, ...)
+        elseif type(item) == "table" then
+            NinjaLineages.safeCall(kind, item.id, item.fn, ...)
+        end
+    end
+end
+
 -- Idempotent event registration guard.
 -- Use this instead of direct Events.X.Add(...) in mod files.
 NinjaLineages._eventRegistrations = NinjaLineages._eventRegistrations or {}

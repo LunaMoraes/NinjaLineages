@@ -125,3 +125,23 @@ function UzumakiPassives.applyUzumakiBleedSlow(player)
     UzumakiPassives.captureUzumakiHealthState(player)
     NinjaLineages.transmitPlayerData(player)
 end
+
+local function onPlayerUpdate(player)
+    if NinjaLineages.hasUzumaki(player) then
+        UzumakiPassives.captureUzumakiHealthState(player)
+    end
+end
+
+local function onEveryMinute(player)
+    UzumakiPassives.applyUzumakiBleedSlow(player)
+end
+
+local function onPlayerGetDamage(player, damageType, damage)
+    UzumakiPassives.refundUzumakiDamage(player)
+end
+
+if NinjaLineages.isServer() or not NinjaLineages.isClient() then
+    NinjaLineages.registerPlayerUpdate("uzumaki.update", onPlayerUpdate)
+    NinjaLineages.registerEveryMinute("uzumaki.everyMinute", onEveryMinute)
+    NinjaLineages.registerPlayerGetDamage("uzumaki.getDamage", onPlayerGetDamage)
+end

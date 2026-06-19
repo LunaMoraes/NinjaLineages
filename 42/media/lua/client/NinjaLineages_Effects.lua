@@ -304,22 +304,12 @@ local function isEyeCovered(player)
 end
 NinjaLineages.isEyeCovered = isEyeCovered
 
-local function runListeners(registry, kind, ...)
-    for _, item in ipairs(registry) do
-        if type(item) == "function" then
-            NinjaLineages.safeCall(kind, "anonymous", item, ...)
-        elseif type(item) == "table" then
-            NinjaLineages.safeCall(kind, item.id, item.fn, ...)
-        end
-    end
-end
-
 -- Central Event Routing
 local function onPlayerUpdate(player)
     if not player then return end
     if not player:isLocalPlayer() then return end
 
-    runListeners(NinjaLineages.PlayerUpdates, "PlayerUpdate", player)
+    NinjaLineages.runListeners(NinjaLineages.PlayerUpdates, "PlayerUpdate", player)
 
     NinjaLineages.HandSigns.update(player)
     NinjaLineages.AbilityAuthority.updatePending()
@@ -341,18 +331,18 @@ local function onTick()
 end
 
 local function onZombieUpdate(zombie)
-    runListeners(NinjaLineages.ZombieUpdates, "ZombieUpdate", zombie)
+    NinjaLineages.runListeners(NinjaLineages.ZombieUpdates, "ZombieUpdate", zombie)
 end
 
 local function onHitZombie(zombie, attacker, bodyPartType, handWeapon)
-    runListeners(NinjaLineages.HitZombieListeners, "HitZombie", zombie, attacker, bodyPartType, handWeapon)
+    NinjaLineages.runListeners(NinjaLineages.HitZombieListeners, "HitZombie", zombie, attacker, bodyPartType, handWeapon)
 end
 
 local function onPlayerGetDamage(player, damageType, damage)
     if not player or not instanceof(player, "IsoPlayer") then return end
     if not player:isLocalPlayer() then return end
 
-    runListeners(NinjaLineages.PlayerGetDamageListeners, "PlayerGetDamage", player, damageType, damage)
+    NinjaLineages.runListeners(NinjaLineages.PlayerGetDamageListeners, "PlayerGetDamage", player, damageType, damage)
 end
 
 local function updatePlayerMinute(player)
@@ -366,7 +356,7 @@ local function updatePlayerMinute(player)
         NinjaLineages.AbilityAuthority.everyMinute(player)
     end
 
-    runListeners(NinjaLineages.EveryMinuteListeners, "EveryMinute", player, elapsed)
+    NinjaLineages.runListeners(NinjaLineages.EveryMinuteListeners, "EveryMinute", player, elapsed)
 end
 
 local function everyOneMinute()
@@ -390,7 +380,7 @@ end
 
 local function onCreatePlayer(playerIndex, player)
     if player then
-        runListeners(NinjaLineages.CreatePlayerListeners, "CreatePlayer", player)
+        NinjaLineages.runListeners(NinjaLineages.CreatePlayerListeners, "CreatePlayer", player)
     end
 end
 

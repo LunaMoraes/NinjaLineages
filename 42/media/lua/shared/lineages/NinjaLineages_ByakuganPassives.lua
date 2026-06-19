@@ -107,8 +107,12 @@ function ByakuganPassives.applyByakugan(player)
         changed = removeOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED) or changed
         changed = removeOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING) or changed
     end
-
     if changed then
         NinjaLineages.transmitPlayerData(player)
     end
+end
+
+if NinjaLineages.isServer() or not NinjaLineages.isClient() then
+    NinjaLineages.registerPlayerUpdate("byakugan.update", ByakuganPassives.applyByakugan)
+    NinjaLineages.registerEveryMinute("byakugan.everyMinute", ByakuganPassives.applyByakugan)
 end
