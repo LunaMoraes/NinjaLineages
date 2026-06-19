@@ -19,21 +19,6 @@ local active = NinjaLineages.AbilityExecution.active
 local pvpDodgeHits = NinjaLineages.AbilityExecution.pvpDodgeHits
 local Balance = NinjaLineages.Balance
 local PVP_DODGE_DEDUP_MS = 300
-local PVP_LOG_PREFIX = "[DEBUG-NL-SHARINGAN-PVP] "
-local SHARINGAN_MP_LOG_PREFIX = "[DEBUG-NL-SHARINGAN-MP] "
-local sharinganObservedStates = setmetatable({}, { __mode = "k" })
-
-local function pvpLog(message)
-    if SandboxVars
-            and SandboxVars.NinjaLineages
-            and SandboxVars.NinjaLineages.DebugMode == true then
-        print(PVP_LOG_PREFIX .. message)
-    end
-end
-
-local function sharinganMpLog(message)
-    print(SHARINGAN_MP_LOG_PREFIX .. message)
-end
 
 local function playerIdentity(player)
     if not player then return "unknown" end
@@ -42,45 +27,6 @@ local function playerIdentity(player)
         if ok and id and id >= 0 then return tostring(id) end
     end
     return tostring(player)
-end
-
-local function observeSharinganZombie(zombie, source)
-    if not zombie or zombie:isDead() then return end
-
-    local player = zombie:getTarget()
-    if not player or not instanceof(player, "IsoPlayer") then return end
-    if not NinjaLineages.hasSharingan(player) then return end
-
-    local outcome = zombie:getVariableString("AttackOutcome")
-    local attacking = false
-    pcall(function() attacking = zombie:isAttacking() end)
-    local data = NinjaLineages.getNLData(player)
-    local state = table.concat({
-        tostring(outcome),
-        tostring(attacking),
-        tostring(data.eyePowerActive),
-        tostring(NinjaLineages.getSharinganStage(player)),
-    }, "|")
-
-    local observed = sharinganObservedStates[zombie]
-    observed = observed or {}
-    if observed[source] == state then return end
-    observed[source] = state
-    sharinganObservedStates[zombie] = observed
-
-    sharinganMpLog(string.format(
-        "OBSERVE source=%s client=%s server=%s zombie=%s outcome=%s attacking=%s target=%s local=%s active=%s stage=%s",
-        tostring(source),
-        tostring(NinjaLineages.isClient()),
-        tostring(NinjaLineages.isServer()),
-        tostring(zombie),
-        tostring(outcome),
-        tostring(attacking),
-        playerIdentity(player),
-        tostring(player:isLocalPlayer()),
-        tostring(data.eyePowerActive),
-        tostring(NinjaLineages.getSharinganStage(player))
-    ))
 end
 
 local function isPvPMeleeHit(player, attacker, weapon)
@@ -127,14 +73,6 @@ local function sharinganPvPMeleeEvade(attacker, player, weapon, damage)
     if dodged then
         player:setAvoidDamage(true)
         broadcastSharinganEvade(player)
-        pvpLog(string.format(
-            "DODGED_PRE_DAMAGE attacker=%s target=%s weapon=%s damage=%s kamui=%s",
-            playerIdentity(attacker),
-            playerIdentity(player),
-            tostring(weapon:getType()),
-            tostring(damage),
-            tostring(kamuiActive ~= nil)
-        ))
     end
 end
 
@@ -155,7 +93,6 @@ end
 
 local function sharinganEvade(zombie)
     if not zombie or zombie:isDead() then return end
-    observeSharinganZombie(zombie, "server_OnZombieUpdate_callback")
     if zombie:getVariableString("AttackOutcome") ~= "success" then
         sharinganRolls[zombie] = nil
         return
@@ -178,49 +115,8 @@ local function sharinganEvade(zombie)
     end
 end
 
-if not NinjaLineages.isClient() and Events and Events.OnZombieUpdate then
+if Events and Events.OnZombieUpdate then
     NinjaLineages.addEventOnce("shared.abilityExecution.onZombieUpdate", Events.OnZombieUpdate, sharinganEvade)
-    sharinganMpLog("HOOK_REGISTERED event=OnZombieUpdate side=server")
-else
-    sharinganMpLog(string.format(
-        "HOOK_SKIPPED event=OnZombieUpdate client=%s server=%s available=%s",
-        tostring(NinjaLineages.isClient()),
-        tostring(NinjaLineages.isServer()),
-        tostring(Events and Events.OnZombieUpdate ~= nil)
-    ))
-end
-
-if NinjaLineages.isClient() and Events and Events.OnZombieUpdate then
-    NinjaLineages.addEventOnce(
-        "debug.sharinganMp.clientZombieObserver",
-        Events.OnZombieUpdate,
-        function(zombie) observeSharinganZombie(zombie, "client_OnZombieUpdate") end
-    )
-end
-
-if not NinjaLineages.isClient() and Events and Events.OnPlayerGetDamage then
-    NinjaLineages.addEventOnce(
-        "debug.sharinganMp.serverPlayerGetDamage",
-        Events.OnPlayerGetDamage,
-        function(player, damageType, damage)
-            if not player or not NinjaLineages.hasSharingan(player) then return end
-            local attacker = player:getAttackedBy()
-            local attackerType = "nil"
-            if attacker then
-                pcall(function() attackerType = attacker:getObjectName() end)
-            end
-            sharinganMpLog(string.format(
-                "DAMAGE side=server player=%s attacker=%s attackerType=%s damageType=%s damage=%s active=%s stage=%s",
-                playerIdentity(player),
-                tostring(attacker),
-                tostring(attackerType),
-                tostring(damageType),
-                tostring(damage),
-                tostring(NinjaLineages.getNLData(player).eyePowerActive),
-                tostring(NinjaLineages.getSharinganStage(player))
-            ))
-        end
-    )
 end
 
 if Events and Events.OnWeaponHitCharacter then
@@ -250,18 +146,6 @@ function NinjaLineages.AbilityAuthority.updateWorld()
     for key, seenAt in pairs(pvpDodgeHits) do
         if nowMs - seenAt >= PVP_DODGE_DEDUP_MS then
             pvpDodgeHits[key] = nil
-        end
-    end
-    if NinjaLineages.isServer() then
-        local zombies = getCell() and getCell():getZombieList()
-        if zombies then
-            for i = 0, zombies:size() - 1 do
-                local zombie = zombies:get(i)
-                if zombie then
-                    observeSharinganZombie(zombie, "server_OnTick")
-                    sharinganEvade(zombie)
-                end
-            end
         end
     end
     if NinjaLineages.BringerOfDarkness then
