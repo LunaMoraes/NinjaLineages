@@ -392,6 +392,29 @@ function Server.broadcastSnapshots()
     broadcastSnapshots()
 end
 
+function Server.deleteVillageMissions(villageID)
+    if not villageID then return 0 end
+    local current = ensureMissionState()
+    local deletedMissionIDs = {}
+    local deletedCount = 0
+
+    for missionID, mission in pairs(current.missions) do
+        if mission.villageId == villageID then
+            deletedMissionIDs[missionID] = true
+            current.missions[missionID] = nil
+            deletedCount = deletedCount + 1
+        end
+    end
+
+    for _, team in pairs(current.teams or {}) do
+        if team.activeMissionId and deletedMissionIDs[team.activeMissionId] then
+            team.activeMissionId = nil
+        end
+    end
+
+    return deletedCount
+end
+
 local function findOnlinePlayer(playerKey)
     local found
     forEachOnlinePlayer(function(candidate)

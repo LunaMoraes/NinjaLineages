@@ -172,6 +172,8 @@ local function onServerCommand(module, command, args)
                 say(translated("UI_NL_Social_MissionDeserted", "You deserted your active mission."))
             elseif args.reason == "mission_betrayed" then
                 say(translated("UI_NL_Social_MissionBetrayed", "You betrayed the active mission."))
+            elseif args.reason == "village_disbanded" then
+                say(translated("UI_NL_Social_VillageDisbanded", "The village was disbanded."))
             elseif args.reason ~= "declined" then
                 say(translated("UI_NL_Social_ActionComplete", "Social action completed."))
             end

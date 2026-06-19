@@ -225,6 +225,14 @@ function Server.broadcastSnapshots()
     broadcastSnapshots()
 end
 
+local function broadcastReputationSnapshots()
+    forEachOnlinePlayer(sendReputationSnapshot)
+end
+
+function Server.broadcastReputationSnapshots()
+    broadcastReputationSnapshots()
+end
+
 local function result(player, ok, reason, action)
     local payload = { ok = ok == true, reason = reason, action = action }
     if NinjaLineages.isServer() then
@@ -408,6 +416,71 @@ local function disbandTeam(teamID)
         removeFromArray(state.villages[team.villageID].teamIDs, teamID)
     end
     state.teams[teamID] = nil
+end
+
+function Server.disbandVillage(villageID)
+    ensureState()
+    local village = villageID and state.villages[villageID]
+    if not village then return false, "no_village" end
+
+    local villageMembers = {}
+    for _, memberKey in ipairs(village.members or {}) do
+        villageMembers[memberKey] = true
+    end
+
+    local villageTeamIDs = {}
+    for teamID, team in pairs(state.teams) do
+        if team.villageID == villageID then villageTeamIDs[teamID] = true end
+    end
+
+    if NinjaLineages.MissionServer
+            and NinjaLineages.MissionServer.deleteVillageMissions then
+        NinjaLineages.MissionServer.deleteVillageMissions(villageID)
+    else
+        return false, "mission_cleanup_unavailable"
+    end
+
+    for inviteID, invite in pairs(state.pendingInvites) do
+        if invite.kind == "village"
+                and (invite.villageId == villageID
+                    or invite.sourceVillageId == villageID
+                    or villageMembers[invite.inviterKey]
+                    or villageMembers[invite.targetKey]) then
+            state.pendingInvites[inviteID] = nil
+        end
+    end
+
+    for recordID, flag in pairs(state.reputationFlags) do
+        if flag.sourceVillageId == villageID then
+            state.reputationFlags[recordID] = nil
+        end
+    end
+
+    for teamID in pairs(villageTeamIDs) do
+        disbandTeam(teamID)
+    end
+
+    for memberKey in pairs(villageMembers) do
+        if state.playerVillages[memberKey] == villageID then
+            state.playerVillages[memberKey] = nil
+        end
+        local teamID = state.playerTeams[memberKey]
+        local team = teamID and state.teams[teamID]
+        if team then
+            removeFromArray(team.members, memberKey)
+            if team.memberNames then team.memberNames[memberKey] = nil end
+            if team.leaderKey == memberKey then team.leaderKey = nil end
+            if team.member1Key == memberKey then team.member1Key = nil end
+            if team.member2Key == memberKey then team.member2Key = nil end
+        end
+        if teamID then
+            state.playerTeams[memberKey] = nil
+        end
+    end
+
+    state.villages[villageID] = nil
+    rebuildIndexes()
+    return true, "village_disbanded"
 end
 
 local function removePlayerFromVillageTeam(targetKey)
@@ -759,6 +832,18 @@ function handlers.socialLeaveVillage(player)
     expelVillageMember(village, playerKey)
     rebuildIndexes()
     return true, "village_left"
+end
+
+function handlers.socialDisbandVillage(player)
+    local playerKey = Social.getPlayerKey(player, false)
+    if not playerKey then return false, "unstable_identity" end
+    local villageID = state.playerVillages[playerKey]
+    local village = villageID and state.villages[villageID]
+    if not village or village.kageKey ~= playerKey then return false, "not_kage" end
+
+    local success, reason = Server.disbandVillage(villageID)
+    if success then broadcastReputationSnapshots() end
+    return success, reason
 end
 
 function handlers.socialDisbandTeam(player)

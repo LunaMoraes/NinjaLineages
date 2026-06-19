@@ -125,8 +125,19 @@ function BingoBook.open(snapshot)
 end
 
 function BingoBook.receiveSnapshot(snapshot)
-    BingoBook.awaitingSnapshot = false
-    BingoBook.open(snapshot or { players = {} })
+    snapshot = snapshot or { players = {} }
+    if BingoBook.awaitingSnapshot then
+        BingoBook.awaitingSnapshot = false
+        BingoBook.open(snapshot)
+        return
+    end
+
+    for _, ui in pairs(NLBingoBookUI.instances) do
+        ui.snapshot = snapshot
+        local count = #(snapshot.players or {})
+        ui.page = math.max(1, math.min(ui.page or 1, math.max(1, count)))
+        ui:updateButtons()
+    end
 end
 
 local previousReadItem = ISInventoryPaneContextMenu.readItem

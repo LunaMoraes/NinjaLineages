@@ -481,6 +481,11 @@ function SocialPanel:createVillageScreen()
             text("UI_NL_Mission_Manage"),
             SocialPanel.onManageMissions
         )
+        self:addButton(
+            math.floor(w * 0.55), 406, 160, 32,
+            text("UI_NL_Social_DisbandVillage"),
+            SocialPanel.onDisbandVillage
+        )
         local textWidth = getTextManager():MeasureStringX(UIFont.Large, village.name)
         self:addButton(
             290 + textWidth + 15, 82, 70, 24,
@@ -502,6 +507,21 @@ end
 
 function SocialPanel:onManageMissions()
     self.host.missionPanel:openManage()
+end
+
+local function confirmDisbandVillage(socialPanel, button)
+    if button.internal ~= "YES" then return end
+    NinjaLineages.Social.request(socialPanel.host.player, "socialDisbandVillage", {})
+end
+
+function SocialPanel:onDisbandVillage()
+    local modal = ISModalDialog:new(
+        0, 0, 620, 220,
+        text("UI_NL_Social_ConfirmDisbandVillage"),
+        true, self, confirmDisbandVillage, self.host.playerNum
+    )
+    modal:initialise()
+    modal:addToUIManager()
 end
 
 function SocialPanel:createReputationScreen()
