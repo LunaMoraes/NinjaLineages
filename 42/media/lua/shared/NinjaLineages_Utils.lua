@@ -430,3 +430,39 @@ function NinjaLineages.Cooldowns.set(player, key, durationMinutes)
     data.cooldowns[key] = NinjaLineages.Utils.Time.gameMinutes() + durationMinutes
     NinjaLineages.transmitPlayerData(player)
 end
+
+-- 6. Movement Helpers
+NinjaLineages.Utils.Movement = NinjaLineages.Utils.Movement or {}
+
+function NinjaLineages.Utils.Movement.updateDash(entity, movement, now, stepDistance, onBlocked)
+    if not entity or not movement then return false end
+
+    local duration = movement.endsAt - movement.startedAt
+    local progress = duration > 0
+        and math.min(1, math.max(0, (now - movement.startedAt) / duration))
+        or 1
+    local targetDistance = movement.distance * progress
+
+    while movement.travelled < targetDistance do
+        local distance = math.min(stepDistance, targetDistance - movement.travelled)
+        local nextX = entity:getX() + (movement.directionX * distance)
+        local nextY = entity:getY() + (movement.directionY * distance)
+
+        local cell = getCell()
+        local currentSquare = cell:getGridSquare(entity:getX(), entity:getY(), entity:getZ())
+        local nextSquare = cell:getGridSquare(nextX, nextY, entity:getZ())
+        if not currentSquare or not nextSquare or nextSquare:isBlockedTo(currentSquare) then
+            if onBlocked then onBlocked() end
+            return false, progress
+        end
+
+        entity:setX(nextX)
+        entity:setY(nextY)
+        movement.travelled = movement.travelled + distance
+    end
+
+    if progress >= 1 then
+        return false, progress
+    end
+    return true, progress
+end

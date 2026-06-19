@@ -211,39 +211,23 @@ local function startZombieDash(zombie)
     }
 end
 
--- Update Zombie dash tick
 local function updateZombieDash(zombie)
     local movement = zombieMovements[zombie]
     if not movement then return end
     
     local now = NinjaLineages.Utils.Time.gameMinutes()
-    local duration = movement.endsAt - movement.startedAt
-    local progress = duration > 0 and math.min(1, math.max(0, (now - movement.startedAt) / duration)) or 1
-    local targetDistance = movement.distance * progress
-    local stepDistance = 0.25
-    
-    while movement.travelled < targetDistance do
-        local distance = math.min(stepDistance, targetDistance - movement.travelled)
-        local nextX = zombie:getX() + (movement.directionX * distance)
-        local nextY = zombie:getY() + (movement.directionY * distance)
-        
-        local cell = getCell()
-        local currentSquare = cell:getGridSquare(zombie:getX(), zombie:getY(), zombie:getZ())
-        local nextSquare = cell:getGridSquare(nextX, nextY, zombie:getZ())
-        if not currentSquare or not nextSquare or nextSquare:isBlockedTo(currentSquare) then
-            zombieMovements[zombie] = nil
-            break
-        end
-        
-        zombie:setX(nextX)
-        zombie:setY(nextY)
-        movement.travelled = movement.travelled + distance
-    end
-    
-    if zombieMovements[zombie] and progress >= 1 then
+    local activeState, progress = NinjaLineages.Utils.Movement.updateDash(
+        zombie,
+        movement,
+        now,
+        0.25,
+        function() zombieMovements[zombie] = nil end
+    )
+    if not activeState then
         zombieMovements[zombie] = nil
     end
 end
+
 
 -- Zombie Update loop (aggression checking + dash update)
 local function onZombieUpdate(zombie)

@@ -270,21 +270,47 @@ end
 function Progression.getTrainingPagesRead(player, nodeId)
     local definition = Trees.getNode(nodeId)
     if not definition or not player then return 0 end
-    return math.max(0, player:getAlreadyReadPages(definition.trainingItem) or 0)
+    local data = NinjaLineages.getNLData(player)
+    data.trainingProgress = data.trainingProgress or {}
+    return math.max(0, tonumber(data.trainingProgress[nodeId]) or 0)
 end
 
 function Progression.getOrCreateTrainingItem(player, nodeId)
     local definition = Trees.getNode(nodeId)
     if not definition or Progression.getNodeState(player, nodeId) ~= "unlocked" then return nil end
     local inventory = player:getInventory()
-    local item = inventory:FindAndReturn(definition.trainingItem)
+    
+    -- Find existing training scroll for this node
+    local item = nil
+    local items = inventory:getItemsFromType("Base.NL_TrainingScroll")
+    if items then
+        for i = 0, items:size() - 1 do
+            local candidate = items:get(i)
+            if candidate and candidate:getModData().nodeId == nodeId then
+                item = candidate
+                break
+            end
+        end
+    end
+    
     if not item then
-        item = instanceItem(definition.trainingItem)
+        item = instanceItem("Base.NL_TrainingScroll")
         if not item then return nil end
+        item:getModData().nodeId = nodeId
+        local nameKey = "UI_NL_Node_" .. nodeId .. "_Name"
+        local nameText = getText(nameKey)
+        if nameText == nameKey then
+            nameText = definition.nameFallback or nodeId
+        end
+        item:setName(nameText .. " (" .. getText("UI_NL_TrainingScroll_Name") .. ")")
         inventory:AddItem(item)
     end
-    item:setNumberOfPages(Progression.getTrainingPages(player, nodeId))
-    item:setAlreadyReadPages(Progression.getTrainingPagesRead(player, nodeId))
+    
+    local pages = Progression.getTrainingPagesRead(player, nodeId)
+    local maxPages = Progression.getTrainingPages(player, nodeId)
+    item:setNumberOfPages(maxPages)
+    item:setAlreadyReadPages(pages)
+    player:setAlreadyReadPages("Base.NL_TrainingScroll", pages)
     return item
 end
 
@@ -316,12 +342,23 @@ end
 function Progression.completeTraining(player, nodeId, item)
     if NinjaLineages.isClient() then return false, "client_unauthorized" end
     if Progression.getNodeState(player, nodeId) ~= "unlocked" then return false, "unavailable" end
-    local definition = Trees.getNode(nodeId)
-    if not item or item:getFullType() ~= definition.trainingItem then return false, "invalid_item" end
+    if not item or item:getFullType() ~= "Base.NL_TrainingScroll" then return false, "invalid_item" end
+    if item:getModData().nodeId ~= nodeId then return false, "invalid_node" end
+    
     local required = Progression.getTrainingPages(player, nodeId)
-    if item:getAlreadyReadPages() < required then return false, "incomplete" end
+    local readPages = Progression.getTrainingPagesRead(player, nodeId)
+    if readPages < required then return false, "incomplete" end
+    
     local state = getState(player)
     state.nodes[nodeId] = "completed"
+    
+    local data = NinjaLineages.getNLData(player)
+    data.trainingProgress = data.trainingProgress or {}
+    data.trainingProgress[nodeId] = nil
+    
+    local inventory = player:getInventory()
+    inventory:Remove(item)
+    
     NinjaLineages.transmitPlayerData(player)
     refreshSocialProgressionSummary(player)
     return true
