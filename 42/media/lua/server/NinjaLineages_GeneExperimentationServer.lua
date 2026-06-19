@@ -1,5 +1,6 @@
 require "NinjaLineages_Progression"
 require "NinjaLineages_Utils"
+require "NinjaLineages_Balance"
 require "disciplines/NinjaLineages_CorpseUtils"
 
 NinjaLineages = NinjaLineages or {}
@@ -65,8 +66,7 @@ local function handleZombieDashRequest(player, args)
         if modData.isZombieNinja then
             local now = NinjaLineages.Utils.Time.gameMinutes()
             local lastDash = modData.lastZombieDashTime or 0
-            -- 10 seconds cooldown = 0.16 in-game minutes
-            if now - lastDash >= 0.16 then
+            if now - lastDash >= NinjaLineages.Balance.getCooldown("DASH") then
                 modData.lastZombieDashTime = now
                 sendServerCommand("NinjaLineages", "executeZombieDash", { zombieId = zombieId })
             end

@@ -202,6 +202,9 @@ function Authority.handleResult(result)
     Authority.pending[key] = nil
 
     if result.ok then
+        if result.state and result.state.eyePowerActive ~= nil then
+            NinjaLineages.getNLData(player).eyePowerActive = result.state.eyePowerActive == true
+        end
         if result.state and result.state.voice then
             pcall(function() player:playerVoiceSound(result.state.voice) end)
         end

@@ -1,6 +1,7 @@
 require "TimedActions/ISBaseTimedAction"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Utils"
+require "NinjaLineages_Balance"
 require "disciplines/NinjaLineages_CorpseUtils"
 
 NinjaLineages = NinjaLineages or {}
@@ -9,6 +10,7 @@ NinjaLineages.GeneExperimentationClient = NinjaLineages.GeneExperimentationClien
 local ClientLogic = NinjaLineages.GeneExperimentationClient
 local zombieMovements = {}
 local recentZombieNinjaDeaths = {}
+local pendingZombieDashRequests = {}
 
 local function getDeathKey(x, y, z)
     return tostring(math.floor(x or 0)) .. ":" .. tostring(math.floor(y or 0)) .. ":" .. tostring(math.floor(z or 0))
@@ -198,12 +200,11 @@ local function startZombieDash(zombie)
     local dirY = dy / dist
     
     local now = NinjaLineages.Utils.Time.gameMinutes()
-    local duration = 0.2 -- BURST duration
-    local distance = 3.0 -- Shortened distance
+    local distance = NinjaLineages.Balance.getRadius("SMALL")
     
     zombieMovements[zombie] = {
         startedAt = now,
-        endsAt = now + duration,
+        endsAt = now + NinjaLineages.Balance.getDuration("BURST"),
         directionX = dirX,
         directionY = dirY,
         distance = distance,
@@ -220,7 +221,7 @@ local function updateZombieDash(zombie)
         zombie,
         movement,
         now,
-        0.25,
+        NinjaLineages.Constants.CommonJutsu.Dash.STEP_DISTANCE,
         function() zombieMovements[zombie] = nil end
     )
     if not activeState then
@@ -266,13 +267,16 @@ local function onZombieUpdate(zombie)
         -- 2. Zombie Ninja Dash Check
         if modData.isZombieNinja and not zombieMovements[zombie] then
             local distance = zombie:DistTo(target)
-            if distance >= 2.0 and distance <= 6.0 then
+            if distance >= NinjaLineages.Balance.getRadius("TOUCH")
+                    and distance <= NinjaLineages.Balance.getRadius("MEDIUM") then
                 local now = NinjaLineages.Utils.Time.gameMinutes()
                 local lastDash = modData.lastZombieDashTime or 0
-                -- 2 minutes cooldown = 2.0 in-game minutes
-                if now - lastDash >= 2.0 then
+                local cooldown = NinjaLineages.Balance.getCooldown("DASH")
+                local zombieId = zombie:getOnlineID()
+                if now - lastDash >= cooldown and not pendingZombieDashRequests[zombieId] then
                     if NinjaLineages.isClient() then
-                        sendClientCommand(target, "NinjaLineages", "zombieDashRequest", { zombieId = zombie:getOnlineID() })
+                        pendingZombieDashRequests[zombieId] = now
+                        sendClientCommand(target, "NinjaLineages", "zombieDashRequest", { zombieId = zombieId })
                     else
                         -- Singleplayer
                         modData.lastZombieDashTime = now
@@ -313,11 +317,13 @@ local function onServerCommand(module, command, args)
     elseif command == "executeZombieDash" then
         local zombieId = args and args.zombieId
         if zombieId then
+            pendingZombieDashRequests[zombieId] = nil
             local zombies = getCell() and getCell():getZombieList()
             if zombies then
                 for i = 0, zombies:size() - 1 do
                     local z = zombies:get(i)
                     if z and z:getOnlineID() == zombieId then
+                        z:getModData().lastZombieDashTime = NinjaLineages.Utils.Time.gameMinutes()
                         startZombieDash(z)
                         break
                     end

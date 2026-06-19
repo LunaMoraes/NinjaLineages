@@ -468,6 +468,7 @@ local function toggleEye(player, lineage)
     data.eyePowerActive = not data.eyePowerActive
     NinjaLineages.transmitPlayerData(player)
     return true, nil, nil, {
+        eyePowerActive = data.eyePowerActive,
         messageKey = data.eyePowerActive
             and (lineage == "sharingan" and "UI_NL_Ability_Sharingan_Cast" or "UI_NL_Ability_Byakugan_Cast")
             or (lineage == "sharingan" and "UI_NL_Ability_Sharingan_Deactivated" or "UI_NL_Ability_Byakugan_Deactivated"),

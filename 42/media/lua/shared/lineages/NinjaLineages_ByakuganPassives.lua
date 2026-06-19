@@ -75,6 +75,7 @@ local function ensureByakuganSight(player, data)
     local item = inv:AddItem("Base.NL_ByakuganSight")
     if not item then return false end
 
+    pcall(function() sendAddItemToContainer(inv, item) end)
     NinjaLineages.Utils.Inventory.wearItem(player, item)
     data.byakuganSightItemId = item:getID()
     data.byakuganAddedSightItem = true
