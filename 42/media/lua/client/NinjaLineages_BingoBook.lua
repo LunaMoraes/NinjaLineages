@@ -1,6 +1,7 @@
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISButton"
 require "ISUI/ISInventoryPaneContextMenu"
+require "ISUI/ISUI3DModel"
 require "NinjaLineages_Social"
 
 NinjaLineages = NinjaLineages or {}
@@ -21,10 +22,6 @@ local function isBingoBook(item)
     return ok and fullType == ITEM_TYPE
 end
 
-local function stars(severity)
-    return string.rep("★", math.max(1, math.min(5, tonumber(severity) or 1)))
-end
-
 function NLBingoBookUI:initialise()
     ISCollapsableWindow.initialise(self)
     if self.closeButton then
@@ -38,6 +35,21 @@ function NLBingoBookUI:initialise()
     self.nextButton:initialise()
     self.nextButton:instantiate()
     self:addChild(self.nextButton)
+    
+    self.starTexture = getTexture("media/ui/FavoriteStar.png")
+    
+    self.avatarPanel = ISUI3DModel:new(self.width / 2 - 75, 80, 150, 220)
+    self.avatarPanel.backgroundColor = {r=0, g=0, b=0, a=0.0}
+    self.avatarPanel.borderColor = {r=0, g=0, b=0, a=0.0}
+    self.avatarPanel:initialise()
+    self.avatarPanel:instantiate()
+    self.avatarPanel:setDirection(IsoDirections.S)
+    self.avatarPanel:setIsometric(false)
+    self.avatarPanel:setZoom(1.5)
+    self.avatarPanel:setYOffset(-0.6)
+    self.avatarPanel:setVisible(false)
+    self:addChild(self.avatarPanel)
+    
     self:updateButtons()
 end
 
@@ -45,6 +57,23 @@ function NLBingoBookUI:updateButtons()
     local count = #(self.snapshot.players or {})
     self.previousButton.enable = count > 0 and self.page > 1
     self.nextButton.enable = count > 0 and self.page < count
+    self:updateAvatar()
+end
+
+function NLBingoBookUI:updateAvatar()
+    if not self.avatarPanel then return end
+    self.avatarPanel:setVisible(false)
+    local players = self.snapshot.players or {}
+    if #players == 0 then return end
+    
+    local entry = players[self.page]
+    if entry and entry.playerName then
+        local targetPlayer = getPlayerFromUsername(entry.playerName)
+        if targetPlayer then
+            self.avatarPanel:setCharacter(targetPlayer)
+            self.avatarPanel:setVisible(true)
+        end
+    end
 end
 
 function NLBingoBookUI:onPrevious()
@@ -69,17 +98,25 @@ function NLBingoBookUI:prerender()
 
     local players = self.snapshot.players or {}
     if #players == 0 then
-        self:drawTextCentre(text("UI_NL_BingoBook_Empty"), self.width / 2, 155, 0.35, 0.28, 0.2, 1, UIFont.Medium)
+        self:drawTextCentre(text("UI_NL_BingoBook_Empty"), self.width / 2, 155, 0.85, 0.8, 0.75, 1, UIFont.Medium)
         return
     end
 
     local entry = players[self.page]
-    self:drawTextCentre(tostring(entry.playerName), self.width / 2, 105, 0.12, 0.1, 0.08, 1, UIFont.Large)
-    local y = 165
+    self:drawTextCentre(tostring(entry.playerName), self.width / 2, 310, 0.85, 0.8, 0.75, 1, UIFont.Large)
+    local y = 350
     for _, flag in ipairs(entry.flags or {}) do
-        local line = tostring(flag.flagType) .. " " .. stars(flag.severity)
-            .. " " .. text("UI_NL_BingoBook_By") .. " " .. tostring(flag.sourceVillageName)
-        self:drawText(line, 55, y, 0.18, 0.14, 0.1, 1, UIFont.Medium)
+        local line = tostring(flag.flagType) .. "           " .. text("UI_NL_BingoBook_By") .. " " .. tostring(flag.sourceVillageName)
+        self:drawTextCentre(line, self.width / 2, y, 0.85, 0.8, 0.75, 1, UIFont.Medium)
+        
+        local severity = math.max(1, math.min(5, tonumber(flag.severity) or 1))
+        local starWidth = 16
+        local startX = (self.width / 2) - 80
+        for i = 1, severity do
+            if self.starTexture then
+                self:drawTextureScaled(self.starTexture, startX + (i * starWidth), y + 2, 14, 14, 1, 1, 1, 1)
+            end
+        end
         y = y + 42
     end
     self:drawTextCentre(
