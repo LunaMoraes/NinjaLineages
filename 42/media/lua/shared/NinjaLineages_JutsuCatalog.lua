@@ -139,11 +139,28 @@ Catalog.Definitions = {
         executor = "bringer_of_darkness",
     },
     {
+        id = "demonic_flute",
+        category = "common",
+        node = {
+            discipline = "genjutsu", rank = "CHUNIN", order = 20,
+            prerequisites = {},
+        },
+        presentation = {
+            icon = "media/ui/jutsuTree/nodes/demonic_flute.png",
+        },
+        handSigns = { "dog", "dragon", "snake" },
+        balance = {
+            cost = "MAJOR", cooldown = "STANDARD", radius = "LARGE",
+            duration = "VERY_LONG",
+        },
+        executor = "demonic_flute",
+    },
+    {
         id = "killing_intent",
         category = "common",
         node = {
             discipline = "genjutsu", rank = "JONIN", order = 10,
-            prerequisites = { "bringer_of_darkness" },
+            prerequisites = { "bringer_of_darkness", "demonic_flute" },
         },
         handSigns = { "tiger", "dragon", "tiger" },
         balance = { cost = "MAJOR", cooldown = "VERY_LONG", radius = "STANDARD", control = "CHUNIN" },

@@ -146,6 +146,7 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
     local data = NinjaLineages.getNLData(player)
 
     NinjaLineages.BringerOfDarkness.updatePlayer(player)
+    NinjaLineages.DemonicFlute.updatePlayer(player)
 
     if data.bleedingSuppressionEndTime and now < data.bleedingSuppressionEndTime then
         local parts = player:getBodyDamage():getBodyParts()

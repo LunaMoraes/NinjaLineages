@@ -30,6 +30,7 @@ end
 
 -- Load refactored ability submodules
 require "abilities/NinjaLineages_BringerOfDarkness"
+require "abilities/NinjaLineages_DemonicFlute"
 require "abilities/NinjaLineages_Kirigakure"
 require "abilities/NinjaLineages_AlarmSeals"
 require "abilities/NinjaLineages_CombatHooks"

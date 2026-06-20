@@ -97,9 +97,36 @@ function NinjaLineages.Utils.Time.gameMinutes()
 end
 
 
--- 3. Zombie/Combat Helpers
+-- 3. Zombie/Player/Combat Helpers
 NinjaLineages.Utils.Zombies = NinjaLineages.Utils.Zombies or {}
+NinjaLineages.Utils.Players = NinjaLineages.Utils.Players or {}
 NinjaLineages.Utils.Combat = NinjaLineages.Utils.Combat or {}
+
+function NinjaLineages.Utils.Players.collectInRadius(player, radius)
+    local targets = {}
+    local players = getOnlinePlayers()
+    if players then
+        for i = 0, players:size() - 1 do
+            local p = players:get(i)
+            if p and p ~= player and not p:isDead() then
+                local distance = p:DistTo(player)
+                if distance <= radius then
+                    table.insert(targets, { player = p, distance = distance })
+                end
+            end
+        end
+    else
+        -- Fallback for Singleplayer
+        local p = getSpecificPlayer(0)
+        if p and p ~= player and not p:isDead() then
+            local distance = p:DistTo(player)
+            if distance <= radius then
+                table.insert(targets, { player = p, distance = distance })
+            end
+        end
+    end
+    return targets
+end
 
 function NinjaLineages.Utils.Zombies.collectInRadius(player, radius)
     local targets = {}

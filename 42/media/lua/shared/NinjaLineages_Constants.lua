@@ -38,6 +38,18 @@ NinjaLineages.Constants.GenJutsu = {
         CIRCLE_ALPHA = 0.85,
         BLIND_ITEM = "Base.NL_BringerOfDarknessBlind",
     },
+    DemonicFlute = {
+        VISUAL_DURATION_MS = 1000,
+        VISUAL_HOLD_MS = 650,
+        CIRCLE_SEGMENTS = 64,
+        CIRCLE_THICKNESS = 2.0,
+        CIRCLE_COLOR = {
+            R = 0.75,
+            G = 0.25,
+            B = 0.80,
+        },
+        CIRCLE_ALPHA = 0.85,
+    },
 }
 
 NinjaLineages.Constants.Uchiha = {

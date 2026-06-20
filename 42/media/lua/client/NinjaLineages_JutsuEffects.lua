@@ -3,6 +3,7 @@ NinjaLineages.JutsuEffects = NinjaLineages.JutsuEffects or {}
 
 local activeKatonStreams = {}
 local activeBringerOfDarknessCircles = {}
+local activeDemonicFluteCircles = {}
 local katonFireTexture = nil
 local katonTextureProbed = false
 local katonTextureRenderFailed = false
@@ -27,6 +28,17 @@ end
 function NinjaLineages.JutsuEffects.addBringerOfDarknessCircle(args)
     if not args or not args.x or not args.y or not args.z or not args.radius then return end
     table.insert(activeBringerOfDarknessCircles, {
+        x = args.x,
+        y = args.y,
+        z = args.z,
+        radius = args.radius,
+        startedAtMs = NinjaLineages.Utils.Time.realMilliseconds(),
+    })
+end
+
+function NinjaLineages.JutsuEffects.addDemonicFluteCircle(args)
+    if not args or not args.x or not args.y or not args.z or not args.radius then return end
+    table.insert(activeDemonicFluteCircles, {
         x = args.x,
         y = args.y,
         z = args.z,
@@ -162,6 +174,36 @@ local function renderEffects()
             )
         end
     end
+
+    local dfConstants = NinjaLineages.Constants.GenJutsu.DemonicFlute
+    for i = #activeDemonicFluteCircles, 1, -1 do
+        local circle = activeDemonicFluteCircles[i]
+        local elapsed = nowMs - circle.startedAtMs
+        if elapsed >= dfConstants.VISUAL_DURATION_MS then
+            table.remove(activeDemonicFluteCircles, i)
+        elseif elapsed >= 0 then
+            local alpha = dfConstants.CIRCLE_ALPHA
+            if elapsed > dfConstants.VISUAL_HOLD_MS then
+                local fadeDuration = dfConstants.VISUAL_DURATION_MS - dfConstants.VISUAL_HOLD_MS
+                alpha = alpha * math.max(
+                    0,
+                    1 - ((elapsed - dfConstants.VISUAL_HOLD_MS) / fadeDuration)
+                )
+            end
+            renderIsoCircle(
+                circle.x,
+                circle.y,
+                circle.z,
+                circle.radius,
+                dfConstants.CIRCLE_SEGMENTS,
+                dfConstants.CIRCLE_THICKNESS,
+                dfConstants.CIRCLE_COLOR.R,
+                dfConstants.CIRCLE_COLOR.G,
+                dfConstants.CIRCLE_COLOR.B,
+                alpha
+            )
+        end
+    end
 end
 
 NinjaLineages.addEventOnce("client.jutsuEffects.onPostRender", Events.OnPostRender, renderEffects)
@@ -178,6 +220,12 @@ if Events and Events.OnServerCommand then
     NinjaLineages.AbilityAuthority.registerEventHandler("bringer_of_darkness_circle", function(args)
         if NinjaLineages.JutsuEffects.addBringerOfDarknessCircle then
             NinjaLineages.JutsuEffects.addBringerOfDarknessCircle(args)
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("demonic_flute_circle", function(args)
+        if NinjaLineages.JutsuEffects.addDemonicFluteCircle then
+            NinjaLineages.JutsuEffects.addDemonicFluteCircle(args)
         end
     end)
 end

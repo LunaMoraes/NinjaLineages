@@ -300,6 +300,37 @@ specializedExecutors.bringer_of_darkness = function(player, definition)
     }
 end
 
+specializedExecutors.demonic_flute = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+    if not commit(player, definition, resolved, cost) then return false, "chakra" end
+
+    local expiresAt = NinjaLineages.Utils.Time.gameMinutes() + resolved.duration
+    
+    for _, entry in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, resolved.radius)) do
+        NinjaLineages.DemonicFlute.apply(entry.zombie, expiresAt)
+    end
+
+    for _, target in ipairs(NinjaLineages.Targeting.collectHostilePlayers(player, {
+        range = resolved.radius,
+    })) do
+        NinjaLineages.DemonicFlute.apply(target.object, expiresAt)
+    end
+
+    return true, nil, nil, {
+        event = {
+            kind = "demonic_flute_circle",
+            x = player:getX(),
+            y = player:getY(),
+            z = math.floor(player:getZ()),
+            radius = resolved.radius,
+        },
+    }
+end
+
 specializedExecutors.shinra_tensei = function(player, definition)
     local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
     if not validRequirements then return false, requirementReason end

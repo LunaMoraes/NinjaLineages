@@ -151,6 +151,9 @@ function NinjaLineages.AbilityAuthority.updateWorld()
     if NinjaLineages.BringerOfDarkness then
         NinjaLineages.BringerOfDarkness.updateZombies()
     end
+    if NinjaLineages.DemonicFlute then
+        NinjaLineages.DemonicFlute.updateZombies()
+    end
     if NinjaLineages.Kirigakure then
         NinjaLineages.Kirigakure.update()
     end
