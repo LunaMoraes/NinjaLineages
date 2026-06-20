@@ -758,6 +758,23 @@ function handlers.socialRequestReputationSnapshot(player)
     return true
 end
 
+function handlers.socialDebugWanted(player)
+    local isDebug = isDebugEnabled()
+    if SandboxVars and SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.DebugMode == true then
+        isDebug = true
+    end
+    if not isDebug then return false, "not_debug" end
+    
+    local targetKey = Social.getPlayerKey(player, false)
+    if not targetKey then return false, "no_target_key" end
+    
+    local dummyVillage = { id = "debug_village", name = "Debug System" }
+    applyReputationFlag(dummyVillage, targetKey, "Wanted", 5, false)
+    
+    player:getInventory():AddItem("Base.NL_BingoBook")
+    return true, "success"
+end
+
 function handlers.socialApplyReputationFlag(player, args)
     local actorKey = Social.getPlayerKey(player, false)
     if not actorKey then return false, "unstable_identity" end

@@ -223,6 +223,11 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         if NinjaLineages.Uchiha and NinjaLineages.Uchiha.canUseKamuiTestUnlock and NinjaLineages.Uchiha.canUseKamuiTestUnlock(player) then
             debugSubMenu:addOption(getText("UI_NL_Ability_Kamui_TestUnlock"), player, NinjaLineages.Uchiha.unlockKamuiForSinglePlayerTest)
         end
+        
+        -- 7. Spawn Bingo Book & Wanted
+        debugSubMenu:addOption("Debug: Spawn Bingo Book & Wanted", player, function(p)
+            NinjaLineages.Social.request(p, "socialDebugWanted", {})
+        end)
     end
 end
 

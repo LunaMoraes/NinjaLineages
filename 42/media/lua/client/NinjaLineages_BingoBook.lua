@@ -38,15 +38,15 @@ function NLBingoBookUI:initialise()
     
     self.starTexture = getTexture("media/ui/FavoriteStar.png")
     
-    self.avatarPanel = ISUI3DModel:new(self.width / 2 - 75, 80, 150, 220)
+    self.avatarPanel = ISUI3DModel:new(self.width / 2 - 75, 75, 150, 150)
     self.avatarPanel.backgroundColor = {r=0, g=0, b=0, a=0.0}
     self.avatarPanel.borderColor = {r=0, g=0, b=0, a=0.0}
     self.avatarPanel:initialise()
     self.avatarPanel:instantiate()
     self.avatarPanel:setDirection(IsoDirections.S)
     self.avatarPanel:setIsometric(false)
-    self.avatarPanel:setZoom(1.5)
-    self.avatarPanel:setYOffset(-0.6)
+    self.avatarPanel:setZoom(2.8)
+    self.avatarPanel:setYOffset(-0.7)
     self.avatarPanel:setVisible(false)
     self:addChild(self.avatarPanel)
     
@@ -68,7 +68,30 @@ function NLBingoBookUI:updateAvatar()
     
     local entry = players[self.page]
     if entry and entry.playerName then
-        local targetPlayer = getPlayerFromUsername(entry.playerName)
+        local targetPlayer = nil
+        local onlinePlayers = getOnlinePlayers and getOnlinePlayers()
+        if onlinePlayers and onlinePlayers:size() > 0 then
+            for i = 0, onlinePlayers:size() - 1 do
+                local p = onlinePlayers:get(i)
+                local desc = p:getDescriptor()
+                if desc and (desc:getForename() .. " " .. desc:getSurname() == entry.playerName) then
+                    targetPlayer = p
+                    break
+                end
+            end
+        else
+            for i = 0, getNumActivePlayers() - 1 do
+                local p = getSpecificPlayer(i)
+                if p then
+                    local desc = p:getDescriptor()
+                    if desc and (desc:getForename() .. " " .. desc:getSurname() == entry.playerName) then
+                        targetPlayer = p
+                        break
+                    end
+                end
+            end
+        end
+
         if targetPlayer then
             self.avatarPanel:setCharacter(targetPlayer)
             self.avatarPanel:setVisible(true)
@@ -103,20 +126,26 @@ function NLBingoBookUI:prerender()
     end
 
     local entry = players[self.page]
-    self:drawTextCentre(tostring(entry.playerName), self.width / 2, 310, 0.85, 0.8, 0.75, 1, UIFont.Large)
-    local y = 350
+    self:drawTextCentre(tostring(entry.playerName), self.width / 2, 240, 0.85, 0.8, 0.75, 1, UIFont.Large)
+    local y = 280
     for _, flag in ipairs(entry.flags or {}) do
-        local line = tostring(flag.flagType) .. "           " .. text("UI_NL_BingoBook_By") .. " " .. tostring(flag.sourceVillageName)
-        self:drawTextCentre(line, self.width / 2, y, 0.85, 0.8, 0.75, 1, UIFont.Medium)
+        local flagText = tostring(flag.flagType)
+        local flagWidth = getTextManager():MeasureStringX(UIFont.Medium, flagText)
+        self:drawText(flagText, 55, y, 0.85, 0.8, 0.75, 1, UIFont.Medium)
         
         local severity = math.max(1, math.min(5, tonumber(flag.severity) or 1))
         local starWidth = 16
-        local startX = (self.width / 2) - 80
+        local starX = 55 + flagWidth + 8
         for i = 1, severity do
             if self.starTexture then
-                self:drawTextureScaled(self.starTexture, startX + (i * starWidth), y + 2, 14, 14, 1, 1, 1, 1)
+                self:drawTextureScaled(self.starTexture, starX + ((i - 1) * starWidth), y + 2, 14, 14, 1, 1, 1, 1)
             end
         end
+        
+        local byText = text("UI_NL_BingoBook_By") .. " " .. tostring(flag.sourceVillageName)
+        local byX = starX + (severity * starWidth) + 8
+        self:drawText(byText, byX, y, 0.85, 0.8, 0.75, 1, UIFont.Medium)
+        
         y = y + 42
     end
     self:drawTextCentre(
