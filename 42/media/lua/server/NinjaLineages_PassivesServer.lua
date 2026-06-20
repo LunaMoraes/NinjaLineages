@@ -22,17 +22,3 @@ function Passives.everyMinute(player)
     if not isLivePlayer(player) then return end
     NinjaLineages.runListeners(NinjaLineages.EveryMinuteListeners, "EveryMinuteServer", player)
 end
-
-function Passives.onPlayerGetDamage(player, damageType, damage)
-    if isLivePlayer(player) then
-        NinjaLineages.runListeners(NinjaLineages.PlayerGetDamageListeners, "PlayerGetDamageServer", player, damageType, damage)
-    end
-end
-
-if Events and Events.OnPlayerGetDamage then
-    NinjaLineages.addEventOnce(
-        "server.passives.onPlayerGetDamage",
-        Events.OnPlayerGetDamage,
-        Passives.onPlayerGetDamage
-    )
-end

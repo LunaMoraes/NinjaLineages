@@ -56,7 +56,8 @@ module NinjaLineages
         Cost = 14,
         UIName = UI_trait_NL_Uzumaki,
         UIDescription = UI_trait_NL_UzumakiDesc,
-        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:senju;NinjaLineages:rinnegan,
+        MutuallyExclusiveTraits = NinjaLineages:byakugan;NinjaLineages:sharingan;NinjaLineages:senju;NinjaLineages:rinnegan;base:thickskinned;base:thinskinned,
+        GrantedTraits = base:thickskinned,
         XPBoosts = ChakraControl=4,
     }
 }

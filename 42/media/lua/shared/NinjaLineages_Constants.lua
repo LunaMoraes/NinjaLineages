@@ -112,9 +112,7 @@ NinjaLineages.Constants.Senju = {
 
 NinjaLineages.Constants.Uzumaki = {
     Passive = {
-        DAMAGE_REFUND = 0.33,
-        BLEED_REFUND = 0.75,
-        TICK_MINUTES = 0.4,
+        BLEEDING_REMAINING_PER_MINUTE = 0.5,
     },
     AlarmSeal = {
         RADIUS = 2.0,

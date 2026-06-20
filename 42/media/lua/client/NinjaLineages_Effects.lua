@@ -344,13 +344,6 @@ local function onHitZombie(zombie, attacker, bodyPartType, handWeapon)
     NinjaLineages.runListeners(NinjaLineages.HitZombieListeners, "HitZombie", zombie, attacker, bodyPartType, handWeapon)
 end
 
-local function onPlayerGetDamage(player, damageType, damage)
-    if not player or not instanceof(player, "IsoPlayer") then return end
-    if not player:isLocalPlayer() then return end
-
-    NinjaLineages.runListeners(NinjaLineages.PlayerGetDamageListeners, "PlayerGetDamage", player, damageType, damage)
-end
-
 local function updatePlayerMinute(player)
     if not player or player:isDead() then return end
     local now = NinjaLineages.Utils.Time.gameMinutes()
@@ -398,5 +391,4 @@ NinjaLineages.addEventOnce("client.effects.onZombieUpdate", Events.OnZombieUpdat
 NinjaLineages.addEventOnce("client.effects.onHitZombie", Events.OnHitZombie, onHitZombie)
 NinjaLineages.addEventOnce("client.effects.onFillWorldObjectContextMenu.abilities", Events.OnFillWorldObjectContextMenu, addAbilityContextMenu)
 NinjaLineages.addEventOnce("client.effects.onKeyStartPressed", Events.OnKeyStartPressed, onKeyStartPressed)
-NinjaLineages.addEventOnce("client.effects.onPlayerGetDamage", Events.OnPlayerGetDamage, onPlayerGetDamage)
 NinjaLineages.addEventOnce("client.effects.everyOneMinute", Events.EveryOneMinute, everyOneMinute)

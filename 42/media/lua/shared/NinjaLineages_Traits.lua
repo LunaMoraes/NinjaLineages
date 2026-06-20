@@ -22,7 +22,6 @@ NinjaLineages.Abilities = NinjaLineages.Abilities or {}
 NinjaLineages.PlayerUpdates = NinjaLineages.PlayerUpdates or {}
 NinjaLineages.ZombieUpdates = NinjaLineages.ZombieUpdates or {}
 NinjaLineages.HitZombieListeners = NinjaLineages.HitZombieListeners or {}
-NinjaLineages.PlayerGetDamageListeners = NinjaLineages.PlayerGetDamageListeners or {}
 NinjaLineages.EveryMinuteListeners = NinjaLineages.EveryMinuteListeners or {}
 NinjaLineages.CreatePlayerListeners = NinjaLineages.CreatePlayerListeners or {}
 
@@ -109,10 +108,6 @@ end
 
 function NinjaLineages.registerHitZombie(idOrFn, maybeFn)
     addListener(NinjaLineages.HitZombieListeners, idOrFn, maybeFn)
-end
-
-function NinjaLineages.registerPlayerGetDamage(idOrFn, maybeFn)
-    addListener(NinjaLineages.PlayerGetDamageListeners, idOrFn, maybeFn)
 end
 
 function NinjaLineages.registerEveryMinute(idOrFn, maybeFn)

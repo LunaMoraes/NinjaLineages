@@ -108,12 +108,6 @@ local function collectEmptyScrolls(player)
     return scrolls
 end
 
-if not NinjaLineages.isClient() then
-    NinjaLineages.registerPlayerUpdate("uzumaki.update", NinjaLineages.UzumakiPassives.applyUzumakiBleedSlow)
-    NinjaLineages.registerPlayerGetDamage("uzumaki.getDamage", NinjaLineages.UzumakiPassives.refundUzumakiDamage)
-    NinjaLineages.registerCreatePlayer("uzumaki.init", NinjaLineages.UzumakiPassives.captureUzumakiHealthState)
-end
-
 local function addStorageSealContextMenu(playerNum, context, items)
     local player = getSpecificPlayer(playerNum)
     if not player or player:isDead() then return end

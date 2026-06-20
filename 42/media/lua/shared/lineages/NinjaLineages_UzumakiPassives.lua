@@ -1,4 +1,3 @@
-require "NinjaLineages_Utils"
 require "NinjaLineages_Traits"
 
 NinjaLineages = NinjaLineages or {}
@@ -6,142 +5,70 @@ NinjaLineages.UzumakiPassives = NinjaLineages.UzumakiPassives or {}
 
 local UzumakiPassives = NinjaLineages.UzumakiPassives
 local consts = NinjaLineages.Constants
-local uzumakiHealthState = setmetatable({}, { __mode = "k" })
+local THICK_SKINNED_TRAIT_ID = "base:thickskinned"
+local OWNED_THICK_SKINNED_KEY = "uzumakiAddedThickSkinned"
 
 local function isLivePlayer(player)
     return player and instanceof(player, "IsoPlayer") and not player:isDead()
 end
 
-local function getBodyPartSnapshot(player)
-    local snapshot = {}
-    local bodyDamage = player and player:getBodyDamage()
-    local parts = bodyDamage and bodyDamage:getBodyParts()
-    if not parts then return snapshot end
-
-    for i = 0, parts:size() - 1 do
-        local part = parts:get(i)
-        local health = 100
-        local bleed = 0
-        pcall(function() health = part:getHealth() end)
-        pcall(function() bleed = part:getBleedingTime() end)
-        snapshot[i] = { health = health, bleed = bleed }
-    end
-
-    return snapshot
-end
-
-function UzumakiPassives.captureUzumakiHealthState(player)
+function UzumakiPassives.ensureThickSkinned(player)
     if not isLivePlayer(player) then return end
 
-    local bodyDamage = player:getBodyDamage()
-    if not bodyDamage then return end
+    local data = NinjaLineages.getNLData(player)
+    local thickSkinned = NinjaLineages.getTraitObject(THICK_SKINNED_TRAIT_ID)
+    if not data or not thickSkinned then return end
 
-    local state = uzumakiHealthState[player] or {}
-    pcall(function() state.generalHealth = bodyDamage:getHealth() end)
-    state.parts = getBodyPartSnapshot(player)
-    state.lastPassiveAt = NinjaLineages.Utils.Time.gameMinutes()
-    uzumakiHealthState[player] = state
-end
-
-function UzumakiPassives.refundUzumakiDamage(player)
-    if not isLivePlayer(player) or not NinjaLineages.hasUzumaki(player) then return end
-
-    local state = uzumakiHealthState[player]
-    if not state then
-        UzumakiPassives.captureUzumakiHealthState(player)
-        return
-    end
-
-    local bodyDamage = player:getBodyDamage()
-    if not bodyDamage then return end
-
-    local okGeneral, currentGeneral = pcall(function() return bodyDamage:getHealth() end)
-    local damageRefunded = false
-    local parts = bodyDamage:getBodyParts()
-
-    if parts and state.parts then
-        for i = 0, parts:size() - 1 do
-            local part = parts:get(i)
-            local previous = state.parts[i]
-            if part and previous then
-                local okPart, currentPartHealth = pcall(function() return part:getHealth() end)
-                if okPart and currentPartHealth and previous.health and currentPartHealth < previous.health then
-                    local lost = previous.health - currentPartHealth
-                    local refund = lost * consts.Uzumaki.Passive.DAMAGE_REFUND
-                    if refund > 0 then
-                        NinjaLineages.Utils.Healing.healPart(bodyDamage, part, { health = refund })
-                        damageRefunded = true
-                    end
-                end
-            end
+    local changed = false
+    if NinjaLineages.hasUzumaki(player) then
+        if not player:hasTrait(thickSkinned) then
+            player:getCharacterTraits():add(thickSkinned)
+            data[OWNED_THICK_SKINNED_KEY] = true
+            changed = true
         end
+    elseif data[OWNED_THICK_SKINNED_KEY] == true then
+        if player:hasTrait(thickSkinned) then
+            player:getCharacterTraits():remove(thickSkinned)
+        end
+        data[OWNED_THICK_SKINNED_KEY] = nil
+        changed = true
     end
 
-    if not damageRefunded and okGeneral and state.generalHealth and currentGeneral and currentGeneral < state.generalHealth then
-        pcall(function()
-            bodyDamage:AddGeneralHealth((state.generalHealth - currentGeneral) * consts.Uzumaki.Passive.DAMAGE_REFUND)
-        end)
+    if changed then
+        NinjaLineages.transmitPlayerData(player)
     end
-
-    UzumakiPassives.captureUzumakiHealthState(player)
-    NinjaLineages.transmitPlayerData(player)
 end
 
-function UzumakiPassives.applyUzumakiBleedSlow(player)
-    if not isLivePlayer(player) then return end
-
-    if not NinjaLineages.hasUzumaki(player) then
-        uzumakiHealthState[player] = nil
-        return
-    end
-
-    local now = NinjaLineages.Utils.Time.gameMinutes()
-    local state = uzumakiHealthState[player]
-    if not state then
-        UzumakiPassives.captureUzumakiHealthState(player)
-        return
-    end
-
-    if state.lastPassiveAt and now < state.lastPassiveAt + consts.Uzumaki.Passive.TICK_MINUTES then
-        return
-    end
+function UzumakiPassives.applyRapidClotting(player)
+    if not isLivePlayer(player) or not NinjaLineages.hasUzumaki(player) then return end
 
     local bodyDamage = player:getBodyDamage()
     local parts = bodyDamage and bodyDamage:getBodyParts()
     if not parts then return end
 
+    local remaining = consts.Uzumaki.Passive.BLEEDING_REMAINING_PER_MINUTE
     for i = 0, parts:size() - 1 do
         local part = parts:get(i)
-        local previous = state.parts and state.parts[i]
-        if part and previous then
-            local okBleed, currentBleed = pcall(function() return part:getBleedingTime() end)
-            if okBleed and currentBleed and currentBleed > 0 and previous.bleed and currentBleed < previous.bleed then
-                local restored = currentBleed + ((previous.bleed - currentBleed) * consts.Uzumaki.Passive.BLEED_REFUND)
-                pcall(function() part:setBleedingTime(restored) end)
+        if part then
+            local bleedingTime = part:getBleedingTime()
+            if bleedingTime and bleedingTime > 0 then
+                part:setBleedingTime(bleedingTime * remaining)
             end
         end
     end
-
-    UzumakiPassives.captureUzumakiHealthState(player)
-    NinjaLineages.transmitPlayerData(player)
 end
 
 local function onPlayerUpdate(player)
-    if NinjaLineages.hasUzumaki(player) then
-        UzumakiPassives.captureUzumakiHealthState(player)
-    end
+    UzumakiPassives.ensureThickSkinned(player)
 end
 
 local function onEveryMinute(player)
-    UzumakiPassives.applyUzumakiBleedSlow(player)
-end
-
-local function onPlayerGetDamage(player, damageType, damage)
-    UzumakiPassives.refundUzumakiDamage(player)
+    UzumakiPassives.ensureThickSkinned(player)
+    UzumakiPassives.applyRapidClotting(player)
 end
 
 if NinjaLineages.isServer() or not NinjaLineages.isClient() then
-    NinjaLineages.registerPlayerUpdate("uzumaki.update", onPlayerUpdate)
-    NinjaLineages.registerEveryMinute("uzumaki.everyMinute", onEveryMinute)
-    NinjaLineages.registerPlayerGetDamage("uzumaki.getDamage", onPlayerGetDamage)
+    NinjaLineages.registerPlayerUpdate("uzumaki.ensureThickSkinned", onPlayerUpdate)
+    NinjaLineages.registerEveryMinute("uzumaki.rapidClotting", onEveryMinute)
+    NinjaLineages.registerCreatePlayer("uzumaki.init", UzumakiPassives.ensureThickSkinned)
 end
