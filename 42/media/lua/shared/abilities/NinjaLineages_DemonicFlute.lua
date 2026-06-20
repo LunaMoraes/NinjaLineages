@@ -9,6 +9,35 @@ local slowedRecords = DemonicFlute.slowedRecords
     or setmetatable({}, { __mode = "k" })
 DemonicFlute.slowedRecords = slowedRecords
 
+local SLOW_FACTOR = 0.70 -- 70% slower
+
+local function applyCoordinateSlow(character, record)
+    local currentX = character:getX()
+    local currentY = character:getY()
+    local lastX = record.lastX
+    local lastY = record.lastY
+    
+    if lastX and lastY and (currentX ~= lastX or currentY ~= lastY) then
+        local dx = currentX - lastX
+        local dy = currentY - lastY
+        
+        -- Ignore teleports or fence hopps (distance > 0.5 per tick is huge)
+        if (dx*dx + dy*dy) < 0.25 then
+            local newX = currentX - (dx * SLOW_FACTOR)
+            local newY = currentY - (dy * SLOW_FACTOR)
+            
+            character:setX(newX)
+            character:setY(newY)
+            record.lastX = newX
+            record.lastY = newY
+            return
+        end
+    end
+    
+    record.lastX = currentX
+    record.lastY = currentY
+end
+
 function DemonicFlute.apply(character, expiresAt)
     if not character or not expiresAt then return false end
     if character.isDead and character:isDead() then return false end
@@ -21,6 +50,8 @@ function DemonicFlute.apply(character, expiresAt)
 
     slowedRecords[character] = {
         expiresAt = expiresAt,
+        lastX = character:getX(),
+        lastY = character:getY()
     }
     
     if instanceof(character, "IsoZombie") then
@@ -47,6 +78,8 @@ function DemonicFlute.updatePlayer(player)
     player:setVariable("RunSpeed", 0.3)
     player:setForceSprint(false)
     player:setForceRun(false)
+    
+    applyCoordinateSlow(player, record)
 end
 
 function DemonicFlute.updateZombies()
@@ -59,6 +92,8 @@ function DemonicFlute.updateZombies()
                 character:setVariable("Speed", 0.3)
                 character:setVariable("WalkSpeed", 0.3)
                 character:setVariable("RunSpeed", 0.3)
+                
+                applyCoordinateSlow(character, record)
             end
         end
     end
