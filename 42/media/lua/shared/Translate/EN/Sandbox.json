@@ -17,5 +17,10 @@
     "Sandbox_NinjaLineages_DebugMode": "Debug Mode",
     "Sandbox_NinjaLineages_DebugMode_tooltip": "Enables the debug menu options within Shinobi Training.",
     "Sandbox_NinjaLineages_ZombieNinjaChance": "Zombie Ninja Mutation Chance (%)",
-    "Sandbox_NinjaLineages_ZombieNinjaChance_tooltip": "Chance for a zombie to mutate into a Zombie Ninja when it first becomes aggressive toward a human."
+    "Sandbox_NinjaLineages_ZombieNinjaChance_tooltip": "Chance for a zombie to mutate into a Zombie Ninja when it first becomes aggressive toward a human.",
+    "Sandbox_NinjaLineages_JutsuCooldown": "Jutsu Cooldown",
+    "Sandbox_NinjaLineages_JutsuCooldown_tooltip": "Normal (keep current) | Faster (halves cooldown) | Even Faster (divides cooldown by 4)",
+    "Sandbox_NinjaLineages_JutsuCooldown_option1": "Normal",
+    "Sandbox_NinjaLineages_JutsuCooldown_option2": "Faster",
+    "Sandbox_NinjaLineages_JutsuCooldown_option3": "Even Faster"
 }

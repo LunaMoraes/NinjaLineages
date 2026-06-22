@@ -452,6 +452,15 @@ function NinjaLineages.Cooldowns.isOnCooldown(player, key)
 end
 
 function NinjaLineages.Cooldowns.set(player, key, durationMinutes)
+    if instanceof(player, "IsoPlayer") then
+        local cooldownSetting = SandboxVars and SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.JutsuCooldown or 1
+        if cooldownSetting == 2 then
+            durationMinutes = durationMinutes / 2
+        elseif cooldownSetting == 3 then
+            durationMinutes = durationMinutes / 4
+        end
+    end
+
     local data = NinjaLineages.getNLData(player)
     data.cooldowns = data.cooldowns or {}
     data.cooldowns[key] = NinjaLineages.Utils.Time.gameMinutes() + durationMinutes
