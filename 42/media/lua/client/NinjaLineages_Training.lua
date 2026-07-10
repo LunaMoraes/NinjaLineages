@@ -21,7 +21,7 @@ function NLJutsuTrainingAction:stop()
     local data = NinjaLineages.getNLData(self.character)
     data.trainingProgress = data.trainingProgress or {}
     data.trainingProgress[self.nodeId] = readPages
-    NinjaLineages.transmitPlayerData(self.character)
+    NinjaLineages.Progression.requestTrainingProgress(self.character, self.nodeId, readPages)
 end
 
 function NLJutsuTrainingAction:complete()
@@ -32,11 +32,9 @@ function NLJutsuTrainingAction:complete()
     local data = NinjaLineages.getNLData(self.character)
     data.trainingProgress = data.trainingProgress or {}
     data.trainingProgress[self.nodeId] = required
-    
+
+    NinjaLineages.Progression.requestTrainingProgress(self.character, self.nodeId, required)
     NinjaLineages.Progression.requestCompleteTraining(self.character, self.nodeId, self.item)
-    
-    local inventory = self.character:getInventory()
-    inventory:Remove(self.item)
     return true
 end
 
@@ -47,3 +45,34 @@ function NLJutsuTrainingAction:new(character, nodeId)
     o.nodeId = nodeId
     return o
 end
+
+local function onTrainingServerCommand(module, command, args)
+    if module ~= "NinjaLineages" then return end
+    if command ~= "trainingResult" and command ~= "trainingProgressResult" then return end
+    if not args or not args.nodeId then return end
+
+    local player = getPlayer()
+    if not player then return end
+    local data = NinjaLineages.getNLData(player)
+    data.trainingProgress = data.trainingProgress or {}
+
+    if command == "trainingResult" and args.ok == true then
+        data.trainingProgress[args.nodeId] = nil
+    elseif args.pages ~= nil then
+        data.trainingProgress[args.nodeId] = args.pages
+    end
+
+    if args.ok ~= true then
+        local reason = args.reason or "unknown"
+        player:Say("Training failed: " .. tostring(reason))
+        print("[DEBUG-NL-TRAINING] client result node=" .. tostring(args.nodeId)
+            .. " ok=false reason=" .. tostring(reason)
+            .. " pages=" .. tostring(args.pages))
+    else
+        print("[DEBUG-NL-TRAINING] client result node=" .. tostring(args.nodeId)
+            .. " command=" .. tostring(command)
+            .. " pages=" .. tostring(args.pages))
+    end
+end
+
+NinjaLineages.addEventOnce("client.training.onServerCommand", Events.OnServerCommand, onTrainingServerCommand)

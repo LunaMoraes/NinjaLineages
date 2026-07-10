@@ -921,6 +921,7 @@ function NLJutsuTreeUI.onServerCommand(module, command, args)
     if module ~= "NinjaLineages" then return end
     if command ~= "unlockResult"
             and command ~= "trainingResult"
+            and command ~= "trainingProgressResult"
             and command ~= "progressionUpdated" then
         return
     end

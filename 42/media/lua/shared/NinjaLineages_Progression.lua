@@ -221,6 +221,8 @@ end
 
 function Progression.requestCompleteTraining(player, nodeId, item)
     if NinjaLineages.isClient() then
+        print("[DEBUG-NL-TRAINING] client complete request node=" .. tostring(nodeId)
+            .. " itemId=" .. tostring(item and item:getID() or -1))
         sendClientCommand(player, "NinjaLineages", "completeTraining", {
             nodeId = nodeId,
             itemId = item and item:getID() or -1,
@@ -228,6 +230,36 @@ function Progression.requestCompleteTraining(player, nodeId, item)
         return true
     end
     return Progression.completeTraining(player, nodeId, item)
+end
+
+function Progression.setTrainingProgress(player, nodeId, pages)
+    if NinjaLineages.isClient() then return false, "client_unauthorized", 0, 0 end
+    if Progression.getNodeState(player, nodeId) ~= "unlocked" then
+        return false, "unavailable", 0, 0
+    end
+
+    local required = Progression.getTrainingPages(player, nodeId)
+    if required <= 0 then return false, "invalid", 0, 0 end
+
+    local savedPages = math.min(required, math.max(0, math.floor(tonumber(pages) or 0)))
+    local data = NinjaLineages.getNLData(player)
+    data.trainingProgress = data.trainingProgress or {}
+    data.trainingProgress[nodeId] = savedPages
+    NinjaLineages.transmitPlayerData(player)
+    return true, nil, savedPages, required
+end
+
+function Progression.requestTrainingProgress(player, nodeId, pages)
+    if NinjaLineages.isClient() then
+        print("[DEBUG-NL-TRAINING] client checkpoint request node=" .. tostring(nodeId)
+            .. " pages=" .. tostring(pages))
+        sendClientCommand(player, "NinjaLineages", "trainingProgress", {
+            nodeId = nodeId,
+            pages = pages,
+        })
+        return true
+    end
+    return Progression.setTrainingProgress(player, nodeId, pages)
 end
 
 function Progression.isUnlocked(player, nodeId)

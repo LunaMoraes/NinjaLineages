@@ -51,8 +51,39 @@ local function handleCompleteTraining(player, args)
     local nodeId = args and args.nodeId
     local itemId = tonumber(args and args.itemId) or -1
     local item = player:getInventory():getItemById(itemId)
+    local readPages = NinjaLineages.Progression.getTrainingPagesRead(player, nodeId)
+    print("[DEBUG-NL-TRAINING] server complete node=" .. tostring(nodeId)
+        .. " itemId=" .. tostring(itemId)
+        .. " serverPages=" .. tostring(readPages))
     local ok, reason = NinjaLineages.Progression.completeTraining(player, nodeId, item)
-    sendState(player, "trainingResult", { ok = ok == true, reason = reason, nodeId = nodeId })
+    print("[DEBUG-NL-TRAINING] server complete result node=" .. tostring(nodeId)
+        .. " ok=" .. tostring(ok == true)
+        .. " reason=" .. tostring(reason))
+    sendState(player, "trainingResult", {
+        ok = ok == true,
+        reason = reason,
+        nodeId = nodeId,
+        pages = NinjaLineages.Progression.getTrainingPagesRead(player, nodeId),
+    })
+end
+
+local function handleTrainingProgress(player, args)
+    local nodeId = args and args.nodeId
+    local pages = args and args.pages
+    local ok, reason, savedPages, required = NinjaLineages.Progression.setTrainingProgress(player, nodeId, pages)
+    print("[DEBUG-NL-TRAINING] server checkpoint node=" .. tostring(nodeId)
+        .. " clientPages=" .. tostring(pages)
+        .. " savedPages=" .. tostring(savedPages)
+        .. " required=" .. tostring(required)
+        .. " ok=" .. tostring(ok == true)
+        .. " reason=" .. tostring(reason))
+    sendState(player, "trainingProgressResult", {
+        ok = ok == true,
+        reason = reason,
+        nodeId = nodeId,
+        pages = savedPages,
+        required = required,
+    })
 end
 
 local function handleDebugAddXP(player, args)
@@ -154,6 +185,8 @@ local function onClientCommand(module, command, player, args)
         handleUnlock(player, args)
     elseif command == "completeTraining" then
         handleCompleteTraining(player, args)
+    elseif command == "trainingProgress" then
+        handleTrainingProgress(player, args)
     elseif command == "debugAddNinjaXP" then
         handleDebugAddXP(player, args)
     elseif command == "debugToggleBypass" then
