@@ -281,7 +281,14 @@ function NinjaLineages.Balance.getNodeCost(tier, player, disciplineId)
 end
 
 function NinjaLineages.Balance.getTrainingPages(tier)
-    return NinjaLineages.Balance.Progression.TrainingPages[tier] or 0
+    local pages = NinjaLineages.Balance.Progression.TrainingPages[tier] or 0
+    local trainingSetting = SandboxVars and SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.TrainingTime or 1
+    if trainingSetting == 2 then
+        pages = pages / 2
+    elseif trainingSetting == 3 then
+        pages = pages / 4
+    end
+    return pages
 end
 
 function NinjaLineages.Balance.scaleNinjaXP(value)

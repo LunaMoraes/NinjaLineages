@@ -86,3 +86,11 @@ option NinjaLineages.JutsuCooldown
     translation = NinjaLineages_JutsuCooldown,
 }
 
+option NinjaLineages.TrainingTime
+{
+    type = enum,
+    numValues = 3,
+    default = 1,
+    page = NinjaLineages,
+    translation = NinjaLineages_TrainingTime,
+}
