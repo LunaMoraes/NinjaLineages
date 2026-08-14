@@ -129,29 +129,15 @@ function RareScrolls.getErrorMessage(definition, reason)
     return definition and definition.messages[reason] or nil
 end
 
-NinjaLineages.CreationRebirth = NinjaLineages.CreationRebirth or {}
-
-function NinjaLineages.CreationRebirth.isScroll(item)
-    local definition = RareScrolls.getForItem(item)
-    return definition and definition.id == "creation_rebirth" or false
-end
-
-function NinjaLineages.CreationRebirth.isUnlocked(player)
-    return RareScrolls.isUnlocked(player, "creation_rebirth")
-end
-
-function NinjaLineages.CreationRebirth.getLearningChance(player)
-    return RareScrolls.getLearningChance(player, "creation_rebirth")
-end
-
-function NinjaLineages.CreationRebirth.canStudy(player)
-    return RareScrolls.canStudy(player, "creation_rebirth")
-end
-
-function NinjaLineages.CreationRebirth.unlock(player, messageKey)
-    return RareScrolls.unlock(player, "creation_rebirth", messageKey)
-end
-
-function NinjaLineages.CreationRebirth.tryLearn(player)
-    return RareScrolls.tryLearn(player, "creation_rebirth")
-end
+-- Backward compatibility facade for any legacy external callers
+NinjaLineages.CreationRebirth = NinjaLineages.CreationRebirth or {
+    isScroll = function(item)
+        local def = RareScrolls.getForItem(item)
+        return def and def.id == "creation_rebirth" or false
+    end,
+    isUnlocked = function(player) return RareScrolls.isUnlocked(player, "creation_rebirth") end,
+    getLearningChance = function(player) return RareScrolls.getLearningChance(player, "creation_rebirth") end,
+    canStudy = function(player) return RareScrolls.canStudy(player, "creation_rebirth") end,
+    unlock = function(player, msg) return RareScrolls.unlock(player, "creation_rebirth", msg) end,
+    tryLearn = function(player) return RareScrolls.tryLearn(player, "creation_rebirth") end,
+}

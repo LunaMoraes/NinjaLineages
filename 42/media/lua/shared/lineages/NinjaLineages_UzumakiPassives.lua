@@ -1,3 +1,4 @@
+require "NinjaLineages_Utils"
 require "NinjaLineages_Traits"
 
 NinjaLineages = NinjaLineages or {}
@@ -9,7 +10,7 @@ local THICK_SKINNED_TRAIT_ID = "base:thickskinned"
 local OWNED_THICK_SKINNED_KEY = "uzumakiAddedThickSkinned"
 
 local function isLivePlayer(player)
-    return player and instanceof(player, "IsoPlayer") and not player:isDead()
+    return NinjaLineages.Utils.isLivePlayer(player)
 end
 
 function UzumakiPassives.ensureThickSkinned(player)
@@ -63,7 +64,6 @@ local function onPlayerUpdate(player)
 end
 
 local function onEveryMinute(player)
-    UzumakiPassives.ensureThickSkinned(player)
     UzumakiPassives.applyRapidClotting(player)
 end
 

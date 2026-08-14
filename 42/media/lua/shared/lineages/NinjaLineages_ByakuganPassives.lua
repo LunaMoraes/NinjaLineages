@@ -8,7 +8,7 @@ NinjaLineages.ByakuganPassives = NinjaLineages.ByakuganPassives or {}
 local ByakuganPassives = NinjaLineages.ByakuganPassives
 
 local function isLivePlayer(player)
-    return player and instanceof(player, "IsoPlayer") and not player:isDead()
+    return NinjaLineages.Utils.isLivePlayer(player)
 end
 
 local function getWornByakuganSight(player)
@@ -39,16 +39,22 @@ end
 
 local function removeTrackedByakuganSight(player, data)
     local changed = false
+    local inv = player:getInventory()
+
     local equipped = getWornByakuganSight(player)
     if equipped then
         NinjaLineages.Utils.Inventory.removeWornItem(player, equipped)
+        if inv then
+            inv:Remove(equipped)
+            pcall(function() sendRemoveItemFromContainer(inv, equipped) end)
+        end
         changed = true
     end
 
-    local inv = player:getInventory()
     if inv and data.byakuganSightItemId then
         local item = inv:getItemById(data.byakuganSightItemId)
-        if item then
+        if item and item ~= equipped then
+            NinjaLineages.Utils.Inventory.removeWornItem(player, item)
             inv:Remove(item)
             pcall(function() sendRemoveItemFromContainer(inv, item) end)
             changed = true

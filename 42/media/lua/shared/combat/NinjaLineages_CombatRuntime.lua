@@ -14,20 +14,23 @@ local LOG_PREFIX = "[DEBUG-NL-PROJECTILE] "
 local KATON_LOG_PREFIX = "[DEBUG-NL-KATON] "
 local resolveCaster
 
-local function log(message)
-    if SandboxVars
-            and SandboxVars.NinjaLineages
-            and SandboxVars.NinjaLineages.DebugMode == true then
-        print(LOG_PREFIX .. message)
+local function isDebugMode()
+    return (isDebugEnabled and isDebugEnabled())
+        or (SandboxVars and SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.DebugMode == true)
+end
+
+local function debugLog(prefix, message)
+    if isDebugMode() then
+        print(prefix .. message)
     end
 end
 
+local function log(message)
+    debugLog(LOG_PREFIX, message)
+end
+
 local function katonLog(message)
-    if SandboxVars
-            and SandboxVars.NinjaLineages
-            and SandboxVars.NinjaLineages.DebugMode == true then
-        print(KATON_LOG_PREFIX .. message)
-    end
+    debugLog(KATON_LOG_PREFIX, message)
 end
 
 local function readHealth(target)

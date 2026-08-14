@@ -55,17 +55,17 @@ NinjaLineages.registerPlayerUpdate("chakra.moodle", updateChakraMoodle)
 local function getAvailableAbilities(player)
     local abilities = {}
     for _, ability in ipairs(NinjaLineages.HandSigns.getAvailableAbilities(player)) do
-            local displayName = ability.name
-            if type(displayName) == "string" and displayName:sub(1, 3) == "UI_" then
-                displayName = getText(displayName)
-                if displayName == ability.name then displayName = ability.nameFallback or ability.id end
-            end
-            local copy = {}
-            for k, v in pairs(ability) do
-                copy[k] = v
-            end
-            copy.name = displayName
-            table.insert(abilities, copy)
+        local displayName = ability.name
+        if type(displayName) == "string" and displayName:sub(1, 3) == "UI_" then
+            displayName = getText(displayName)
+            if displayName == ability.name then displayName = ability.nameFallback or ability.id end
+        end
+        local copy = {}
+        for k, v in pairs(ability) do
+            copy[k] = v
+        end
+        copy.name = displayName
+        table.insert(abilities, copy)
     end
     return abilities
 end

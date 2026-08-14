@@ -21,6 +21,11 @@ local function getState(player)
     return state
 end
 
+local function isDebugMode()
+    return (isDebugEnabled and isDebugEnabled())
+        or (SandboxVars and SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.DebugMode == true)
+end
+
 local function refreshSocialProgressionSummary(player)
     if not NinjaLineages.isClient()
             and NinjaLineages.SocialServer
@@ -221,8 +226,10 @@ end
 
 function Progression.requestCompleteTraining(player, nodeId, item)
     if NinjaLineages.isClient() then
-        print("[DEBUG-NL-TRAINING] client complete request node=" .. tostring(nodeId)
-            .. " itemId=" .. tostring(item and item:getID() or -1))
+        if isDebugMode() then
+            print("[DEBUG-NL-TRAINING] client complete request node=" .. tostring(nodeId)
+                .. " itemId=" .. tostring(item and item:getID() or -1))
+        end
         sendClientCommand(player, "NinjaLineages", "completeTraining", {
             nodeId = nodeId,
             itemId = item and item:getID() or -1,
@@ -251,8 +258,10 @@ end
 
 function Progression.requestTrainingProgress(player, nodeId, pages)
     if NinjaLineages.isClient() then
-        print("[DEBUG-NL-TRAINING] client checkpoint request node=" .. tostring(nodeId)
-            .. " pages=" .. tostring(pages))
+        if isDebugMode() then
+            print("[DEBUG-NL-TRAINING] client checkpoint request node=" .. tostring(nodeId)
+                .. " pages=" .. tostring(pages))
+        end
         sendClientCommand(player, "NinjaLineages", "trainingProgress", {
             nodeId = nodeId,
             pages = pages,

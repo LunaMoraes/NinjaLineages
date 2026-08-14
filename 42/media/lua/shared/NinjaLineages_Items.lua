@@ -9,6 +9,8 @@ NinjaLineages = NinjaLineages or {}
 AcceptItemFunction = AcceptItemFunction or {}
 RecipeCodeOnTest = RecipeCodeOnTest or {}
 
+-- Recipe test condition for Uzumaki Fuinjutsu seal crafting recipes (NinjaLineages_recipes.txt).
+-- Gated on progression node completion: 'alarm_seal' or 'storage_seal'.
 function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(recipe, player)
     if not player then
         pcall(function()
@@ -34,6 +36,8 @@ function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(recipe, player)
     end
     return NinjaLineages.Progression.isCompleted(player, "storage_seal")
 end
+
+RecipeCodeOnTest.NinjaLineagesSealCraftable = RecipeCodeOnTest.NinjaLineagesUzumakiOnly
 
 local BINGO_BOOK_RECIPES = {
     "MakeNLBingoBook",

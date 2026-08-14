@@ -67,9 +67,10 @@ end
 local function applyKamuiVisionItem(player)
     local data = NinjaLineages.getNLData(player)
     local level = data.kamuiVisionLevel or 0
-    local equipped = NinjaLineages.Utils.Inventory.findWornItem(player, isKamuiVisionItem)
     local desiredType = level > 0 and consts.Uchiha.Vision.ITEMS[level] or nil
-    if equipped and desiredType and equipped:getFullType() == desiredType then
+    local equipped = NinjaLineages.Utils.Inventory.findWornItem(player, isKamuiVisionItem)
+
+    if desiredType and equipped and equipped:getFullType() == desiredType then
         NinjaLineages.Utils.Inventory.wearItem(player, equipped)
         if level == 1 then
             NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.4)
@@ -84,22 +85,13 @@ local function applyKamuiVisionItem(player)
     if equipped then
         NinjaLineages.Utils.Inventory.removeWornItem(player, equipped)
     end
+    NinjaLineages.Utils.Inventory.removeInventoryItems(player, consts.Uchiha.Vision.ITEMS)
 
-    if level <= 0 then
-        equipped = NinjaLineages.Utils.Inventory.findWornItem(player, isKamuiVisionItem)
-        if equipped then
-            NinjaLineages.Utils.Inventory.removeWornItem(player, equipped)
-        end
-        NinjaLineages.Utils.Inventory.removeInventoryItems(player, consts.Uchiha.Vision.ITEMS)
+    if level <= 0 or not desiredType then
         NinjaLineages.Moodles.setValue("NLKamuiVision", player, 0.5)
         return
     end
 
-    equipped = NinjaLineages.Utils.Inventory.findWornItem(player, isKamuiVisionItem)
-    if equipped then
-        NinjaLineages.Utils.Inventory.removeWornItem(player, equipped)
-    end
-    NinjaLineages.Utils.Inventory.removeInventoryItems(player, consts.Uchiha.Vision.ITEMS)
     local inv = player:getInventory()
     if not inv then return end
     local item = inv:AddItem(desiredType)
@@ -120,14 +112,8 @@ local function updateKamuiVisionPresentation(player)
     applyKamuiVisionItem(player)
 end
 
-local function isSinglePlayerGame()
-    if NinjaLineages.isClient() then return false end
-    if NinjaLineages.isServer() then return false end
-    return true
-end
-
 function NinjaLineages.Uchiha.canUseKamuiTestUnlock(player)
-    if not isSinglePlayerGame() then return false end
+    if not NinjaLineages.isSinglePlayer() then return false end
     if not NinjaLineages.hasSharingan(player) then return false end
     if NinjaLineages.getSharinganStage(player) < 3 then return false end
     return NinjaLineages.getNLData(player).mangekyoUnlocked ~= true
@@ -153,7 +139,6 @@ NinjaLineages.registerPlayerUpdate("uchiha.update", function(player)
     updateSharinganMoodle(player)
     updateKamuiVisionPresentation(player)
 end)
-
 
 NinjaLineages.registerCreatePlayer("uchiha.init", function(player)
     observedSharinganStages[player] = NinjaLineages.getSharinganStage(player)
@@ -194,4 +179,3 @@ NinjaLineages.AbilityAuthority.registerEventHandler("mangekyo_unlocked", functio
         end
     end
 end)
-

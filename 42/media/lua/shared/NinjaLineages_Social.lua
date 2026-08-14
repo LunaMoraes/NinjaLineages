@@ -53,22 +53,6 @@ local function isLocalPlayer(player)
     return getSpecificPlayer(tonumber(playerNum)) == player
 end
 
-local function playerMatchesKey(player, wantedKey)
-    if not player or not wantedKey then return false end
-    local candidates = {}
-    local primary = Social.getPlayerKey(player, true)
-    if primary then candidates[primary] = true end
-    local username = safePlayerValue(player, "getUsername")
-    if username and tostring(username) ~= "" then candidates["user:" .. tostring(username)] = true end
-    local onlineID = safePlayerValue(player, "getOnlineID")
-    if onlineID ~= nil then candidates["online:" .. tostring(onlineID)] = true end
-    local state = Social.getState()
-    if isLocalPlayer(player) and state and state.me and state.me.playerKey then
-        candidates[state.me.playerKey] = true
-    end
-    return candidates[wantedKey] == true
-end
-
 function Social.trim(value)
     return tostring(value or ""):match("^%s*(.-)%s*$")
 end
@@ -106,6 +90,53 @@ function Social.getPlayerKey(player, allowRuntime)
         end
     end
     return nil
+end
+
+function Social.getPlayerCandidateKeys(player)
+    if not player then return {} end
+    local keys = {}
+    local seen = {}
+
+    local function addKey(k)
+        if k and k ~= "" and not seen[k] then
+            seen[k] = true
+            table.insert(keys, k)
+        end
+    end
+
+    addKey(Social.getPlayerKey(player, true))
+
+    local username = safePlayerValue(player, "getUsername")
+    if username and tostring(username) ~= "" then
+        addKey("user:" .. tostring(username))
+    end
+
+    local onlineID = safePlayerValue(player, "getOnlineID")
+    if onlineID ~= nil and tonumber(onlineID) and tonumber(onlineID) >= 0 then
+        addKey("online:" .. tostring(onlineID))
+    end
+
+    local state = Social.getState()
+    if isLocalPlayer(player) and state and state.me and state.me.playerKey then
+        addKey(state.me.playerKey)
+    end
+
+    return keys
+end
+
+function Social.getPlayerCandidateKeySet(player)
+    local keys = Social.getPlayerCandidateKeys(player)
+    local set = {}
+    for _, k in ipairs(keys) do
+        set[k] = true
+    end
+    return set
+end
+
+local function playerMatchesKey(player, wantedKey)
+    if not player or not wantedKey then return false end
+    local set = Social.getPlayerCandidateKeySet(player)
+    return set[wantedKey] == true
 end
 
 function Social.getPlayerDisplayName(player)
@@ -171,17 +202,7 @@ function Social.getMembership(player, indexName)
     local index = state and state[indexName]
     if not index or not player then return nil end
 
-    local keys = {}
-    local primary = Social.getPlayerKey(player, true)
-    if primary then table.insert(keys, primary) end
-    local username = safePlayerValue(player, "getUsername")
-    if username and tostring(username) ~= "" then table.insert(keys, "user:" .. tostring(username)) end
-    local onlineID = safePlayerValue(player, "getOnlineID")
-    if onlineID ~= nil then table.insert(keys, "online:" .. tostring(onlineID)) end
-    if isLocalPlayer(player) and state.me and state.me.playerKey then
-        table.insert(keys, state.me.playerKey)
-    end
-
+    local keys = Social.getPlayerCandidateKeys(player)
     for _, key in ipairs(keys) do
         if index[key] ~= nil then return index[key] end
     end
@@ -203,16 +224,9 @@ end
 function Social.getPendingInvites(player)
     local result = {}
     local state = Social.getState()
-    local keys = {}
-    local key = Social.getPlayerKey(player, true)
-    if key then keys[key] = true end
-    local username = safePlayerValue(player, "getUsername")
-    if username and tostring(username) ~= "" then keys["user:" .. tostring(username)] = true end
-    local onlineID = safePlayerValue(player, "getOnlineID")
-    if onlineID ~= nil then keys["online:" .. tostring(onlineID)] = true end
-    if state and state.me and state.me.playerKey then keys[state.me.playerKey] = true end
+    local set = Social.getPlayerCandidateKeySet(player)
     for _, invite in pairs((state and state.pendingInvites) or {}) do
-        if keys[invite.targetKey] then table.insert(result, invite) end
+        if set[invite.targetKey] then table.insert(result, invite) end
     end
     table.sort(result, function(a, b)
         return (tonumber(a.createdAt) or 0) < (tonumber(b.createdAt) or 0)
@@ -248,6 +262,7 @@ function Social.getOwnedReputationFlags(player)
     end)
     return result
 end
+
 function Social.isTeamLeader(player)
     local team = Social.getMyTeam(player)
     return team ~= nil and playerMatchesKey(player, team.leaderKey)

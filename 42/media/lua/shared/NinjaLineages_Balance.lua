@@ -236,10 +236,6 @@ end
 
 function NinjaLineages.Balance.rollDamage(tier)
     local minDamage, maxDamage = NinjaLineages.Balance.getDamageRange(tier)
-    if NinjaLineages.Utils and NinjaLineages.Utils.Combat and NinjaLineages.Utils.Combat.randomDamage then
-        return NinjaLineages.Utils.Combat.randomDamage(minDamage, maxDamage)
-    end
-    -- Fallback inline implementation to avoid hard load-order dependency
     local damageRoll = ZombRand(0, 1001) / 1000
     return minDamage + (damageRoll * (maxDamage - minDamage))
 end

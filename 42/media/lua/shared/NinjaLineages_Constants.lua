@@ -25,6 +25,13 @@ NinjaLineages.Constants.CommonJutsu = {
 }
 
 NinjaLineages.Constants.GenJutsu = {
+    CommonVisual = {
+        VISUAL_DURATION_MS = 1000,
+        VISUAL_HOLD_MS = 650,
+        CIRCLE_SEGMENTS = 64,
+        CIRCLE_THICKNESS = 2.0,
+        CIRCLE_ALPHA = 0.85,
+    },
     BringerOfDarkness = {
         VISUAL_DURATION_MS = 1000,
         VISUAL_HOLD_MS = 650,
@@ -57,6 +64,7 @@ NinjaLineages.Constants.Uchiha = {
         ACTIVATION_VOICE = "NLSharinganActivation",
         DODGE_EFFECT = "NLSharinganDodge",
     },
+    PVP_DODGE_DEDUP_MS = 300,
     SharinganStageKills = {
         [1] = 1,
         [2] = 100,
@@ -100,6 +108,7 @@ NinjaLineages.Constants.Rinnegan = {
 }
 
 NinjaLineages.Constants.Senju = {
+    CHAKRA_POOL_MULTIPLIER = 2.0,
     CreationRebirth = {
         SENJU_UNLOCK_LEVEL = 7,
         SCROLL_MIN_MAX_CHAKRA = 500,
@@ -111,6 +120,7 @@ NinjaLineages.Constants.Senju = {
 }
 
 NinjaLineages.Constants.Uzumaki = {
+    CHAKRA_POOL_MULTIPLIER = 1.7,
     Passive = {
         BLEEDING_REMAINING_PER_MINUTE = 0.5,
     },

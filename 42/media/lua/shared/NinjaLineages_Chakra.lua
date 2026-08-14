@@ -9,9 +9,11 @@ NinjaLineages.Chakra = NinjaLineages.Chakra or {}
 function NinjaLineages.Chakra.getMaxChakra(player)
     local maxVal = NinjaLineages.Constants.Chakra.MAX_BASE
     if NinjaLineages.hasSenju(player) then
-        maxVal = maxVal * 2.0 -- +100% max cap multiplier (200)
+        local mult = NinjaLineages.Constants.Senju and NinjaLineages.Constants.Senju.CHAKRA_POOL_MULTIPLIER or 2.0
+        maxVal = maxVal * mult
     elseif NinjaLineages.hasUzumaki(player) then
-        maxVal = maxVal * 1.7 -- +70% max cap multiplier (170)
+        local mult = NinjaLineages.Constants.Uzumaki and NinjaLineages.Constants.Uzumaki.CHAKRA_POOL_MULTIPLIER or 1.7
+        maxVal = maxVal * mult
     end
 
     local ccLevel = NinjaLineages.Skills.getChakraControlLevel(player)

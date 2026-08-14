@@ -17,8 +17,8 @@ local sharinganRolls = NinjaLineages.AbilityExecution.sharinganRolls
 local boundZombies = NinjaLineages.AbilityExecution.boundZombies
 local active = NinjaLineages.AbilityExecution.active
 local pvpDodgeHits = NinjaLineages.AbilityExecution.pvpDodgeHits
-local Balance = NinjaLineages.Balance
-local PVP_DODGE_DEDUP_MS = 300
+local PVP_DODGE_DEDUP_MS = NinjaLineages.Constants and NinjaLineages.Constants.Uchiha
+    and NinjaLineages.Constants.Uchiha.PVP_DODGE_DEDUP_MS or 300
 
 local function playerIdentity(player)
     if not player then return "unknown" end

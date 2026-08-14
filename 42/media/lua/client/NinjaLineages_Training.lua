@@ -62,16 +62,23 @@ local function onTrainingServerCommand(module, command, args)
         data.trainingProgress[args.nodeId] = args.pages
     end
 
+    local isDebug = (isDebugEnabled and isDebugEnabled())
+        or (SandboxVars and SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.DebugMode == true)
+
     if args.ok ~= true then
         local reason = args.reason or "unknown"
         player:Say("Training failed: " .. tostring(reason))
-        print("[DEBUG-NL-TRAINING] client result node=" .. tostring(args.nodeId)
-            .. " ok=false reason=" .. tostring(reason)
-            .. " pages=" .. tostring(args.pages))
+        if isDebug then
+            print("[DEBUG-NL-TRAINING] client result node=" .. tostring(args.nodeId)
+                .. " ok=false reason=" .. tostring(reason)
+                .. " pages=" .. tostring(args.pages))
+        end
     else
-        print("[DEBUG-NL-TRAINING] client result node=" .. tostring(args.nodeId)
-            .. " command=" .. tostring(command)
-            .. " pages=" .. tostring(args.pages))
+        if isDebug then
+            print("[DEBUG-NL-TRAINING] client result node=" .. tostring(args.nodeId)
+                .. " command=" .. tostring(command)
+                .. " pages=" .. tostring(args.pages))
+        end
     end
 end
 

@@ -43,16 +43,6 @@ local function ensureState()
     for key, value in pairs(defaults) do
         if state[key] == nil then state[key] = value end
     end
-    state.teams = state.teams or {}
-    state.villages = state.villages or {}
-    state.playerTeams = state.playerTeams or {}
-    state.playerVillages = state.playerVillages or {}
-    state.pendingInvites = state.pendingInvites or {}
-    state.knownPlayers = state.knownPlayers or {}
-    state.playerProgressionSummaries = state.playerProgressionSummaries or {}
-    state.reputationFlags = state.reputationFlags or {}
-    state.missions = state.missions or {}
-    state.pendingMissionXP = state.pendingMissionXP or {}
     return state
 end
 
@@ -66,21 +56,14 @@ local function id(prefix, counterName)
     return prefix .. tostring(value)
 end
 
-local function copyTable(source)
+local function deepCopy(source)
     local result = {}
     for key, value in pairs(source or {}) do
-        result[key] = type(value) == "table" and copyTable(value) or value
+        result[key] = type(value) == "table" and deepCopy(value) or value
     end
     return result
 end
-
-local function shallowRecord(source)
-    local result = {}
-    for key, value in pairs(source or {}) do
-        result[key] = type(value) == "table" and copyTable(value) or value
-    end
-    return result
-end
+local copyTable = deepCopy
 
 local function snapshotFor(player)
     local snapshot = {
@@ -93,8 +76,8 @@ local function snapshotFor(player)
         reputationFlags = {},
         knownPlayers = {},
     }
-    for teamID, team in pairs(state.teams) do snapshot.teams[teamID] = shallowRecord(team) end
-    for villageID, village in pairs(state.villages) do snapshot.villages[villageID] = shallowRecord(village) end
+    for teamID, team in pairs(state.teams) do snapshot.teams[teamID] = deepCopy(team) end
+    for villageID, village in pairs(state.villages) do snapshot.villages[villageID] = deepCopy(village) end
     for key, value in pairs(state.playerTeams) do snapshot.playerTeams[key] = value end
     for key, value in pairs(state.playerVillages) do snapshot.playerVillages[key] = value end
 
@@ -122,7 +105,7 @@ local function snapshotFor(player)
     local playerKey = Social.getPlayerKey(player, true)
     for inviteID, invite in pairs(state.pendingInvites) do
         if invite.targetKey == playerKey then
-            snapshot.pendingInvites[inviteID] = shallowRecord(invite)
+            snapshot.pendingInvites[inviteID] = deepCopy(invite)
         end
     end
     snapshot.me = {
@@ -140,7 +123,7 @@ local function snapshotFor(player)
         end
         for recordID, flag in pairs(state.reputationFlags) do
             if flag.sourceVillageId == village.id then
-                snapshot.reputationFlags[recordID] = shallowRecord(flag)
+                snapshot.reputationFlags[recordID] = deepCopy(flag)
             end
         end
     end

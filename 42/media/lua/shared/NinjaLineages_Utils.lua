@@ -26,14 +26,16 @@ end
 
 function NinjaLineages.Utils.Inventory.removeWornItem(player, item)
     if not player or not item then return false end
-    local ok = pcall(function() player:getWornItems():remove(item) end)
-    if not ok then
-        ok = pcall(function() player:removeWornItem(item, false) end)
-        if not ok then
-            ok = pcall(function() player:removeWornItem(item) end)
-        end
+    local wornItems = player:getWornItems()
+    if wornItems then
+        local ok = pcall(function() wornItems:remove(item) end)
+        if ok then return true end
     end
-    return ok == true
+    if player.removeWornItem then
+        local ok = pcall(function() player:removeWornItem(item) end)
+        if ok then return true end
+    end
+    return false
 end
 
 function NinjaLineages.Utils.Inventory.removeInventoryItems(player, itemTypes)
@@ -101,6 +103,17 @@ end
 NinjaLineages.Utils.Zombies = NinjaLineages.Utils.Zombies or {}
 NinjaLineages.Utils.Players = NinjaLineages.Utils.Players or {}
 NinjaLineages.Utils.Combat = NinjaLineages.Utils.Combat or {}
+
+function NinjaLineages.Utils.isLivePlayer(player)
+    return player and instanceof(player, "IsoPlayer") and not player:isDead()
+end
+NinjaLineages.Utils.Players.isLive = NinjaLineages.Utils.isLivePlayer
+
+function NinjaLineages.Utils.isSinglePlayer()
+    return not (NinjaLineages.isClient and NinjaLineages.isClient())
+        and not (NinjaLineages.isServer and NinjaLineages.isServer())
+end
+NinjaLineages.isSinglePlayer = NinjaLineages.Utils.isSinglePlayer
 
 function NinjaLineages.Utils.Players.collectInRadius(player, radius)
     local targets = {}

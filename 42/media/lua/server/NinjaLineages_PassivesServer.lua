@@ -10,7 +10,7 @@ NinjaLineages.ServerPassives = NinjaLineages.ServerPassives or {}
 local Passives = NinjaLineages.ServerPassives
 
 local function isLivePlayer(player)
-    return player and instanceof(player, "IsoPlayer") and not player:isDead()
+    return NinjaLineages.Utils.isLivePlayer(player)
 end
 
 function Passives.updatePlayer(player)
