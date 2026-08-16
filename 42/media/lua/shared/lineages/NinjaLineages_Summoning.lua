@@ -166,7 +166,7 @@ local function updateSnakeCompanion(summon, player, nowMs)
         summon.z = pz
 
         NinjaLineages.Utils.Combat.staggerZombie(target, { knockdown = false, position = "BEHIND" })
-        local dmg = Balance.rollDamage("STANDARD")
+        local dmg = Balance.rollDamage("HEAVY")
         NinjaLineages.Damage.applyZombieDamage(player, target, dmg)
 
         local event = {
@@ -195,7 +195,8 @@ local function updateSnailCompanion(summon, player, nowMs)
     summon.z = pz
 
     -- Radiant healing wave in 6-tile radius
-    local healAmount = Balance.getHealing("STANDARD")
+    local healConfig = Balance.getHealing("HEAVY")
+    local healAmount = healConfig and healConfig.health or 20.0
     local bodyDamage = player:getBodyDamage()
     if bodyDamage and bodyDamage:getOverallBodyHealth() < 100 then
         local currentHealth = bodyDamage:getOverallBodyHealth()

@@ -246,9 +246,7 @@ end
 
 function mechanics.executeVisual(player)
     if not player then return end
-    local targets = mechanics.collectTargets(player)
-    local startedAt = NinjaLineages.Utils.Time.gameMinutes()
-    for _, target in ipairs(targets) do
-        beginPush(player, target, startedAt)
+    if NinjaLineages.VFX and NinjaLineages.VFX.addShinraTenseiPulse then
+        NinjaLineages.VFX.addShinraTenseiPulse(player:getX(), player:getY(), player:getZ())
     end
 end

@@ -296,13 +296,12 @@ function ServerLogic.implantGenes(doctor, patient, itemID)
     if (data.sharinganStage or 0) >= 4 and sharinganCount > 0 then
         local chance = consts.Surgery.RINNEGAN_AWAKENING_CHANCE or 10
         if ZombRand(1, 101) <= chance then
-            -- Convert one installed Sharingan eye into Rinnegan
+            -- Convert one installed Sharingan eye into Rinnegan (preserve Mangekyo stage 4 on player)
             if data.eyes.left and data.eyes.left.type == "sharingan" then
                 data.eyes.left.type = "rinnegan"
             elseif data.eyes.right and data.eyes.right.type == "sharingan" then
                 data.eyes.right.type = "rinnegan"
             end
-            data.sharinganStage = 5
             data.rinneganUnlocked = true
             rinneganAwakened = true
 
@@ -316,20 +315,23 @@ function ServerLogic.implantGenes(doctor, patient, itemID)
         end
     end
 
-    -- Roll 3-day gene buff or debuff
-    local isBuff = ZombRand(0, 2) == 0
-    local pool = isBuff and consts.GeneEffects.Buffs or consts.GeneEffects.Debuffs
-    local chosen = pool[ZombRand(1, #pool + 1)]
+    -- If Rinnegan awakened, that is the exclusive experiment result (no normal gene buff/debuff)
+    if not rinneganAwakened then
+        -- Roll 3-day gene buff or debuff
+        local isBuff = ZombRand(0, 2) == 0
+        local pool = isBuff and consts.GeneEffects.Buffs or consts.GeneEffects.Debuffs
+        local chosen = pool[ZombRand(1, #pool + 1)]
 
-    if chosen then
-        data.activeGeneEffect = {
-            id = chosen.id,
-            nameKey = chosen.nameKey,
-            descKey = chosen.descKey,
-            isBuff = chosen.isBuff,
-            expiresAt = now + consts.Surgery.GENE_EFFECT_DURATION_MINUTES,
-        }
-        notifyPlayer(patient, chosen.nameKey)
+        if chosen then
+            data.activeGeneEffect = {
+                id = chosen.id,
+                nameKey = chosen.nameKey,
+                descKey = chosen.descKey,
+                isBuff = chosen.isBuff,
+                expiresAt = now + consts.Surgery.GENE_EFFECT_DURATION_MINUTES,
+            }
+            notifyPlayer(patient, chosen.nameKey)
+        end
     end
 
     NinjaLineages.transmitPlayerData(patient)

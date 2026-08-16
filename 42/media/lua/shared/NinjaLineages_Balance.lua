@@ -200,53 +200,97 @@ NinjaLineages.Balance.TraitCostTier = {
     MYTHIC_LINEAGE = 24,
 }
 
+local function isDebugMode()
+    return (isDebugEnabled and isDebugEnabled())
+        or (SandboxVars and SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.DebugMode == true)
+end
+
+local function warnInvalidTier(category, tier)
+    if tier ~= nil and isDebugMode() then
+        print(string.format("[NinjaLineages.Balance] [DEBUG] Invalid %s: '%s'", tostring(category), tostring(tier)))
+    end
+end
+
 function NinjaLineages.Balance.getCost(tier)
+    if tier and not NinjaLineages.Balance.ChakraCostTier[tier] then
+        warnInvalidTier("ChakraCostTier", tier)
+    end
     return NinjaLineages.Balance.ChakraCostTier[tier] or 0
 end
 
 function NinjaLineages.Balance.getCostStep(tier)
+    if tier and not NinjaLineages.Balance.ChakraCostStepTier[tier] then
+        warnInvalidTier("ChakraCostStepTier", tier)
+    end
     return NinjaLineages.Balance.ChakraCostStepTier[tier] or 0
 end
 
 function NinjaLineages.Balance.getCooldown(tier)
+    if tier and not NinjaLineages.Balance.CooldownTier[tier] then
+        warnInvalidTier("CooldownTier", tier)
+    end
     return NinjaLineages.Balance.CooldownTier[tier] or 0
 end
 
 function NinjaLineages.Balance.getDuration(tier)
+    if tier and not NinjaLineages.Balance.DurationTier[tier] then
+        warnInvalidTier("DurationTier", tier)
+    end
     return NinjaLineages.Balance.DurationTier[tier] or 0
 end
 
 function NinjaLineages.Balance.getRadius(tier)
+    if tier and not NinjaLineages.Balance.RadiusTier[tier] then
+        warnInvalidTier("RadiusTier", tier)
+    end
     return NinjaLineages.Balance.RadiusTier[tier] or 0
 end
 
 function NinjaLineages.Balance.getSustainedDrain(tier)
+    if tier and not NinjaLineages.Balance.SustainedDrainTier[tier] then
+        warnInvalidTier("SustainedDrainTier", tier)
+    end
     return NinjaLineages.Balance.SustainedDrainTier[tier] or 0
 end
 
 function NinjaLineages.Balance.getChannelDrain(tier)
+    if tier and not NinjaLineages.Balance.ChannelDrainTier[tier] then
+        warnInvalidTier("ChannelDrainTier", tier)
+    end
     return NinjaLineages.Balance.ChannelDrainTier[tier] or 0
 end
 
 function NinjaLineages.Balance.getDamageRange(tier)
     local range = NinjaLineages.Balance.DamageTier[tier]
-    if not range then return 0, 0 end
+    if not range then
+        warnInvalidTier("DamageTier", tier)
+        return 0, 0
+    end
     return range.min, range.max
 end
 
 function NinjaLineages.Balance.rollDamage(tier)
+    if tier and not NinjaLineages.Balance.DamageTier[tier] then
+        warnInvalidTier("DamageTier", tier)
+    end
     local minDamage, maxDamage = NinjaLineages.Balance.getDamageRange(tier)
     local damageRoll = ZombRand(0, 1001) / 1000
     return minDamage + (damageRoll * (maxDamage - minDamage))
 end
 
 function NinjaLineages.Balance.getHealing(tier)
+    if tier and not NinjaLineages.Balance.HealingTier[tier] then
+        warnInvalidTier("HealingTier", tier)
+    end
     return NinjaLineages.Balance.HealingTier[tier]
 end
 
 function NinjaLineages.Balance.getTargeting(tier)
     local definition = NinjaLineages.Balance.TargetingTier[tier]
-    if not definition then return nil end
+    if not definition then
+        warnInvalidTier("TargetingTier", tier)
+        return nil
+    end
     return {
         range = NinjaLineages.Balance.getRadius(definition.radius),
         minDot = definition.minimumDot,
@@ -258,6 +302,9 @@ function NinjaLineages.Balance.getTargeting(tier)
 end
 
 function NinjaLineages.Balance.getMastery(tier)
+    if tier and not NinjaLineages.Balance.MasteryTier[tier] then
+        warnInvalidTier("MasteryTier", tier)
+    end
     return NinjaLineages.Balance.MasteryTier[tier] or 0
 end
 

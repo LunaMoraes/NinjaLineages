@@ -220,8 +220,10 @@ function NinjaLineages.initPlayerEyes(player)
             baseStage = 1
         end
         if data.mangekyoUnlocked then baseStage = 4 end
-        if data.rinneganUnlocked then baseStage = 5 end
-        data.sharinganStage = baseStage
+        data.sharinganStage = math.min(4, baseStage)
+    end
+    if (data.sharinganStage or 0) > 4 then
+        data.sharinganStage = 4
     end
 end
 
