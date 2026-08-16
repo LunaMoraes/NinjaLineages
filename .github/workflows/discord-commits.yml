@@ -1,0 +1,159 @@
+name: Discord Commit Notification
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send commit notification to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+
+          GITHUB_ACTOR: ${{ github.actor }}
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+
+          ADDED_FILES: ${{ join(github.event.head_commit.added, ',') }}
+          MODIFIED_FILES: ${{ join(github.event.head_commit.modified, ',') }}
+          REMOVED_FILES: ${{ join(github.event.head_commit.removed, ',') }}
+
+        run: |
+          python <<'PY'
+          import json
+          import os
+          import re
+          import urllib.request
+
+          webhook = os.environ["DISCORD_WEBHOOK_URL"]
+
+          message = os.environ["COMMIT_MESSAGE"].strip()
+          commit_url = os.environ["COMMIT_URL"]
+          github_actor = os.environ["GITHUB_ACTOR"]
+          repository = os.environ["REPOSITORY"]
+          branch = os.environ["REF_NAME"]
+          sha = os.environ["SHA"][:7]
+
+          display_name = "SovietLunox"
+
+          lines = message.splitlines()
+
+          title = lines[0].strip() if lines else "New commit"
+          body_lines = lines[1:]
+
+          while body_lines and not body_lines[0].strip():
+              body_lines.pop(0)
+
+          formatted_parts = []
+
+          for line in body_lines:
+              line = line.strip()
+
+              if not line:
+                  continue
+
+              # Converts:
+              # * Blood Transfusion added: Description...
+              #
+              # Into:
+              # **Blood Transfusion added**
+              # Description...
+              match = re.match(r"^[*\-]\s*(.+?):\s*(.+)$", line)
+
+              if match:
+                  heading = match.group(1).strip()
+                  description = match.group(2).strip()
+
+                  formatted_parts.append(
+                      f"**{heading}**\n{description}"
+                  )
+              else:
+                  line = re.sub(r"^[*\-]\s*", "• ", line)
+                  formatted_parts.append(line)
+
+          if formatted_parts:
+              description = "\n\n".join(formatted_parts)
+          else:
+              description = "*No additional commit description.*"
+
+          # Discord embed descriptions have a 4096-character limit.
+          if len(description) > 4000:
+              description = description[:3997] + "..."
+
+          added = [
+              x for x in os.environ.get("ADDED_FILES", "").split(",")
+              if x
+          ]
+          modified = [
+              x for x in os.environ.get("MODIFIED_FILES", "").split(",")
+              if x
+          ]
+          removed = [
+              x for x in os.environ.get("REMOVED_FILES", "").split(",")
+              if x
+          ]
+
+          file_count = len(added) + len(modified) + len(removed)
+
+          repo_name = repository.split("/")[-1]
+
+          payload = {
+              "username": "NinjaLineages",
+              "avatar_url": f"https://github.com/{github_actor}.png",
+              "embeds": [
+                  {
+                      "author": {
+                          "name": display_name,
+                          "icon_url": f"https://github.com/{github_actor}.png",
+                          "url": f"https://github.com/{github_actor}"
+                      },
+                      "title": f"[{repo_name}:{branch}] {title}",
+                      "url": commit_url,
+                      "description": description,
+                      "fields": [
+                          {
+                              "name": "Commit",
+                              "value": f"[`{sha}`]({commit_url})",
+                              "inline": True
+                          },
+                          {
+                              "name": "Branch",
+                              "value": f"`{branch}`",
+                              "inline": True
+                          },
+                          {
+                              "name": "Files",
+                              "value": str(file_count),
+                              "inline": True
+                          }
+                      ],
+                      "footer": {
+                          "text": f"{repo_name} • GitHub"
+                      }
+                  }
+              ]
+          }
+
+          data = json.dumps(payload).encode("utf-8")
+
+          request = urllib.request.Request(
+              webhook,
+              data=data,
+              headers={
+                  "Content-Type": "application/json",
+                  "User-Agent": "GitHub-Actions"
+              },
+              method="POST"
+          )
+
+          with urllib.request.urlopen(request) as response:
+              print(f"Discord response: {response.status}")
+          PY
