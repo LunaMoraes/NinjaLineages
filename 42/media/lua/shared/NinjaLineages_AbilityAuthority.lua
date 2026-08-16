@@ -147,7 +147,7 @@ function Authority.execute(player, requestId, actionId, args)
     result.remaining = remaining
     result.state = state
 
-    if result.ok and actionId ~= "sage_mode" and NinjaLineages.SageMode and NinjaLineages.SageMode.onCastJutsu then
+    if result.ok and actionId ~= "nature_chakra_manipulation" and actionId ~= "sage_mode" and NinjaLineages.SageMode and NinjaLineages.SageMode.onCastJutsu then
         NinjaLineages.SageMode.onCastJutsu(player)
     end
 

@@ -35,9 +35,6 @@ jobs:
 
           webhook = os.environ["DISCORD_WEBHOOK_URL"]
 
-          separator = "&" if "?" in webhook else "?"
-          webhook = f"{webhook}{separator}wait=true"
-
           message = os.environ["COMMIT_MESSAGE"].strip()
           commit_url = os.environ["COMMIT_URL"]
           github_actor = os.environ["GITHUB_ACTOR"]
@@ -52,6 +49,13 @@ jobs:
           title = lines[0].strip() if lines else "New commit"
           body_lines = lines[1:]
 
+          # Detect special commit types
+          is_bugfix = title.lower().startswith("bugfix:")
+
+          if is_bugfix:
+              title = title[len("bugfix:"):].strip()
+
+          # Remove leading blank lines from commit body
           while body_lines and not body_lines[0].strip():
               body_lines.pop(0)
 
@@ -64,41 +68,49 @@ jobs:
                   continue
 
               # Converts:
+              #
               # * Blood Transfusion added: Description...
               #
               # Into:
+              #
               # **Blood Transfusion added**
               # Description...
               match = re.match(r"^[*\-]\s*(.+?):\s*(.+)$", line)
 
               if match:
                   heading = match.group(1).strip()
-                  description = match.group(2).strip()
+                  description_text = match.group(2).strip()
 
                   formatted_parts.append(
-                      f"**{heading}**\n{description}"
+                      f"**{heading}**\n{description_text}"
                   )
               else:
+                  # Preserve simple bullet points nicely
                   line = re.sub(r"^[*\-]\s*", "• ", line)
                   formatted_parts.append(line)
 
           if formatted_parts:
               description = "\n\n".join(formatted_parts)
+          elif is_bugfix:
+              # Single bugfix commits normally need no description
+              description = None
           else:
               description = "*No additional commit description.*"
 
           # Discord embed descriptions have a 4096-character limit.
-          if len(description) > 4000:
+          if description and len(description) > 4000:
               description = description[:3997] + "..."
 
           added = [
               x for x in os.environ.get("ADDED_FILES", "").split(",")
               if x
           ]
+
           modified = [
               x for x in os.environ.get("MODIFIED_FILES", "").split(",")
               if x
           ]
+
           removed = [
               x for x in os.environ.get("REMOVED_FILES", "").split(",")
               if x
@@ -108,41 +120,81 @@ jobs:
 
           repo_name = repository.split("/")[-1]
 
+          # --------------------------------------------------
+          # EMBED STYLE
+          # --------------------------------------------------
+
+          if is_bugfix:
+              embed_title = f"🐛 {title}"
+
+              # Orange/red-ish accent for bugfixes
+              embed_color = 0xE67E22
+
+              footer_text = f"Bugfix • {repo_name} • GitHub"
+
+          else:
+              embed_title = f"[{repo_name}:{branch}] {title}"
+
+              # Discord-style blue for normal updates
+              embed_color = 0x5865F2
+
+              footer_text = f"{repo_name} • GitHub"
+
+          # --------------------------------------------------
+          # EMBED
+          # --------------------------------------------------
+
+          embed = {
+              "author": {
+                  "name": display_name,
+                  "icon_url": f"https://github.com/{github_actor}.png",
+                  "url": f"https://github.com/{github_actor}"
+              },
+
+              "title": embed_title,
+              "url": commit_url,
+              "color": embed_color,
+
+              "fields": [
+                  {
+                      "name": "Commit",
+                      "value": f"[`{sha}`]({commit_url})",
+                      "inline": True
+                  },
+                  {
+                      "name": "Branch",
+                      "value": f"`{branch}`",
+                      "inline": True
+                  },
+                  {
+                      "name": "Files",
+                      "value": str(file_count),
+                      "inline": True
+                  }
+              ],
+
+              "footer": {
+                  "text": footer_text
+              }
+          }
+
+          # Don't add an empty description field.
+          if description:
+              embed["description"] = description
+
+          # --------------------------------------------------
+          # DISCORD MESSAGE
+          # --------------------------------------------------
+
           payload = {
               "username": "NinjaLineages",
-              "avatar_url": "https://raw.githubusercontent.com/LunaMoraes/NinjaLineages/main/42/icon.png",
-              "embeds": [
-                  {
-                      "author": {
-                          "name": display_name,
-                          "icon_url": f"https://github.com/{github_actor}.png",
-                          "url": f"https://github.com/{github_actor}"
-                      },
-                      "title": f"[{repo_name}:{branch}] {title}",
-                      "url": commit_url,
-                      "description": description,
-                      "fields": [
-                          {
-                              "name": "Commit",
-                              "value": f"[`{sha}`]({commit_url})",
-                              "inline": True
-                          },
-                          {
-                              "name": "Branch",
-                              "value": f"`{branch}`",
-                              "inline": True
-                          },
-                          {
-                              "name": "Files",
-                              "value": str(file_count),
-                              "inline": True
-                          }
-                      ],
-                      "footer": {
-                          "text": f"{repo_name} • GitHub"
-                      }
-                  }
-              ]
+
+              "avatar_url": (
+                  "https://raw.githubusercontent.com/"
+                  "LunaMoraes/NinjaLineages/main/42/icon.png"
+              ),
+
+              "embeds": [embed]
           }
 
           data = json.dumps(payload).encode("utf-8")
@@ -158,7 +210,5 @@ jobs:
           )
 
           with urllib.request.urlopen(request) as response:
-            response_body = response.read().decode("utf-8")
-            print(f"Discord response: {response.status}")
-            print(response_body)
+              print(f"Discord response: {response.status}")
           PY

@@ -523,14 +523,9 @@ Catalog.Definitions = {
     node("snake_contract", "sennin_mode", "GENIN", 20),
     node("snail_contract", "sennin_mode", "GENIN", 30),
 
-    -- Sennin Mode (Row 2: Nature Chakra Manipulation - Gated by Animal Trial)
-    node("nature_chakra_manipulation", "sennin_mode", "CHUNIN", 10, { "toad_contract", "snake_contract", "snail_contract" }),
-
-    -- Sennin Mode (Row 3: Summoning)
-    node("summoning", "sennin_mode", "JONIN", 10, { "nature_chakra_manipulation" }),
-
+    -- Sennin Mode (Row 2: Nature Chakra Manipulation -> Sage Mode)
     {
-        id = "sage_mode",
+        id = "nature_chakra_manipulation",
         category = "sennin",
         presentation = {
             nameKey = "UI_NL_Ability_SageMode_Name",
@@ -538,16 +533,22 @@ Catalog.Definitions = {
             castMessageKey = "UI_NL_Ability_SageMode_Cast",
             icon = "media/ui/jutsuTree/nodes/sennin_mode.png",
         },
-        requirements = {
-            { kind = "node_completed", id = "nature_chakra_manipulation" },
+        node = {
+            discipline = "sennin_mode",
+            rank = "CHUNIN",
+            order = 10,
+            prerequisites = { "toad_contract", "snake_contract", "snail_contract" },
+            effectType = "ability",
         },
         balance = {
             cooldown = "STANDARD",
         },
         executor = "sage_mode",
     },
+
+    -- Sennin Mode (Row 3: Summoning -> Kuchiyose no Jutsu)
     {
-        id = "summoning_jutsu",
+        id = "summoning",
         category = "sennin",
         presentation = {
             nameKey = "UI_NL_Ability_Summoning_Name",
@@ -555,8 +556,12 @@ Catalog.Definitions = {
             castMessageKey = "UI_NL_Ability_Summoning_Cast",
             icon = "media/ui/jutsuTree/nodes/sennin_mode.png",
         },
-        requirements = {
-            { kind = "node_completed", id = "summoning" },
+        node = {
+            discipline = "sennin_mode",
+            rank = "JONIN",
+            order = 10,
+            prerequisites = { "nature_chakra_manipulation" },
+            effectType = "ability",
         },
         balance = {
             cost = "MAJOR",

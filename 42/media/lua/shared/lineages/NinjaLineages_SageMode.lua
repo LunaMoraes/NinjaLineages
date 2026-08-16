@@ -155,6 +155,10 @@ end
 NinjaLineages.registerPlayerUpdate("sageMode.sprintDrain", updateSageModeSprintDrain)
 
 -- Register Executor for Sage Mode
+NinjaLineages.AbilityExecution.registerSpecializedExecutor("sage_mode", function(player, definition, args)
+    return SageMode.toggle(player)
+end)
+
 Authority.register("sage_mode", function(player, args)
     return SageMode.toggle(player)
 end)

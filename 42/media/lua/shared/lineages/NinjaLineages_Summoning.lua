@@ -272,6 +272,10 @@ NinjaLineages.addEventOnce("shared.summoning.update", Events.OnTick, function()
 end)
 
 -- Register Executor for Summoning Jutsu
+NinjaLineages.AbilityExecution.registerSpecializedExecutor("summoning_jutsu", function(player, definition, args)
+    return Summoning.cast(player, args)
+end)
+
 Authority.register("summoning_jutsu", function(player, args)
     return Summoning.cast(player, args)
 end)
