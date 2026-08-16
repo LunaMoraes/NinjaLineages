@@ -60,6 +60,7 @@ function NLMeditationAction:update()
                 data.sageTrial = data.sageTrial or {}
                 data.sageTrial.meditationMinutes = (data.sageTrial.meditationMinutes or 0) + natureElapsed
                 NinjaLineages.transmitPlayerData(self.character)
+                NinjaLineages.Progression.checkAndNotifySageTrial(self.character)
             end
 
             -- Regenerate Nature Chakra if nature_chakra_manipulation is completed

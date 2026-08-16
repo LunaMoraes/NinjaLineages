@@ -103,6 +103,37 @@ function Progression.requestDebugCompleteCoreTrees(player)
     return true, completed, rank
 end
 
+function Progression.requestDebugLearnSenninMode(player)
+    if NinjaLineages.isClient() then
+        sendClientCommand(player, "NinjaLineages", "debugLearnSenninMode", {})
+        return true
+    end
+    local state = Progression.getState(player)
+    local data = NinjaLineages.getNLData(player)
+    if not state or not data then return false end
+
+    state.disciplines["sennin_mode"] = true
+    data.visibleDisciplines = data.visibleDisciplines or {}
+    data.visibleDisciplines.sennin_mode = true
+
+    if not Progression.getChosenContract(player) then
+        state.nodes["toad_contract"] = "completed"
+    end
+
+    data.sageTrial = data.sageTrial or {}
+    data.sageTrial.meditationMinutes = math.max(30, data.sageTrial.meditationMinutes or 30)
+    data.sageTrial.meleeKills = math.max(50, data.sageTrial.meleeKills or 50)
+    data.sageTrial.rangedKills = math.max(30, data.sageTrial.rangedKills or 30)
+    data.sageTrial.healthHealed = math.max(200, data.sageTrial.healthHealed or 200)
+    data.sageTrial.completed = true
+    data.sageTrial.notified = true
+
+    state.nodes["nature_chakra_manipulation"] = "completed"
+
+    NinjaLineages.transmitPlayerData(player)
+    return true
+end
+
 function Progression.completeCoreTrees(player)
     if not player or NinjaLineages.isClient() then return 0, "NONE" end
     local allowedDisciplines = {
@@ -311,6 +342,26 @@ function Progression.isSageTrialComplete(player)
         return (trial.rangedKills or 0) >= 30
     elseif chosen == "snail" then
         return (trial.healthHealed or 0) >= 200
+    end
+    return false
+end
+
+function Progression.checkAndNotifySageTrial(player)
+    if not player then return false end
+    local data = NinjaLineages.getNLData(player)
+    if not data or not data.sageTrial then return false end
+    if data.sageTrial.notified then return false end
+
+    if Progression.isSageTrialComplete(player) then
+        data.sageTrial.notified = true
+        data.sageTrial.completed = true
+        NinjaLineages.transmitPlayerData(player)
+        if NinjaLineages.isServer and NinjaLineages.isServer() then
+            sendServerCommand(player, "NinjaLineages", "geneExperimentationMessage", { textKey = "UI_NL_Trial_Finished" })
+        elseif player.Say then
+            player:Say(getText("UI_NL_Trial_Finished"))
+        end
+        return true
     end
     return false
 end

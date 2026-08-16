@@ -104,22 +104,6 @@ local function sageCombatHook(zombie, attacker, bodyPartType, weapon)
             end
         end
     end
-
-    -- Sage trial kill tracking
-    local isDead = false
-    pcall(function() isDead = zombie:isDead() or zombie:getHealth() <= 0 end)
-    if isDead then
-        local data = NinjaLineages.getNLData(attacker)
-        if data and data.sageTrial then
-            local isRanged = weapon and weapon:isRanged()
-            if isRanged then
-                data.sageTrial.rangedKills = (data.sageTrial.rangedKills or 0) + 1
-            else
-                data.sageTrial.meleeKills = (data.sageTrial.meleeKills or 0) + 1
-            end
-            NinjaLineages.transmitPlayerData(attacker)
-        end
-    end
 end
 
 if not NinjaLineages.isClient() and Events and Events.OnHitZombie then

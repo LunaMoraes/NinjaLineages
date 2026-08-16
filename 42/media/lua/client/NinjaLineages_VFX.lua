@@ -76,14 +76,28 @@ function VFX.renderAura(character, r, g, b, baseAlpha, baseRadius)
     local z = character:getZ()
     local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
 
-    local pulse = 0.25 + 0.15 * math.sin(nowMs / 250)
-    local alpha = (baseAlpha or 0.8) * pulse
-    local rad = (baseRadius or 0.85) + 0.1 * math.cos(nowMs / 300)
+    -- 1. Very tight, subtle ground contact wisp at character feet
+    local groundPulse = 0.18 + 0.08 * math.sin(nowMs / 300)
+    VFX.renderRing(x, y, z, 0.28, 20, 1.8, r, g, b, (baseAlpha or 0.8) * groundPulse, 0.01)
 
-    -- Multi-height body aura rings (feet, chest, head) calibrated to PZ character scale
-    VFX.renderRing(x, y, z, rad, 24, 2.0, r, g, b, alpha * 0.9, 0.02)
-    VFX.renderRing(x, y, z, rad * 0.9, 24, 2.0, r, g, b, alpha * 0.75, 0.15)
-    VFX.renderRing(x, y, z, rad * 0.75, 20, 2.0, r, g, b, alpha * 0.6, 0.28)
+    -- 2. Delicate chakra sparks/wisps drifting upward from feet to head
+    local sparkCount = 7
+    for idx = 1, sparkCount do
+        local phaseOffset = (idx * (1200 / sparkCount))
+        local sparkTime = (nowMs + phaseOffset) % 1200
+        local progress = sparkTime / 1200
+
+        local sparkZ = z + 0.02 + (progress * 0.26)
+        local baseAngle = (idx * (math.pi * 2 / sparkCount)) + (nowMs / 1400)
+        local radiusOffset = 0.22 + 0.06 * math.sin((nowMs / 250) + idx)
+        local sparkX = x + math.cos(baseAngle) * radiusOffset
+        local sparkY = y + math.sin(baseAngle) * radiusOffset
+
+        local sparkAlpha = math.sin(progress * math.pi) * ((baseAlpha or 0.8) * 0.75)
+        if sparkAlpha > 0.05 then
+            renderIsoCircle(sparkX, sparkY, sparkZ, 0.04, 8, 2.0, r, g, b, sparkAlpha)
+        end
+    end
 end
 
 -- ============================================================================

@@ -219,7 +219,24 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
             end
         end)
 
-        -- 6. Unlock Mangekyo (moved from Uchiha)
+        -- 6. Learn Sennin Mode
+        debugSubMenu:addOption(getText("UI_NL_Debug_LearnSenninMode"), player, function(p)
+            if NinjaLineages.Progression and NinjaLineages.Progression.requestDebugLearnSenninMode then
+                local requested = NinjaLineages.Progression.requestDebugLearnSenninMode(p)
+                if requested and not NinjaLineages.isClient() then
+                    p:Say(getText("UI_NL_Debug_SenninModeLearned"))
+                    for _, ui in pairs(NLJutsuTreeUI.instances) do
+                        if ui.screen == "selection" then
+                            ui:createSelectionScreen()
+                        elseif ui.screen == "discipline" then
+                            ui:refreshDisciplineState()
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- 7. Unlock Mangekyo (moved from Uchiha)
         if NinjaLineages.Uchiha and NinjaLineages.Uchiha.canUseKamuiTestUnlock and NinjaLineages.Uchiha.canUseKamuiTestUnlock(player) then
             debugSubMenu:addOption(getText("UI_NL_Ability_Kamui_TestUnlock"), player, NinjaLineages.Uchiha.unlockKamuiForSinglePlayerTest)
         end
@@ -262,6 +279,15 @@ local function onDebugServerCommand(module, command, args)
             tostring(args.completed or 0),
             tostring(args.rank or "NONE")
         ))
+        for _, ui in pairs(NLJutsuTreeUI.instances) do
+            if ui.screen == "selection" then
+                ui:createSelectionScreen()
+            elseif ui.screen == "discipline" then
+                ui:refreshDisciplineState()
+            end
+        end
+    elseif args.action == "learnSenninMode" then
+        player:Say(getText("UI_NL_Debug_SenninModeLearned"))
         for _, ui in pairs(NLJutsuTreeUI.instances) do
             if ui.screen == "selection" then
                 ui:createSelectionScreen()

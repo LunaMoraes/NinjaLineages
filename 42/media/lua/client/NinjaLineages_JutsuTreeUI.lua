@@ -27,6 +27,30 @@ local function translated(key, fallback)
     return value
 end
 
+local function wrapText(value, maximumWidth, font)
+    local lines = {}
+    local textVal = tostring(value or "")
+    local paragraphs = textVal:split("\n")
+    for _, paragraph in ipairs(paragraphs) do
+        if paragraph == "" then
+            table.insert(lines, "")
+        else
+            local current = ""
+            for word in paragraph:gmatch("%S+") do
+                local candidate = current == "" and word or (current .. " " .. word)
+                if current ~= "" and getTextManager():MeasureStringX(font, candidate) > maximumWidth then
+                    table.insert(lines, current)
+                    current = word
+                else
+                    current = candidate
+                end
+            end
+            if current ~= "" then table.insert(lines, current) end
+        end
+    end
+    return lines
+end
+
 local function drawDisabledSideButton(panel, button)
     if not button or not button:getIsVisible() then return end
 
@@ -290,13 +314,13 @@ function NLJutsuTreeUI:initialise()
                         nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_NoContract")
                     elseif chosen == "toad" then
                         nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_ToadTrial")
-                            .. "\n\n" .. string.format(getText("UI_NL_TrialProgress_Toad"), math.min(30, math.floor(trial.meditationMinutes or 0)), math.min(50, math.floor(trial.meleeKills or 0)))
+                            .. "\n\n" .. getText("UI_NL_TrialProgress_Toad", tostring(math.min(30, math.floor(trial.meditationMinutes or 0))), tostring(math.min(50, math.floor(trial.meleeKills or 0))))
                     elseif chosen == "snake" then
                         nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_SnakeTrial")
-                            .. "\n\n" .. string.format(getText("UI_NL_TrialProgress_Snake"), math.min(30, math.floor(trial.meditationMinutes or 0)), math.min(30, math.floor(trial.rangedKills or 0)))
+                            .. "\n\n" .. getText("UI_NL_TrialProgress_Snake", tostring(math.min(30, math.floor(trial.meditationMinutes or 0))), tostring(math.min(30, math.floor(trial.rangedKills or 0))))
                     elseif chosen == "snail" then
                         nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_SnailTrial")
-                            .. "\n\n" .. string.format(getText("UI_NL_TrialProgress_Snail"), math.min(30, math.floor(trial.meditationMinutes or 0)), math.min(200, math.floor(trial.healthHealed or 0)))
+                            .. "\n\n" .. getText("UI_NL_TrialProgress_Snail", tostring(math.min(30, math.floor(trial.meditationMinutes or 0))), tostring(math.min(200, math.floor(trial.healthHealed or 0))))
                     end
                 elseif self.selectedNode == "summoning" then
                     local chosen = NinjaLineages.Progression.getChosenContract(self.player)
@@ -309,8 +333,17 @@ function NLJutsuTreeUI:initialise()
                     end
                 end
 
+                local margin = math.floor(w * 0.03)
+                local detailsWidth = math.max(120, w - self.detailsX - margin)
+                local descY = math.floor(h * 0.24)
+                local font = UIFont.Small
+                local lineHeight = getTextManager():getFontHeight(font) + 4
+
                 panel:drawText(nodeName, self.detailsX, math.floor(h * 0.18), 1, 1, 1, 1, UIFont.Medium)
-                panel:drawText(nodeDesc, self.detailsX, math.floor(h * 0.24), 0.85, 0.85, 0.9, 1, UIFont.Small)
+                for _, line in ipairs(wrapText(nodeDesc, detailsWidth, font)) do
+                    panel:drawText(line, self.detailsX, descY, 0.85, 0.85, 0.9, 1, font)
+                    descY = descY + lineHeight
+                end
             end
         elseif self.socialPanel and self.socialPanel:isActive() then
             self.socialPanel:prerender(panel)

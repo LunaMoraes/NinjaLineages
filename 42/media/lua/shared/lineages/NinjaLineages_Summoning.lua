@@ -207,6 +207,7 @@ local function updateSnailCompanion(summon, player, nowMs)
         if data and data.sageTrial then
             data.sageTrial.healthHealed = (data.sageTrial.healthHealed or 0) + healAmount
             NinjaLineages.transmitPlayerData(player)
+            NinjaLineages.Progression.checkAndNotifySageTrial(player)
         end
     end
 

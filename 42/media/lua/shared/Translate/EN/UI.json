@@ -547,5 +547,8 @@
     "UI_NL_BloodTransfusion_Sick": "The patient feels ill from the aged blood sample.",
     "UI_NL_Error_NeedBloodExtraction": "Requires Blood Extraction technique.",
     "UI_NL_Error_NoBloodSample": "No blood sample found.",
-    "UI_NL_Error_RottenBloodTransfusion": "Rotten blood cannot be transfused."
+    "UI_NL_Error_RottenBloodTransfusion": "Rotten blood cannot be transfused.",
+    "UI_NL_Trial_Finished": "Trial Finished",
+    "UI_NL_Debug_LearnSenninMode": "Learn Sennin Mode",
+    "UI_NL_Debug_SenninModeLearned": "Sennin Mode & Toad Contract Mastered!"
 }

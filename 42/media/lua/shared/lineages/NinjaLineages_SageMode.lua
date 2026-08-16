@@ -116,7 +116,7 @@ end
 
 function SageMode.onHit(player)
     if not SageMode.isActive(player) then return end
-    local cost = Balance.getCost("TRIVIAL")
+    local cost = Balance.getCost("BASIC")
     NinjaLineages.Chakra.spendNatureChakra(player, cost)
     if NinjaLineages.Chakra.getNatureChakra(player) <= 0 then
         SageMode.deactivate(player)
@@ -134,26 +134,47 @@ end
 
 local lastSprintUpdateAt = {}
 
-local function updateSageModeSprintDrain(player)
+local function updateSageModeSprint(player)
     if not player or player:isDead() then return end
     if not SageMode.isActive(player) then return end
 
-    local now = NinjaLineages.Utils.Time.gameMinutes()
-    local last = lastSprintUpdateAt[player] or now
-    lastSprintUpdateAt[player] = now
-    local elapsed = math.max(0, now - last)
+    if player:isSprinting() then
+        -- 1. Forward Momentum Boost (+70% forward travel)
+        local fx = player:getForwardDirectionX()
+        local fy = player:getForwardDirectionY()
+        local lenSq = (fx * fx) + (fy * fy)
+        if lenSq > 0.01 then
+            local boostDist = 0.08
+            local nextX = player:getX() + (fx * boostDist)
+            local nextY = player:getY() + (fy * boostDist)
+            local cell = getCell()
+            if cell then
+                local curSq = player:getCurrentSquare()
+                local nextSq = cell:getGridSquare(nextX, nextY, player:getZ())
+                if curSq and nextSq and not nextSq:isBlockedTo(curSq) then
+                    player:setX(nextX)
+                    player:setY(nextY)
+                end
+            end
+        end
 
-    if elapsed > 0 and player:isSprinting() then
-        local drain = Balance.getSustainedDrain("LOW") * elapsed
-        NinjaLineages.Chakra.spendNatureChakra(player, drain)
-        if NinjaLineages.Chakra.getNatureChakra(player) <= 0 then
-            SageMode.deactivate(player)
+        -- 2. Sprinting Nature Chakra Drain
+        local now = NinjaLineages.Utils.Time.gameMinutes()
+        local last = lastSprintUpdateAt[player] or now
+        lastSprintUpdateAt[player] = now
+        local elapsed = math.max(0, now - last)
+        if elapsed > 0 then
+            local drain = Balance.getSustainedDrain("STANDARD") * elapsed
+            NinjaLineages.Chakra.spendNatureChakra(player, drain)
+            if NinjaLineages.Chakra.getNatureChakra(player) <= 0 then
+                SageMode.deactivate(player)
+            end
         end
     end
 end
 
--- Register Sprint drain loop
-NinjaLineages.registerPlayerUpdate("sageMode.sprintDrain", updateSageModeSprintDrain)
+-- Register Sprint loop
+NinjaLineages.registerPlayerUpdate("sageMode.sprint", updateSageModeSprint)
 
 -- Register Executor for Sage Mode
 NinjaLineages = NinjaLineages or {}

@@ -208,7 +208,38 @@ local function onClientCommand(module, command, player, args)
         handleDebugToggleAllUnlocked(player)
     elseif command == "debugCompleteCoreTrees" then
         handleDebugCompleteCoreTrees(player)
+    elseif command == "debugLearnSenninMode" then
+        handleDebugLearnSenninMode(player)
     end
+end
+
+local function handleDebugLearnSenninMode(player)
+    if not canUseDebugCommands(player) then return end
+    local state = NinjaLineages.Progression.getState(player)
+    local data = NinjaLineages.getNLData(player)
+    if not state or not data then return end
+
+    state.disciplines["sennin_mode"] = true
+    data.visibleDisciplines = data.visibleDisciplines or {}
+    data.visibleDisciplines.sennin_mode = true
+
+    if not NinjaLineages.Progression.getChosenContract(player) then
+        state.nodes["toad_contract"] = "completed"
+    end
+
+    data.sageTrial = data.sageTrial or {}
+    data.sageTrial.meditationMinutes = math.max(30, data.sageTrial.meditationMinutes or 30)
+    data.sageTrial.meleeKills = math.max(50, data.sageTrial.meleeKills or 50)
+    data.sageTrial.rangedKills = math.max(30, data.sageTrial.rangedKills or 30)
+    data.sageTrial.healthHealed = math.max(200, data.sageTrial.healthHealed or 200)
+    data.sageTrial.completed = true
+    data.sageTrial.notified = true
+
+    state.nodes["nature_chakra_manipulation"] = "completed"
+
+    NinjaLineages.transmitPlayerData(player)
+    sendState(player, "progressionUpdated")
+    notifyPlayer(player, "UI_NL_Debug_SenninModeLearned")
 end
 
 local function onZombieDead(zombie)
@@ -220,6 +251,24 @@ local function onZombieDead(zombie)
         if modData and modData.isZombieNinja == true then
             revealGeneExperimentation(attacker)
         end
+
+        local chosen = NinjaLineages.Progression.getChosenContract(attacker)
+        if chosen then
+            local data = NinjaLineages.getNLData(attacker)
+            if data then
+                data.sageTrial = data.sageTrial or {}
+                local weapon = attacker:getPrimaryHandItem()
+                local isRanged = weapon and weapon:isRanged()
+                if isRanged then
+                    data.sageTrial.rangedKills = (data.sageTrial.rangedKills or 0) + 1
+                else
+                    data.sageTrial.meleeKills = (data.sageTrial.meleeKills or 0) + 1
+                end
+                NinjaLineages.transmitPlayerData(attacker)
+                NinjaLineages.Progression.checkAndNotifySageTrial(attacker)
+            end
+        end
+
         sendState(attacker, "progressionUpdated")
     end
 end
