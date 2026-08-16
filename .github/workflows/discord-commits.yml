@@ -107,7 +107,7 @@ jobs:
 
           payload = {
               "username": "NinjaLineages",
-              "avatar_url": f"https://github.com/{github_actor}.png",
+              "avatar_url": "https://raw.githubusercontent.com/LunaMoraes/NinjaLineages/main/42/poster.png",
               "embeds": [
                   {
                       "author": {
