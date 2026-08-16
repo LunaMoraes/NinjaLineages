@@ -68,3 +68,39 @@ function NinjaLineages.Chakra.addChakra(player, amount)
     local current = NinjaLineages.Chakra.getChakra(player)
     NinjaLineages.Chakra.setChakra(player, current + amount)
 end
+
+-- ============================================================================
+-- Nature Chakra API (Max 100, Generated only through meditation)
+-- ============================================================================
+
+NinjaLineages.Chakra.MAX_NATURE_CHAKRA = 100
+
+function NinjaLineages.Chakra.getMaxNatureChakra(player)
+    return NinjaLineages.Chakra.MAX_NATURE_CHAKRA
+end
+
+function NinjaLineages.Chakra.getNatureChakra(player)
+    local data = NinjaLineages.getNLData(player)
+    if not data then return 0 end
+    return data.natureChakra or 0
+end
+
+function NinjaLineages.Chakra.setNatureChakra(player, val)
+    local data = NinjaLineages.getNLData(player)
+    if not data then return end
+    data.natureChakra = math.max(0.0, math.min(NinjaLineages.Chakra.MAX_NATURE_CHAKRA, val or 0))
+    NinjaLineages.transmitPlayerData(player)
+end
+
+function NinjaLineages.Chakra.addNatureChakra(player, amount)
+    local current = NinjaLineages.Chakra.getNatureChakra(player)
+    NinjaLineages.Chakra.setNatureChakra(player, current + amount)
+end
+
+function NinjaLineages.Chakra.spendNatureChakra(player, amount)
+    local current = NinjaLineages.Chakra.getNatureChakra(player)
+    if current < amount then return false end
+    NinjaLineages.Chakra.setNatureChakra(player, current - amount)
+    return true
+end
+

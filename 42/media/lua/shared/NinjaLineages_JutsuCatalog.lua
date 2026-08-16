@@ -42,6 +42,7 @@ Catalog.Disciplines = {
     sennin_mode = {
         name = "UI_NL_Discipline_SenninMode",
         description = "UI_NL_Discipline_SenninMode_Desc",
+        lockedDescription = "UI_NL_Discipline_SenninMode_LockedDesc",
         card = "media/ui/jutsuTree/cards/sennin_mode.png",
         locked = true,
     },
@@ -308,6 +309,9 @@ Catalog.Definitions = {
     node("maintenance_genin", "kenjutsu", "GENIN", 40),
     node("maintenance_chunin", "kenjutsu", "CHUNIN", 40, { "maintenance_genin" }),
     node("maintenance_jonin", "kenjutsu", "JONIN", 40, { "maintenance_chunin" }),
+    node("ninja_tool_crafting", "kenjutsu", "GENIN", 50),
+    node("kunai_crafting", "kenjutsu", "CHUNIN", 50, { "ninja_tool_crafting" }),
+    node("shuriken_crafting", "kenjutsu", "CHUNIN", 60, { "ninja_tool_crafting" }),
 
     {
         id = "minor_healing",
@@ -513,6 +517,54 @@ Catalog.Definitions = {
     node("ocular_extraction", "gene_experimentation", "CHUNIN", 10, { "blood_extraction" }),
     node("gene_extraction", "gene_experimentation", "CHUNIN", 20, { "ocular_extraction" }),
     node("experimental_surgeries", "gene_experimentation", "JONIN", 10, { "gene_extraction" }),
+
+    -- Sennin Mode (Row 1: Mutually exclusive Animal Contracts)
+    node("toad_contract", "sennin_mode", "GENIN", 10),
+    node("snake_contract", "sennin_mode", "GENIN", 20),
+    node("snail_contract", "sennin_mode", "GENIN", 30),
+
+    -- Sennin Mode (Row 2: Nature Chakra Manipulation - Gated by Animal Trial)
+    node("nature_chakra_manipulation", "sennin_mode", "CHUNIN", 10, { "toad_contract", "snake_contract", "snail_contract" }),
+
+    -- Sennin Mode (Row 3: Summoning)
+    node("summoning", "sennin_mode", "JONIN", 10, { "nature_chakra_manipulation" }),
+
+    {
+        id = "sage_mode",
+        category = "sennin",
+        presentation = {
+            nameKey = "UI_NL_Ability_SageMode_Name",
+            descriptionKey = "UI_NL_Ability_SageMode_Desc",
+            castMessageKey = "UI_NL_Ability_SageMode_Cast",
+            icon = "media/ui/jutsuTree/nodes/sennin_mode.png",
+        },
+        requirements = {
+            { kind = "node_completed", id = "nature_chakra_manipulation" },
+        },
+        balance = {
+            cooldown = "STANDARD",
+        },
+        executor = "sage_mode",
+    },
+    {
+        id = "summoning_jutsu",
+        category = "sennin",
+        presentation = {
+            nameKey = "UI_NL_Ability_Summoning_Name",
+            descriptionKey = "UI_NL_Ability_Summoning_Desc",
+            castMessageKey = "UI_NL_Ability_Summoning_Cast",
+            icon = "media/ui/jutsuTree/nodes/sennin_mode.png",
+        },
+        requirements = {
+            { kind = "node_completed", id = "summoning" },
+        },
+        balance = {
+            cost = "MAJOR",
+            cooldown = "VERY_LONG",
+            duration = "LONG",
+        },
+        executor = "summoning_jutsu",
+    },
 }
 
 local rankOrder = { GENIN = 1, CHUNIN = 2, JONIN = 3 }

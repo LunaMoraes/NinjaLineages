@@ -51,6 +51,23 @@ RareScrolls.Definitions = {
             return math.min(1, (level + 1) * 0.125)
         end,
     },
+    sennin_mode = {
+        itemType = "Base.NL_SageScroll",
+        unlockField = "senninModeUnlocked",
+        disciplineId = "sennin_mode",
+        pages = "KAGE",
+        lootWeight = RARE_LOOT_WEIGHT,
+        messages = {
+            chance = "UI_NL_SageScrollStudyChance",
+            unlocked = "UI_NL_Unlock_SenninMode",
+            failed = "UI_NL_SageScrollStudyFailed",
+            alreadyUnlocked = "UI_NL_Error_SenninModeAlreadyUnlocked",
+        },
+        getLearningChance = function(player)
+            local level = NinjaLineages.Skills.getChakraControlLevel(player)
+            return math.min(1, (level + 1) * 0.125)
+        end,
+    },
 }
 
 RareScrolls.ByItemType = {}
@@ -98,6 +115,10 @@ function RareScrolls.unlock(player, id, messageKey)
 
     local data = NinjaLineages.getNLData(player)
     data[definition.unlockField] = true
+    if definition.disciplineId then
+        data.unlockedDisciplines = data.unlockedDisciplines or {}
+        data.unlockedDisciplines[definition.disciplineId] = true
+    end
     NinjaLineages.transmitPlayerData(player)
     if messageKey then player:Say(getText(messageKey)) end
     return true

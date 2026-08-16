@@ -47,6 +47,27 @@ function NLMeditationAction:update()
             ninjaXpTicks * NinjaLineages.Balance.Progression.NinjaXP.MEDITATION_REWARD
         )
     end
+
+    -- Nature Chakra generation & Sage trial meditation progress
+    if not self.lastNatureTick then self.lastNatureTick = current end
+    local natureElapsed = math.floor(current - self.lastNatureTick)
+    if natureElapsed >= 1 then
+        self.lastNatureTick = self.lastNatureTick + natureElapsed
+        local data = NinjaLineages.getNLData(self.character)
+        if data then
+            -- Increment Sage trial meditation minutes if player has chosen an animal contract
+            if NinjaLineages.Progression.getChosenContract(self.character) then
+                data.sageTrial = data.sageTrial or {}
+                data.sageTrial.meditationMinutes = (data.sageTrial.meditationMinutes or 0) + natureElapsed
+                NinjaLineages.transmitPlayerData(self.character)
+            end
+
+            -- Regenerate Nature Chakra if nature_chakra_manipulation is completed
+            if NinjaLineages.Progression.isCompleted(self.character, "nature_chakra_manipulation") then
+                NinjaLineages.Chakra.addNatureChakra(self.character, natureElapsed * 10)
+            end
+        end
+    end
 end
 
 function NLMeditationAction:stop()

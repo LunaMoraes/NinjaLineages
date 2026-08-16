@@ -386,6 +386,69 @@ local function handlePerformExperimentalSurgery(doctor, args)
     end
 end
 
+function ServerLogic.transfuseBlood(doctor, patient, itemId)
+    if not doctor or not patient then return false end
+    if not NinjaLineages.Progression.isCompleted(doctor, "blood_extraction") then
+        notifyPlayer(doctor, "UI_NL_Error_NeedBloodExtraction")
+        return false
+    end
+
+    local item = findItemInInventory(doctor, itemId)
+    if not item then
+        notifyPlayer(doctor, "UI_NL_Error_NoBloodSample")
+        return false
+    end
+
+    local freshness = getItemCurrentFreshness(item)
+    if freshness <= 0 or (item.isRotten and item:isRotten()) then
+        notifyPlayer(doctor, "UI_NL_Error_RottenBloodTransfusion")
+        return false
+    end
+
+    doctor:getInventory():Remove(item)
+
+    -- Immediate chakra restore scaling with freshness: Balance.getCost("MAJOR") * (freshness / 100)
+    local restoreAmount = NinjaLineages.Balance.getCost("MAJOR") * (freshness / 100.0)
+    NinjaLineages.Chakra.addChakra(patient, restoreAmount)
+
+    -- Temporary chakra regeneration boost: duration scales with freshness (1 game hour * (freshness / 100))
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    local duration = NinjaLineages.Balance.getDuration("STANDARD") * (freshness / 100.0)
+    local data = NinjaLineages.getNLData(patient)
+    data.bloodTransfusionRegenUntil = math.max(data.bloodTransfusionRegenUntil or 0, now + duration)
+
+    -- Sickness roll if freshness < 100%
+    if freshness < 100 then
+        local sicknessChance = (100 - freshness) * 0.5
+        local roll = ZombRand(1, 101)
+        if roll <= sicknessChance then
+            local bodyDamage = patient:getBodyDamage()
+            if bodyDamage then
+                local currentPoison = bodyDamage:getPoisonLevel() or 0
+                bodyDamage:setPoisonLevel(math.min(100, currentPoison + (100 - freshness) * 0.4))
+                local currentSickness = bodyDamage:getFoodSicknessLevel() or 0
+                bodyDamage:setFoodSicknessLevel(math.min(100, currentSickness + (100 - freshness) * 0.4))
+            end
+            notifyPlayer(patient, "UI_NL_BloodTransfusion_Sick")
+        end
+    end
+
+    NinjaLineages.transmitPlayerData(patient)
+    notifyPlayer(doctor, "UI_NL_BloodTransfusion_Success")
+    return true
+end
+
+local function handlePerformBloodTransfusion(doctor, args)
+    if not doctor or not args then return end
+    local itemId = args.itemId
+    local patient = doctor
+    if args.patientOnlineId and getPlayerByOnlineID then
+        local target = getPlayerByOnlineID(args.patientOnlineId)
+        if target then patient = target end
+    end
+    ServerLogic.transfuseBlood(doctor, patient, itemId)
+end
+
 -- Client Command Router
 local function onClientCommand(module, command, player, args)
     if module ~= "NinjaLineages" then return end
@@ -398,6 +461,8 @@ local function onClientCommand(module, command, player, args)
         handleCompleteCorpseExperiment(player, args)
     elseif command == "performExperimentalSurgery" then
         handlePerformExperimentalSurgery(player, args)
+    elseif command == "performBloodTransfusion" then
+        handlePerformBloodTransfusion(player, args)
     end
 end
 

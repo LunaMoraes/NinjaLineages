@@ -204,6 +204,35 @@ local function renderEffects()
             )
         end
     end
+
+    -- Render Sage Mode Body Aura for local/visible players
+    local player = getPlayer and getPlayer()
+    if player and not player:isDead() then
+        local data = NinjaLineages.getNLData(player)
+        if data and data.sageModeActive then
+            local chosen = NinjaLineages.Progression.getChosenContract(player)
+            local r, g, b = 1.0, 0.55, 0.1 -- Toad orange
+            if chosen == "snake" then
+                r, g, b = 0.75, 0.2, 0.95 -- Snake purple
+            elseif chosen == "snail" then
+                r, g, b = 0.1, 0.85, 0.95 -- Snail cyan
+            end
+            local pulse = 0.25 + 0.15 * math.sin(nowMs / 250)
+            local radius = 0.85 + 0.1 * math.cos(nowMs / 300)
+            renderIsoCircle(
+                player:getX(),
+                player:getY(),
+                player:getZ(),
+                radius,
+                24,
+                2,
+                r,
+                g,
+                b,
+                pulse
+            )
+        end
+    end
 end
 
 NinjaLineages.addEventOnce("client.jutsuEffects.onPostRender", Events.OnPostRender, renderEffects)
@@ -226,6 +255,30 @@ if Events and Events.OnServerCommand then
     NinjaLineages.AbilityAuthority.registerEventHandler("demonic_flute_circle", function(args)
         if NinjaLineages.JutsuEffects.addDemonicFluteCircle then
             NinjaLineages.JutsuEffects.addDemonicFluteCircle(args)
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("toad_slam", function(args)
+        if args and args.x and args.y and args.z then
+            table.insert(activeBringerOfDarknessCircles, {
+                x = args.x,
+                y = args.y,
+                z = args.z,
+                radius = args.radius or 3.5,
+                startedAtMs = NinjaLineages.Utils.Time.realMilliseconds(),
+            })
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("katsuyu_heal_wave", function(args)
+        if args and args.x and args.y and args.z then
+            table.insert(activeDemonicFluteCircles, {
+                x = args.x,
+                y = args.y,
+                z = args.z,
+                radius = args.radius or 6.0,
+                startedAtMs = NinjaLineages.Utils.Time.realMilliseconds(),
+            })
         end
     end)
 end

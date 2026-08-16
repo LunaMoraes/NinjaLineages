@@ -107,4 +107,79 @@ module Base
             item 1 Base.NL_BingoBook,
         }
     }
+
+    craftRecipe MakeNLKunaiShooter
+    {
+        timedAction = Making,
+        time = 80,
+        OnTest = RecipeCodeOnTest.NinjaLineagesNinjaToolOnly,
+        Tags = InHandCraft,
+        category = Weapons,
+        inputs
+        {
+            item 2 [Base.ScrapMetal;Base.MetalBar;Base.MetalPipe;Base.SmallSheetMetal],
+            item 1 [Base.LeatherStrips;Base.RippedSheets;Base.Twine;Base.Rope],
+            item 1 [Base.Hammer;Base.BallPeenHammer;Base.ClubHammer] mode:keep,
+        }
+        outputs
+        {
+            item 1 Base.NL_KunaiShooter,
+        }
+    }
+
+    craftRecipe MakeNLShurikenShooter
+    {
+        timedAction = Making,
+        time = 80,
+        OnTest = RecipeCodeOnTest.NinjaLineagesNinjaToolOnly,
+        Tags = InHandCraft,
+        category = Weapons,
+        inputs
+        {
+            item 2 [Base.ScrapMetal;Base.MetalBar;Base.MetalPipe;Base.SmallSheetMetal],
+            item 1 [Base.LeatherStrips;Base.RippedSheets;Base.Twine;Base.Rope],
+            item 1 [Base.Hammer;Base.BallPeenHammer;Base.ClubHammer] mode:keep,
+        }
+        outputs
+        {
+            item 1 Base.NL_ShurikenShooter,
+        }
+    }
+
+    craftRecipe MakeNLKunaiAmmo
+    {
+        timedAction = Making,
+        time = 60,
+        OnTest = RecipeCodeOnTest.NinjaLineagesKunaiOnly,
+        Tags = InHandCraft,
+        category = Weapons,
+        inputs
+        {
+            item 1 [Base.ScrapMetal;Base.SmallSheetMetal;Base.MetalBar],
+            item 1 [Base.Hammer;Base.BallPeenHammer;Base.ClubHammer] mode:keep,
+        }
+        outputs
+        {
+            item 5 Base.NL_KunaiAmmo,
+        }
+    }
+
+    craftRecipe MakeNLShurikenAmmo
+    {
+        timedAction = Making,
+        time = 60,
+        OnTest = RecipeCodeOnTest.NinjaLineagesShurikenOnly,
+        Tags = InHandCraft,
+        category = Weapons,
+        inputs
+        {
+            item 1 [Base.ScrapMetal;Base.SmallSheetMetal;Base.SheetMetal],
+            item 1 [Base.Hammer;Base.BallPeenHammer;Base.ClubHammer] mode:keep,
+        }
+        outputs
+        {
+            item 10 Base.NL_ShurikenAmmo,
+        }
+    }
 }
+

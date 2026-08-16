@@ -279,8 +279,38 @@ function NLJutsuTreeUI:initialise()
 
             if self.selectedNode then
                 local node = NinjaLineages.TreeDefinitions.getNode(self.selectedNode)
-                panel:drawText(translated(node.name, node.nameFallback), self.detailsX, math.floor(h * 0.18), 1, 1, 1, 1, UIFont.Medium)
-                panel:drawText(translated(node.description, node.descriptionFallback), self.detailsX, math.floor(h * 0.24), 0.85, 0.85, 0.9, 1, UIFont.Small)
+                local nodeName = translated(node.name, node.nameFallback)
+                local nodeDesc = translated(node.description, node.descriptionFallback)
+
+                if self.selectedNode == "nature_chakra_manipulation" then
+                    local chosen = NinjaLineages.Progression.getChosenContract(self.player)
+                    local data = NinjaLineages.getNLData(self.player)
+                    local trial = data and data.sageTrial or {}
+                    if not chosen then
+                        nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_NoContract")
+                    elseif chosen == "toad" then
+                        nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_ToadTrial")
+                            .. "\n\n" .. string.format(getText("UI_NL_TrialProgress_Toad"), math.min(30, math.floor(trial.meditationMinutes or 0)), math.min(50, math.floor(trial.meleeKills or 0)))
+                    elseif chosen == "snake" then
+                        nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_SnakeTrial")
+                            .. "\n\n" .. string.format(getText("UI_NL_TrialProgress_Snake"), math.min(30, math.floor(trial.meditationMinutes or 0)), math.min(30, math.floor(trial.rangedKills or 0)))
+                    elseif chosen == "snail" then
+                        nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_SnailTrial")
+                            .. "\n\n" .. string.format(getText("UI_NL_TrialProgress_Snail"), math.min(30, math.floor(trial.meditationMinutes or 0)), math.min(200, math.floor(trial.healthHealed or 0)))
+                    end
+                elseif self.selectedNode == "summoning" then
+                    local chosen = NinjaLineages.Progression.getChosenContract(self.player)
+                    if chosen == "toad" then
+                        nodeDesc = getText("UI_NL_Node_summoning_Toad_Desc")
+                    elseif chosen == "snake" then
+                        nodeDesc = getText("UI_NL_Node_summoning_Snake_Desc")
+                    elseif chosen == "snail" then
+                        nodeDesc = getText("UI_NL_Node_summoning_Snail_Desc")
+                    end
+                end
+
+                panel:drawText(nodeName, self.detailsX, math.floor(h * 0.18), 1, 1, 1, 1, UIFont.Medium)
+                panel:drawText(nodeDesc, self.detailsX, math.floor(h * 0.24), 0.85, 0.85, 0.9, 1, UIFont.Small)
             end
         elseif self.socialPanel and self.socialPanel:isActive() then
             self.socialPanel:prerender(panel)
@@ -440,7 +470,7 @@ function NLJutsuTreeUI:createSelectionScreen()
         
         local descKey = definition.description
         if isLocked then
-            descKey = "UI_NL_Discipline_StandardLockedDesc"
+            descKey = definition.lockedDescription or "UI_NL_Discipline_StandardLockedDesc"
         end
         button.tooltip = translated(descKey, definition.descriptionFallback)
         button.render = function(btn)

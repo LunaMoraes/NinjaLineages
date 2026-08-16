@@ -21,13 +21,28 @@ end
 local function addRareScrolls()
     if not ProceduralDistributions or not ProceduralDistributions.list then return end
 
-    for _, distribution in pairs(ProceduralDistributions.list) do
+    for distName, distribution in pairs(ProceduralDistributions.list) do
         local items = distribution and distribution.items
-        if items and containsBook(items) then
-            for _, definition in pairs(NinjaLineages.RareScrolls.Definitions) do
-                if not containsItem(items, definition.itemType) then
-                    table.insert(items, definition.itemType)
-                    table.insert(items, definition.lootWeight)
+        if items then
+            if containsBook(items) then
+                for _, definition in pairs(NinjaLineages.RareScrolls.Definitions) do
+                    if not containsItem(items, definition.itemType) then
+                        table.insert(items, definition.itemType)
+                        table.insert(items, definition.lootWeight)
+                    end
+                end
+            end
+
+            -- Add Kunai & Shuriken ammo to weapon / gun / hunting / tool caches
+            local name = tostring(distName):lower()
+            if name:find("gun") or name:find("weapon") or name:find("hunting") or name:find("army") or name:find("police") or name:find("survival") or name:find("metal") then
+                if not containsItem(items, "Base.NL_KunaiAmmo") then
+                    table.insert(items, "Base.NL_KunaiAmmo")
+                    table.insert(items, 1.5)
+                end
+                if not containsItem(items, "Base.NL_ShurikenAmmo") then
+                    table.insert(items, "Base.NL_ShurikenAmmo")
+                    table.insert(items, 2.5)
                 end
             end
         end

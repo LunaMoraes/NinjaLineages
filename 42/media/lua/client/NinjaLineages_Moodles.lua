@@ -5,6 +5,7 @@ NinjaLineages.Moodles = NinjaLineages.Moodles or {}
 
 local registeredMoodles = {
     "NLChakra",
+    "NLNatureChakra",
     "NLSharinganTomoe",
     "NLKamuiVision",
 }

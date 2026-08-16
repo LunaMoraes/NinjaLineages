@@ -39,6 +39,51 @@ end
 
 RecipeCodeOnTest.NinjaLineagesSealCraftable = RecipeCodeOnTest.NinjaLineagesUzumakiOnly
 
+function RecipeCodeOnTest.NinjaLineagesNinjaToolOnly(recipe, player)
+    if not player then
+        pcall(function()
+            if getPlayer then player = getPlayer() end
+        end)
+        if not player then
+            pcall(function()
+                if getSpecificPlayer then player = getSpecificPlayer(0) end
+            end)
+        end
+    end
+    if not player then return false end
+    return NinjaLineages.Progression.isCompleted(player, "ninja_tool_crafting")
+end
+
+function RecipeCodeOnTest.NinjaLineagesKunaiOnly(recipe, player)
+    if not player then
+        pcall(function()
+            if getPlayer then player = getPlayer() end
+        end)
+        if not player then
+            pcall(function()
+                if getSpecificPlayer then player = getSpecificPlayer(0) end
+            end)
+        end
+    end
+    if not player then return false end
+    return NinjaLineages.Progression.isCompleted(player, "kunai_crafting")
+end
+
+function RecipeCodeOnTest.NinjaLineagesShurikenOnly(recipe, player)
+    if not player then
+        pcall(function()
+            if getPlayer then player = getPlayer() end
+        end)
+        if not player then
+            pcall(function()
+                if getSpecificPlayer then player = getSpecificPlayer(0) end
+            end)
+        end
+    end
+    if not player then return false end
+    return NinjaLineages.Progression.isCompleted(player, "shuriken_crafting")
+end
+
 local BINGO_BOOK_RECIPES = {
     "MakeNLBingoBook",
     "MakeNLBingoBookFromPaper",

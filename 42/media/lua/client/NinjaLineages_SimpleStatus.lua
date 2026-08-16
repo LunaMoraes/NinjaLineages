@@ -51,3 +51,36 @@ chakra.colorFn = function(player)
 end
 
 SimpleStatus:addStat("nl_chakra", chakra)
+
+local natureChakra = {
+    name = "nl_nature_chakra",
+    type = "custom",
+    shown = true,
+}
+
+natureChakra.valueFn = function(player)
+    return NinjaLineages.Chakra.getNatureChakra(player)
+end
+
+natureChakra.percentFn = function(player)
+    return math.max(0, math.min(1, NinjaLineages.Chakra.getNatureChakra(player) / 100))
+end
+
+natureChakra.textFn = function(player)
+    return tostring(round(NinjaLineages.Chakra.getNatureChakra(player))) .. " / 100"
+end
+
+natureChakra.colorFn = function(player)
+    local chosen = NinjaLineages.Progression.getChosenContract(player)
+    if chosen == "toad" then
+        return { r = 1.0, g = 0.55, b = 0.1 } -- Orange
+    elseif chosen == "snake" then
+        return { r = 0.7, g = 0.2, b = 0.9 } -- Purple
+    elseif chosen == "snail" then
+        return { r = 0.1, g = 0.85, b = 0.9 } -- Cyan
+    end
+    return { r = 0.3, g = 0.9, b = 0.4 } -- Nature green default
+end
+
+SimpleStatus:addStat("nl_nature_chakra", natureChakra)
+

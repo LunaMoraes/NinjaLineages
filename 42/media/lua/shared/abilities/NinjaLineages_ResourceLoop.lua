@@ -357,6 +357,13 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
     if data.activeGeneEffect and data.activeGeneEffect.id == "chakra_surge" then
         regen = regen * 1.35
     end
+    if data.bloodTransfusionRegenUntil then
+        if now < data.bloodTransfusionRegenUntil then
+            regen = regen * 1.50
+        else
+            data.bloodTransfusionRegenUntil = nil
+        end
+    end
     chakra = math.min(maxChakra, chakra + (regen * elapsed))
 
     if data.eyePowerActive then

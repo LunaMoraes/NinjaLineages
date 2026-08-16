@@ -280,7 +280,50 @@ function Progression.isCompleted(player, nodeId)
     return getState(player).nodes[nodeId] == "completed"
 end
 
+local ANIMAL_CONTRACTS = {
+    toad_contract = true,
+    snake_contract = true,
+    snail_contract = true,
+}
+
+function Progression.getChosenContract(player)
+    if not player then return nil end
+    if Progression.isCompleted(player, "toad_contract") then return "toad" end
+    if Progression.isCompleted(player, "snake_contract") then return "snake" end
+    if Progression.isCompleted(player, "snail_contract") then return "snail" end
+    return nil
+end
+
+function Progression.isSageTrialComplete(player)
+    if not player then return false end
+    local chosen = Progression.getChosenContract(player)
+    if not chosen then return false end
+
+    local data = NinjaLineages.getNLData(player)
+    local trial = data and data.sageTrial or {}
+
+    local medMin = trial.meditationMinutes or 0
+    if medMin < 30 then return false end
+
+    if chosen == "toad" then
+        return (trial.meleeKills or 0) >= 50
+    elseif chosen == "snake" then
+        return (trial.rangedKills or 0) >= 30
+    elseif chosen == "snail" then
+        return (trial.healthHealed or 0) >= 200
+    end
+    return false
+end
+
 function Progression.arePrerequisitesComplete(player, definition)
+    if not definition then return false end
+
+    if definition.id == "nature_chakra_manipulation" then
+        local chosen = Progression.getChosenContract(player)
+        if not chosen then return false end
+        return Progression.isSageTrialComplete(player)
+    end
+
     for _, prerequisite in ipairs(definition.prerequisites or {}) do
         if not Progression.isCompleted(player, prerequisite) then return false end
     end
@@ -292,6 +335,15 @@ function Progression.getNodeState(player, nodeId)
     if not definition then return "invalid" end
     local stored = getState(player).nodes[nodeId]
     if stored then return stored end
+
+    -- Mutual exclusivity for Row 1 Animal Contracts
+    if ANIMAL_CONTRACTS[nodeId] then
+        local chosen = Progression.getChosenContract(player)
+        if chosen and not Progression.isCompleted(player, nodeId) then
+            return "locked"
+        end
+    end
+
     if Progression.arePrerequisitesComplete(player, definition) then return "available" end
     return "locked"
 end

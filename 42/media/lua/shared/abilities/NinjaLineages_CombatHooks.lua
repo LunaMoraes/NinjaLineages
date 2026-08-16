@@ -90,8 +90,41 @@ local function gentleFist(zombie, attacker, bodyPartType, weapon)
     NinjaLineages.Damage.applyZombieDamage(attacker, zombie, Balance.rollDamage("LIGHT") * multiplier)
 end
 
+local function sageCombatHook(zombie, attacker, bodyPartType, weapon)
+    if not attacker or not zombie or not instanceof(attacker, "IsoPlayer") then return end
+
+    -- Sage Mode hit consumption and bonus damage
+    if NinjaLineages.SageMode and NinjaLineages.SageMode.isActive(attacker) then
+        NinjaLineages.SageMode.onHit(attacker)
+        if weapon and not weapon:isRanged() then
+            local mult = NinjaLineages.SageMode.getMeleeDamageMultiplier(attacker)
+            if mult > 1.0 then
+                local bonus = (mult - 1.0) * (weapon:getMaxDamage() or 1.0)
+                NinjaLineages.Damage.applyZombieDamage(attacker, zombie, bonus)
+            end
+        end
+    end
+
+    -- Sage trial kill tracking
+    local isDead = false
+    pcall(function() isDead = zombie:isDead() or zombie:getHealth() <= 0 end)
+    if isDead then
+        local data = NinjaLineages.getNLData(attacker)
+        if data and data.sageTrial then
+            local isRanged = weapon and weapon:isRanged()
+            if isRanged then
+                data.sageTrial.rangedKills = (data.sageTrial.rangedKills or 0) + 1
+            else
+                data.sageTrial.meleeKills = (data.sageTrial.meleeKills or 0) + 1
+            end
+            NinjaLineages.transmitPlayerData(attacker)
+        end
+    end
+end
+
 if not NinjaLineages.isClient() and Events and Events.OnHitZombie then
     NinjaLineages.addEventOnce("shared.abilityExecution.onHitZombie", Events.OnHitZombie, gentleFist)
+    NinjaLineages.addEventOnce("shared.abilityExecution.onHitZombie.sage", Events.OnHitZombie, sageCombatHook)
 end
 
 local function sharinganEvade(zombie)

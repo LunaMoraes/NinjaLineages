@@ -168,13 +168,118 @@ module Base
 
 
 
+    item NL_SageScroll
+    {
+        DisplayCategory = Literature,
+        ItemType = base:literature,
+        DisplayName = UI_item_NL_SageScroll,
+        Weight = 0.1,
+        Icon = NLSealIcon,
+        NumberOfPages = 360,
+        ReadType = book,
+        Tags = base:isfirefuel;base:isfiretinder,
+    }
+
     item NL_BloodSample
     {
         DisplayCategory = Material,
-        ItemType = base:normal,
+        ItemType = base:food,
         DisplayName = Ninja Blood Sample,
         Weight = 0.1,
         Icon = NLBloodSample,
+        HungerChange = 0,
+        Calories = 0,
+        Carbohydrates = 0,
+        Lipids = 0,
+        Proteins = 0,
+        DaysFresh = 2,
+        DaysTotal = 4,
+    }
+
+    item NL_KunaiAmmo
+    {
+        DisplayCategory = Ammo,
+        ItemType = base:normal,
+        DisplayName = UI_item_NL_KunaiAmmo,
+        Weight = 0.05,
+        Icon = HuntingKnife,
+        Count = 1,
+    }
+
+    item NL_ShurikenAmmo
+    {
+        DisplayCategory = Ammo,
+        ItemType = base:normal,
+        DisplayName = UI_item_NL_ShurikenAmmo,
+        Weight = 0.02,
+        Icon = Spiffo,
+        Count = 1,
+    }
+
+    item NL_KunaiShooter
+    {
+        DisplayCategory = Weapon,
+        ItemType = base:weapon,
+        DisplayName = UI_item_NL_KunaiShooter,
+        WeaponType = handgun,
+        Weight = 0.3,
+        Icon = HuntingKnife,
+        MinRange = 0.6,
+        MaxRange = 12.0,
+        MinDamage = 1.2,
+        MaxDamage = 2.2,
+        DoorDamage = 1,
+        MinAngle = 0.90,
+        AimingPerkRangeModifier = 1.5,
+        AimingPerkHitChanceModifier = 10.0,
+        HitChance = 65,
+        AimingTime = 20,
+        ReloadTime = 15,
+        RecoilDelay = 25,
+        SoundRadius = 4,
+        SoundVolume = 5,
+        AmmoType = Base.NL_KunaiAmmo,
+        MaxAmmo = 1,
+        SwingAnim = Handgun,
+        TwoHandWeapon = false,
+        ConditionMax = 100,
+        ConditionLowerChanceOneIn = 30,
+        Ranged = true,
+        ShareDamage = false,
+        SubCategory = Firearm,
+    }
+
+    item NL_ShurikenShooter
+    {
+        DisplayCategory = Weapon,
+        ItemType = base:weapon,
+        DisplayName = UI_item_NL_ShurikenShooter,
+        WeaponType = handgun,
+        Weight = 0.2,
+        Icon = Spiffo,
+        MinRange = 0.5,
+        MaxRange = 8.0,
+        MinDamage = 0.6,
+        MaxDamage = 1.2,
+        DoorDamage = 1,
+        MinAngle = 0.80,
+        AimingPerkRangeModifier = 1.2,
+        AimingPerkHitChanceModifier = 8.0,
+        HitChance = 50,
+        AimingTime = 10,
+        ReloadTime = 10,
+        RecoilDelay = 12,
+        SoundRadius = 3,
+        SoundVolume = 4,
+        AmmoType = Base.NL_ShurikenAmmo,
+        MaxAmmo = 1,
+        SwingAnim = Handgun,
+        TwoHandWeapon = false,
+        ConditionMax = 100,
+        ConditionLowerChanceOneIn = 30,
+        Ranged = true,
+        ShareDamage = false,
+        SubCategory = Firearm,
     }
 
     item NL_OcularTissueSample
