@@ -179,12 +179,84 @@ function NinjaLineages.hasTrait(player, traitKey, traitId)
     return false
 end
 
+function NinjaLineages.initPlayerEyes(player)
+    if not player then return end
+    local data = NinjaLineages.getNLData(player)
+    if not data then return end
+
+    if not data.eyes then
+        if NinjaLineages.hasTrait(player, "SHARINGAN", NinjaLineages.TRAIT_SHARINGAN) then
+            data.eyes = {
+                left = { type = "sharingan", freshness = 100 },
+                right = { type = "sharingan", freshness = 100 },
+            }
+        elseif NinjaLineages.hasTrait(player, "BYAKUGAN", NinjaLineages.TRAIT_BYAKUGAN) then
+            data.eyes = {
+                left = { type = "byakugan", freshness = 100 },
+                right = { type = "byakugan", freshness = 100 },
+            }
+        elseif NinjaLineages.hasTrait(player, "RINNEGAN", NinjaLineages.TRAIT_RINNEGAN) then
+            data.eyes = {
+                left = { type = "rinnegan", freshness = 100 },
+                right = { type = "rinnegan", freshness = 100 },
+            }
+        else
+            data.eyes = {
+                left = { type = "normal", freshness = 100 },
+                right = { type = "normal", freshness = 100 },
+            }
+        end
+    end
+
+    if data.sharinganStage == nil then
+        local kills = player:getZombieKills() or 0
+        local stageKills = NinjaLineages.getSharinganStageKills()
+        local baseStage = 0
+        if kills >= stageKills[3] then
+            baseStage = 3
+        elseif kills >= stageKills[2] then
+            baseStage = 2
+        elseif kills >= stageKills[1] then
+            baseStage = 1
+        end
+        if data.mangekyoUnlocked then baseStage = 4 end
+        if data.rinneganUnlocked then baseStage = 5 end
+        data.sharinganStage = baseStage
+    end
+end
+
+function NinjaLineages.getInstalledEyeCount(player, eyeType)
+    if not player or not eyeType then return 0 end
+    local data = NinjaLineages.getNLData(player)
+    if not data or not data.eyes then
+        NinjaLineages.initPlayerEyes(player)
+        data = NinjaLineages.getNLData(player)
+    end
+    if not data or not data.eyes then return 0 end
+
+    local count = 0
+    if data.eyes.left and data.eyes.left.type == eyeType and (data.eyes.left.freshness or 0) > 0 then
+        count = count + 1
+    end
+    if data.eyes.right and data.eyes.right.type == eyeType and (data.eyes.right.freshness or 0) > 0 then
+        count = count + 1
+    end
+    return count
+end
+
+function NinjaLineages.getEyePowerMultiplier(player, eyeType)
+    local count = NinjaLineages.getInstalledEyeCount(player, eyeType)
+    if count >= 2 then return 1.0 end
+    if count == 1 then return 0.5 end
+    return 0.0
+end
+
 function NinjaLineages.hasByakugan(player)
-    return NinjaLineages.hasTrait(player, "BYAKUGAN", NinjaLineages.TRAIT_BYAKUGAN)
+    return NinjaLineages.getInstalledEyeCount(player, "byakugan") > 0
 end
 
 function NinjaLineages.hasSharingan(player)
-    return NinjaLineages.hasTrait(player, "SHARINGAN", NinjaLineages.TRAIT_SHARINGAN)
+    return NinjaLineages.getInstalledEyeCount(player, "sharingan") > 0
 end
 
 function NinjaLineages.hasSenju(player)
@@ -192,7 +264,7 @@ function NinjaLineages.hasSenju(player)
 end
 
 function NinjaLineages.hasRinnegan(player)
-    return NinjaLineages.hasTrait(player, "RINNEGAN", NinjaLineages.TRAIT_RINNEGAN)
+    return NinjaLineages.getInstalledEyeCount(player, "rinnegan") > 0
 end
 
 function NinjaLineages.hasUzumaki(player)
@@ -210,16 +282,38 @@ function NinjaLineages.getSharinganStageKills()
     return { [1] = first, [2] = second, [3] = third }
 end
 
--- Sharingan Stage lookup
+-- Sharingan Stage lookup (player progression is persistent; active power requires an installed Sharingan eye)
 function NinjaLineages.getSharinganStage(player)
-    if not NinjaLineages.hasSharingan(player) then return 0 end
-    local kills = player:getZombieKills() or 0
-    local stageKills = NinjaLineages.getSharinganStageKills()
-    if kills >= stageKills[3] then return 3 end
-    if kills >= stageKills[2] then return 2 end
-    if kills >= stageKills[1] then return 1 end
-    return 0
+    if not player then return 0 end
+    local data = NinjaLineages.getNLData(player)
+    if not data or not data.eyes then
+        NinjaLineages.initPlayerEyes(player)
+        data = NinjaLineages.getNLData(player)
+    end
+    if not data then return 0 end
+
+    local currentStage = data.sharinganStage or 0
+    if currentStage < 3 then
+        local kills = player:getZombieKills() or 0
+        local stageKills = NinjaLineages.getSharinganStageKills()
+        if kills >= stageKills[3] then
+            currentStage = math.max(currentStage, 3)
+        elseif kills >= stageKills[2] then
+            currentStage = math.max(currentStage, 2)
+        elseif kills >= stageKills[1] then
+            currentStage = math.max(currentStage, 1)
+        end
+        data.sharinganStage = currentStage
+    end
+
+    if NinjaLineages.getInstalledEyeCount(player, "sharingan") <= 0 then
+        return 0
+    end
+
+    return data.sharinganStage or 0
 end
+
+NinjaLineages.registerCreatePlayer("shared.eyes.init", NinjaLineages.initPlayerEyes)
 
 -- Hook into foraging system to register Byakugan vision bonuses
 local function addForageSkillDefs(forageSystemInstance)

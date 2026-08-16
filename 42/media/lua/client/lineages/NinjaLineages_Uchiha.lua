@@ -127,6 +127,7 @@ function NinjaLineages.Uchiha.unlockKamuiForSinglePlayerTest(player)
 
     local data = NinjaLineages.getNLData(player)
     data.mangekyoUnlocked = true
+    data.sharinganStage = 4
     NinjaLineages.transmitPlayerData(player)
     updateSharinganMoodle(player)
     player:Say(getText("UI_NL_Unlock_MangekyoAwakened"))

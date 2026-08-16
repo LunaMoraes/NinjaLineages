@@ -13,7 +13,8 @@ end
 
 local function getWornByakuganSight(player)
     return NinjaLineages.Utils.Inventory.findWornItem(player, function(item)
-        return item:getFullType() == "Base.NL_ByakuganSight"
+        local fullType = item and item:getFullType()
+        return fullType == "Base.NL_ByakuganSight" or fullType == "Base.NL_ByakuganSight_Half"
     end)
 end
 
@@ -66,19 +67,25 @@ local function removeTrackedByakuganSight(player, data)
     return changed
 end
 
-local function ensureByakuganSight(player, data)
+local function ensureByakuganSight(player, data, eyeCount)
+    local desiredType = (eyeCount >= 2) and "Base.NL_ByakuganSight" or "Base.NL_ByakuganSight_Half"
     local equipped = getWornByakuganSight(player)
-    if equipped then
+
+    if equipped and equipped:getFullType() == desiredType then
         NinjaLineages.Utils.Inventory.wearItem(player, equipped)
         local hadId = data.byakuganSightItemId
         data.byakuganSightItemId = equipped:getID()
         return hadId ~= data.byakuganSightItemId
     end
 
+    if equipped then
+        removeTrackedByakuganSight(player, data)
+    end
+
     local inv = player:getInventory()
     if not inv then return false end
 
-    local item = inv:AddItem("Base.NL_ByakuganSight")
+    local item = inv:AddItem(desiredType)
     if not item then return false end
 
     pcall(function() sendAddItemToContainer(inv, item) end)
@@ -94,17 +101,21 @@ function ByakuganPassives.applyByakugan(player)
     local data = NinjaLineages.getNLData(player)
     if not data then return end
 
-    local active = NinjaLineages.hasByakugan(player)
+    local eyeCount = NinjaLineages.getInstalledEyeCount(player, "byakugan")
+    local active = (eyeCount > 0)
         and data.eyePowerActive == true
         and NinjaLineages.Chakra.getChakra(player) > 0
 
     if NinjaLineages.isServer() then
         local lastSyncedActive = data.byakuganSyncedActive
-        if lastSyncedActive ~= active then
+        local lastSyncedCount = data.byakuganSyncedCount
+        if lastSyncedActive ~= active or lastSyncedCount ~= eyeCount then
             data.byakuganSyncedActive = active
+            data.byakuganSyncedCount = eyeCount
             sendServerCommand(player, "NinjaLineages", "abilityEvent", {
                 kind = "byakuganSync",
                 active = active,
+                eyeCount = eyeCount,
                 casterOnlineId = player:getOnlineID(),
             })
             NinjaLineages.transmitPlayerData(player)
@@ -113,11 +124,15 @@ function ByakuganPassives.applyByakugan(player)
         -- Singleplayer fallback
         local changed = false
         if active then
-            changed = ensureByakuganSight(player, data) or changed
+            changed = ensureByakuganSight(player, data, eyeCount) or changed
             changed = addOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED) or changed
-            changed = addOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING) or changed
+            if eyeCount >= 2 then
+                changed = addOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING) or changed
+            else
+                changed = removeOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING) or changed
+            end
         else
-            if data.eyePowerActive and NinjaLineages.hasByakugan(player) then
+            if data.eyePowerActive and eyeCount > 0 then
                 data.eyePowerActive = false
                 changed = true
             end
@@ -143,10 +158,15 @@ if NinjaLineages.isClient() then
         local player = NinjaLineages.AbilityAuthority.findLocalPlayer(args.casterOnlineId)
         if player then
             local data = NinjaLineages.getNLData(player)
+            local count = args.eyeCount or 2
             if args.active then
-                ensureByakuganSight(player, data)
+                ensureByakuganSight(player, data, count)
                 addOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED)
-                addOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING)
+                if count >= 2 then
+                    addOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING)
+                else
+                    removeOwnedTrait(player, data, "byakuganAddedKeenHearing", CharacterTrait.KEEN_HEARING)
+                end
             else
                 removeTrackedByakuganSight(player, data)
                 removeOwnedTrait(player, data, "byakuganAddedEagleEyed", CharacterTrait.EAGLE_EYED)

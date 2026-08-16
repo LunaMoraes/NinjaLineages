@@ -1,12 +1,15 @@
 require "NinjaLineages_Progression"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Balance"
+require "NinjaLineages_Constants"
+require "NinjaLineages_Traits"
 require "disciplines/NinjaLineages_CorpseUtils"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.GeneExperimentationServer = NinjaLineages.GeneExperimentationServer or {}
 
 local ServerLogic = NinjaLineages.GeneExperimentationServer
+local consts = NinjaLineages.Constants.GeneExperimentation
 
 local function notifyPlayer(player, textKey)
     if not player or not textKey then return end
@@ -18,6 +21,38 @@ local function notifyPlayer(player, textKey)
     else
         player:Say(getText(textKey))
     end
+end
+
+-- Freshness calculation: 1..84 -> 60..100%, 85..100 -> 100%
+local function rollSampleFreshness()
+    local roll = ZombRand(1, 101) -- 1..100
+    if roll >= consts.Extraction.PERFECT_ROLL_THRESHOLD then
+        return 100
+    end
+    local fraction = (roll - 1) / (consts.Extraction.PERFECT_ROLL_THRESHOLD - 2) -- 0..1 across 1..84
+    return math.floor(consts.Extraction.MIN_ROLL_FRESHNESS + fraction * (consts.Extraction.MAX_ROLL_FRESHNESS - consts.Extraction.MIN_ROLL_FRESHNESS) + 0.5)
+end
+
+local function applyItemFreshness(item, freshness)
+    if not item then return end
+    local offAgeMax = (item.getOffAgeMax and item:getOffAgeMax()) or 4
+    if offAgeMax > 0 and item.setAge then
+        local age = (1.0 - (freshness / 100.0)) * offAgeMax
+        item:setAge(math.max(0, age))
+    end
+    item:getModData().freshness = freshness
+end
+
+local function getItemCurrentFreshness(item)
+    if not item then return 100 end
+    local offAgeMax = (item.getOffAgeMax and item:getOffAgeMax()) or 0
+    local age = (item.getAge and item:getAge()) or 0
+    if offAgeMax > 0 then
+        if item.isRotten and item:isRotten() then return 0 end
+        local remaining = math.max(0, math.min(1.0, 1.0 - (age / offAgeMax)))
+        return math.floor(remaining * 100 + 0.5)
+    end
+    return item:getModData().freshness or 100
 end
 
 -- Retrieve a zombie by its online ID
@@ -33,8 +68,6 @@ function ServerLogic.getZombieByOnlineID(onlineID)
     end
     return nil
 end
-
--- (Corpse identification helpers now in NinjaLineages.CorpseUtils)
 
 -- Handle Zombie Ninja Mutation Roll
 local function handleRollZombieNinja(player, args)
@@ -114,17 +147,194 @@ function ServerLogic.completeExperiment(player, corpse, actionId)
         
         modData.experimented = true
         local item = instanceItem("Base.NL_OcularTissueSample")
-        if item then player:getInventory():AddItem(item) end
+        if item then
+            local eyeType = ZombRand(0, 2) == 0 and "sharingan" or "byakugan"
+            local freshness = rollSampleFreshness()
+            item:getModData().eyeType = eyeType
+            applyItemFreshness(item, freshness)
+            local typeName = eyeType == "sharingan" and getText("UI_NL_Ability_Sharingan_Name") or getText("UI_NL_Ability_Byakugan_Name")
+            item:setName(getText("UI_item_NL_OcularTissueSample") .. " (" .. typeName .. ")")
+            player:getInventory():AddItem(item)
+        end
         
     elseif actionId == "Extract Gene Sample" then
         if not NinjaLineages.Progression.isCompleted(player, "gene_extraction") then return end
         
         modData.experimented = true
         local item = instanceItem("Base.NL_GeneSample")
-        if item then player:getInventory():AddItem(item) end
+        if item then
+            local freshness = rollSampleFreshness()
+            applyItemFreshness(item, freshness)
+            player:getInventory():AddItem(item)
+        end
     end
     
     NinjaLineages.transmitPlayerData(player)
+end
+
+-- ============================================================================
+-- Experimental Surgery Server Handlers
+-- ============================================================================
+
+function ServerLogic.removeEye(doctor, patient, eyeSlot)
+    if not doctor or not patient or not eyeSlot then return false end
+    if not NinjaLineages.Progression.isCompleted(doctor, "experimental_surgeries") then return false end
+
+    NinjaLineages.initPlayerEyes(patient)
+    local data = NinjaLineages.getNLData(patient)
+    if not data or not data.eyes or not data.eyes[eyeSlot] then return false end
+
+    local currentEye = data.eyes[eyeSlot]
+    local eyeType = currentEye.type
+    local freshness = currentEye.freshness or 100
+
+    -- Empty slot
+    data.eyes[eyeSlot] = nil
+
+    -- Produce ocular sample if it was a special eye
+    if eyeType == "sharingan" or eyeType == "byakugan" or eyeType == "rinnegan" then
+        local item = instanceItem("Base.NL_OcularTissueSample")
+        if item then
+            item:getModData().eyeType = eyeType
+            applyItemFreshness(item, freshness)
+            local typeName = eyeType == "sharingan" and getText("UI_NL_Ability_Sharingan_Name")
+                or (eyeType == "byakugan" and getText("UI_NL_Ability_Byakugan_Name") or getText("UI_NL_Ability_ShinraTensei_Name"))
+            item:setName(getText("UI_item_NL_OcularTissueSample") .. " (" .. typeName .. ")")
+            doctor:getInventory():AddItem(item)
+            if NinjaLineages.isServer() then
+                pcall(function() sendAddItemToContainer(doctor:getInventory(), item) end)
+            end
+        end
+    end
+
+    NinjaLineages.transmitPlayerData(patient)
+    notifyPlayer(doctor, "UI_NL_Surgery_EyeRemovedSuccess")
+    if doctor ~= patient then
+        notifyPlayer(patient, "UI_NL_Surgery_EyeRemovedSuccess")
+    end
+    return true
+end
+
+function ServerLogic.implantEye(doctor, patient, eyeSlot, itemID)
+    if not doctor or not patient or not eyeSlot then return false end
+    if not NinjaLineages.Progression.isCompleted(doctor, "experimental_surgeries") then return false end
+
+    NinjaLineages.initPlayerEyes(patient)
+    local data = NinjaLineages.getNLData(patient)
+    if not data or not data.eyes or data.eyes[eyeSlot] ~= nil then return false end
+
+    -- Find ocular item in doctor inventory
+    local inv = doctor:getInventory()
+    local item = nil
+    if itemID then
+        item = inv:getItemById(itemID)
+    end
+    if not item then
+        local items = inv:getItemsFromType("Base.NL_OcularTissueSample")
+        if items and items:size() > 0 then
+            item = items:get(0)
+        end
+    end
+    if not item then return false end
+
+    local freshness = getItemCurrentFreshness(item)
+    local eyeType = item:getModData().eyeType or "sharingan"
+
+    -- Consume item
+    inv:Remove(item)
+    if NinjaLineages.isServer() then
+        pcall(function() sendRemoveItemFromContainer(inv, item) end)
+    end
+
+    -- Implant
+    data.eyes[eyeSlot] = {
+        type = eyeType,
+        freshness = math.max(1, freshness),
+    }
+
+    NinjaLineages.transmitPlayerData(patient)
+    notifyPlayer(doctor, "UI_NL_Surgery_EyeImplantedSuccess")
+    if doctor ~= patient then
+        notifyPlayer(patient, "UI_NL_Surgery_EyeImplantedSuccess")
+    end
+    return true
+end
+
+function ServerLogic.implantGenes(doctor, patient, itemID)
+    if not doctor or not patient then return false end
+    if not NinjaLineages.Progression.isCompleted(doctor, "experimental_surgeries") then return false end
+
+    NinjaLineages.initPlayerEyes(patient)
+    local data = NinjaLineages.getNLData(patient)
+    if not data then return false end
+
+    local inv = doctor:getInventory()
+    local item = nil
+    if itemID then
+        item = inv:getItemById(itemID)
+    end
+    if not item then
+        local items = inv:getItemsFromType("Base.NL_GeneSample")
+        if items and items:size() > 0 then
+            item = items:get(0)
+        end
+    end
+    if not item then return false end
+
+    -- Consume gene sample
+    inv:Remove(item)
+    if NinjaLineages.isServer() then
+        pcall(function() sendRemoveItemFromContainer(inv, item) end)
+    end
+
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    local rinneganAwakened = false
+
+    -- Check rare Rinnegan awakening condition:
+    -- Player must have Mangekyo Sharingan stage (>= 4) and at least 1 installed Sharingan eye
+    local sharinganCount = NinjaLineages.getInstalledEyeCount(patient, "sharingan")
+    if (data.sharinganStage or 0) >= 4 and sharinganCount > 0 then
+        local chance = consts.Surgery.RINNEGAN_AWAKENING_CHANCE or 10
+        if ZombRand(1, 101) <= chance then
+            -- Convert one installed Sharingan eye into Rinnegan
+            if data.eyes.left and data.eyes.left.type == "sharingan" then
+                data.eyes.left.type = "rinnegan"
+            elseif data.eyes.right and data.eyes.right.type == "sharingan" then
+                data.eyes.right.type = "rinnegan"
+            end
+            data.sharinganStage = 5
+            data.rinneganUnlocked = true
+            rinneganAwakened = true
+
+            notifyPlayer(patient, "UI_NL_RinneganAwakened")
+            if NinjaLineages.isServer() then
+                sendServerCommand("NinjaLineages", "abilityEvent", {
+                    kind = "rinnegan_awakened",
+                    casterOnlineId = patient:getOnlineID(),
+                })
+            end
+        end
+    end
+
+    -- Roll 3-day gene buff or debuff
+    local isBuff = ZombRand(0, 2) == 0
+    local pool = isBuff and consts.GeneEffects.Buffs or consts.GeneEffects.Debuffs
+    local chosen = pool[ZombRand(1, #pool + 1)]
+
+    if chosen then
+        data.activeGeneEffect = {
+            id = chosen.id,
+            nameKey = chosen.nameKey,
+            descKey = chosen.descKey,
+            isBuff = chosen.isBuff,
+            expiresAt = now + consts.Surgery.GENE_EFFECT_DURATION_MINUTES,
+        }
+        notifyPlayer(patient, chosen.nameKey)
+    end
+
+    NinjaLineages.transmitPlayerData(patient)
+    notifyPlayer(doctor, "UI_NL_Surgery_GeneImplantedSuccess")
+    return true
 end
 
 -- Handle Complete Corpse Experiment
@@ -155,6 +365,27 @@ local function handleCompleteCorpseExperiment(player, args)
     end
 end
 
+local function handlePerformExperimentalSurgery(doctor, args)
+    if not doctor or not args then return end
+    local surgeryType = args.surgeryType
+    local eyeSlot = args.eyeSlot
+    local itemId = args.itemId
+
+    local patient = doctor
+    if args.patientOnlineId and getPlayerByOnlineID then
+        local target = getPlayerByOnlineID(args.patientOnlineId)
+        if target then patient = target end
+    end
+
+    if surgeryType == "remove_eye" then
+        ServerLogic.removeEye(doctor, patient, eyeSlot)
+    elseif surgeryType == "implant_eye" then
+        ServerLogic.implantEye(doctor, patient, eyeSlot, itemId)
+    elseif surgeryType == "implant_genes" then
+        ServerLogic.implantGenes(doctor, patient, itemId)
+    end
+end
+
 -- Client Command Router
 local function onClientCommand(module, command, player, args)
     if module ~= "NinjaLineages" then return end
@@ -165,6 +396,8 @@ local function onClientCommand(module, command, player, args)
         handleZombieDashRequest(player, args)
     elseif command == "completeCorpseExperiment" then
         handleCompleteCorpseExperiment(player, args)
+    elseif command == "performExperimentalSurgery" then
+        handlePerformExperimentalSurgery(player, args)
     end
 end
 

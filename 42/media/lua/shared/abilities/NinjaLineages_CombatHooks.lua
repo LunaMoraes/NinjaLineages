@@ -68,7 +68,9 @@ local function sharinganPvPMeleeEvade(attacker, player, weapon, damage)
 
     local kamuiActive = active[player] and active[player].kamuiUntil
     local stage = NinjaLineages.getSharinganStage(player)
-    local chance = NinjaLineages.Constants.Uchiha.SharinganDodgeChance[stage] or 0
+    local baseChance = NinjaLineages.Constants.Uchiha.SharinganDodgeChance[stage] or 0
+    local multiplier = NinjaLineages.getEyePowerMultiplier(player, "sharingan")
+    local chance = math.floor(baseChance * multiplier)
     local dodged = kamuiActive or ZombRand(1, 101) <= chance
     if dodged then
         player:setAvoidDamage(true)
@@ -83,8 +85,9 @@ local function gentleFist(zombie, attacker, bodyPartType, weapon)
     if not weapon or weapon:getType() ~= "BareHands" or zombie:isDead() then return end
     local cost = Balance.getCost("TRIVIAL")
     if not NinjaLineages.Chakra.spendChakra(attacker, cost) then return end
+    local multiplier = NinjaLineages.getEyePowerMultiplier(attacker, "byakugan")
     NinjaLineages.Utils.Combat.staggerZombie(zombie, { knockdown = true, position = "FRONT" })
-    NinjaLineages.Damage.applyZombieDamage(attacker, zombie, Balance.rollDamage("LIGHT"))
+    NinjaLineages.Damage.applyZombieDamage(attacker, zombie, Balance.rollDamage("LIGHT") * multiplier)
 end
 
 if not NinjaLineages.isClient() and Events and Events.OnHitZombie then
@@ -108,7 +111,9 @@ local function sharinganEvade(zombie)
         return
     end
     local stage = NinjaLineages.getSharinganStage(player)
-    local chance = NinjaLineages.Constants.Uchiha.SharinganDodgeChance[stage] or 0
+    local baseChance = NinjaLineages.Constants.Uchiha.SharinganDodgeChance[stage] or 0
+    local multiplier = NinjaLineages.getEyePowerMultiplier(player, "sharingan")
+    local chance = math.floor(baseChance * multiplier)
     if ZombRand(1, 101) <= chance then
         zombie:setVariable("AttackOutcome", "fail")
         broadcastSharinganEvade(player)

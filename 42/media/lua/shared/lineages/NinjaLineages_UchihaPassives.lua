@@ -29,6 +29,7 @@ function UchihaPassives.unlockMangekyoIfEligible(victim)
     if data.mangekyoUnlocked then return end
 
     data.mangekyoUnlocked = true
+    data.sharinganStage = 4
     NinjaLineages.transmitPlayerData(attacker)
     UchihaPassives.notifyMangekyoUnlocked(attacker)
 end

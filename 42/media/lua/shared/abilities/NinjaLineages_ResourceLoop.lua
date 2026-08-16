@@ -187,6 +187,15 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
             state.kamuiUntil = nil
             NinjaLineages.KamuiState.restore(player, state)
             applyKamuiVisionPenalty(player)
+            local cost = (NinjaLineages.Constants.GeneExperimentation and NinjaLineages.Constants.GeneExperimentation.Surgery.MANGEKYO_FRESHNESS_COST) or 5
+            if data.eyes then
+                if data.eyes.left and data.eyes.left.type == "sharingan" and (data.eyes.left.freshness or 0) > 0 then
+                    data.eyes.left.freshness = math.max(0, (data.eyes.left.freshness or 100) - cost)
+                elseif data.eyes.right and data.eyes.right.type == "sharingan" and (data.eyes.right.freshness or 0) > 0 then
+                    data.eyes.right.freshness = math.max(0, (data.eyes.right.freshness or 100) - cost)
+                end
+                NinjaLineages.transmitPlayerData(player)
+            end
             local kamuiDef = Catalog.get("kamui")
             local resolved = Catalog.resolveBalance(kamuiDef)
             NinjaLineages.Cooldowns.set(player, Catalog.getCooldownKey(kamuiDef), resolved.cooldown or 24)
@@ -302,31 +311,81 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
     if elapsed <= 0 then return end
 
     local data = NinjaLineages.getNLData(player)
+    if not data then return end
+
+    -- Check temporary gene effect expiration
+    if data.activeGeneEffect then
+        if data.activeGeneEffect.expiresAt and now >= data.activeGeneEffect.expiresAt then
+            data.activeGeneEffect = nil
+            NinjaLineages.transmitPlayerData(player)
+            if NinjaLineages.isServer() then
+                sendServerCommand(player, "NinjaLineages", "geneExperimentationMessage", {
+                    textKey = "UI_NL_GeneEffect_Expired",
+                    casterOnlineId = player:getOnlineID(),
+                })
+            else
+                player:Say(getText("UI_NL_GeneEffect_Expired"))
+            end
+        else
+            -- Apply continuous gene effect passive benefits/debuffs
+            local stats = player:getStats()
+            if data.activeGeneEffect.id == "vitality_surge" then
+                local bodyDamage = player:getBodyDamage()
+                if bodyDamage and bodyDamage:getOverallBodyHealth() < 100 then
+                    local currentHealth = bodyDamage:getOverallBodyHealth()
+                    pcall(function() bodyDamage:setOverallBodyHealth(math.min(100, currentHealth + (0.15 * elapsed))) end)
+                end
+            elseif data.activeGeneEffect.id == "physical_vigor" then
+                if stats then
+                    stats:setFatigue(math.max(0, stats:getFatigue() - (0.01 * elapsed)))
+                    stats:setEndurance(math.min(1, stats:getEndurance() + (0.02 * elapsed)))
+                end
+            elseif data.activeGeneEffect.id == "cellular_rejection" then
+                if stats then
+                    stats:setFatigue(math.min(1, stats:getFatigue() + (0.005 * elapsed)))
+                end
+            end
+        end
+    end
+
     local maxChakra = NinjaLineages.Chakra.getMaxChakra(player)
     local chakra = NinjaLineages.Chakra.getChakra(player)
     local skillLevel = NinjaLineages.Skills.getChakraControlLevel(player)
     local regen = maxChakra * NinjaLineages.Constants.Chakra.BASE_REGEN_PCT_PER_MINUTE
         * NinjaLineages.Skills.getRegenMultiplier(skillLevel)
     if data.isMeditating then regen = regen * NinjaLineages.Constants.Chakra.MEDITATION_REGEN_MULTIPLIER end
+    if data.activeGeneEffect and data.activeGeneEffect.id == "chakra_surge" then
+        regen = regen * 1.35
+    end
     chakra = math.min(maxChakra, chakra + (regen * elapsed))
 
     if data.eyePowerActive then
-        local drain = 0
-        if NinjaLineages.hasSharingan(player) then
+        local totalDrain = 0
+        local sharinganCount = NinjaLineages.getInstalledEyeCount(player, "sharingan")
+        if sharinganCount > 0 then
             local sharingan = Catalog.resolveBalance("sharingan")
+            local sDrain = 0
             if data.mangekyoUnlocked then
-                drain = sharingan.evolvedDrain
+                sDrain = sharingan.evolvedDrain
             else
-                drain = sharingan.sustainedDrains[
+                sDrain = sharingan.sustainedDrains[
                     NinjaLineages.getSharinganStage(player)
                 ] or 0
             end
-        elseif NinjaLineages.hasByakugan(player) then
-            drain = Catalog.resolveBalance("byakugan").sustainedDrain
+            sDrain = sDrain * NinjaLineages.getEyePowerMultiplier(player, "sharingan")
+            totalDrain = totalDrain + sDrain
         end
-        drain = drain * NinjaLineages.Skills.getDrainReduction(skillLevel)
-        if data.isMeditating then drain = drain * NinjaLineages.Constants.Chakra.MEDITATION_DRAIN_MULTIPLIER end
-        chakra = math.max(0, chakra - (drain * elapsed))
+        local byakuganCount = NinjaLineages.getInstalledEyeCount(player, "byakugan")
+        if byakuganCount > 0 then
+            local bDrain = Catalog.resolveBalance("byakugan").sustainedDrain * NinjaLineages.getEyePowerMultiplier(player, "byakugan")
+            totalDrain = totalDrain + bDrain
+        end
+        totalDrain = totalDrain * NinjaLineages.Skills.getDrainReduction(skillLevel)
+        if data.isMeditating then totalDrain = totalDrain * NinjaLineages.Constants.Chakra.MEDITATION_DRAIN_MULTIPLIER end
+        if data.activeGeneEffect and data.activeGeneEffect.id == "chakra_instability" then
+            totalDrain = totalDrain * 1.30
+        end
+        chakra = math.max(0, chakra - (totalDrain * elapsed))
         if chakra <= 0 then data.eyePowerActive = false end
     end
     NinjaLineages.Chakra.setChakra(player, chakra)

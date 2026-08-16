@@ -154,3 +154,83 @@ NinjaLineages.Constants.ChakraFocus = {
     CHAKRA_TO_PANIC = 0.5,
     CHAKRA_TO_STRESS = 0.005,
 }
+
+NinjaLineages.Constants.GeneExperimentation = {
+    Extraction = {
+        MIN_ROLL_FRESHNESS = 60,
+        MAX_ROLL_FRESHNESS = 100,
+        PERFECT_ROLL_THRESHOLD = 85,
+    },
+    Surgery = {
+        BASE_DURATION = 400,
+        MANGEKYO_FRESHNESS_COST = 5,
+        HEAD_DAMAGE_FRESHNESS_FACTOR = 0.5,
+        RINNEGAN_AWAKENING_CHANCE = 10,
+        GENE_EFFECT_DURATION_MINUTES = 3 * 24 * 60, -- 4320 in-game minutes (3 days)
+    },
+    GeneEffects = {
+        Buffs = {
+            {
+                id = "vitality_surge",
+                nameKey = "UI_NL_GeneEffect_vitality_surge_Name",
+                descKey = "UI_NL_GeneEffect_vitality_surge_Desc",
+                isBuff = true,
+                healthRegenBonus = 0.30,
+            },
+            {
+                id = "chakra_surge",
+                nameKey = "UI_NL_GeneEffect_chakra_surge_Name",
+                descKey = "UI_NL_GeneEffect_chakra_surge_Desc",
+                isBuff = true,
+                chakraRegenBonus = 0.35,
+            },
+            {
+                id = "physical_vigor",
+                nameKey = "UI_NL_GeneEffect_physical_vigor_Name",
+                descKey = "UI_NL_GeneEffect_physical_vigor_Desc",
+                isBuff = true,
+                fatigueMultiplier = 0.50,
+                enduranceMultiplier = 1.50,
+            },
+            {
+                id = "agility_infusion",
+                nameKey = "UI_NL_GeneEffect_agility_infusion_Name",
+                descKey = "UI_NL_GeneEffect_agility_infusion_Desc",
+                isBuff = true,
+                speedMultiplier = 1.10,
+            },
+        },
+        Debuffs = {
+            {
+                id = "cellular_rejection",
+                nameKey = "UI_NL_GeneEffect_cellular_rejection_Name",
+                descKey = "UI_NL_GeneEffect_cellular_rejection_Desc",
+                isBuff = false,
+                fatigueMultiplier = 1.50,
+                enduranceMultiplier = 0.70,
+            },
+            {
+                id = "chakra_instability",
+                nameKey = "UI_NL_GeneEffect_chakra_instability_Name",
+                descKey = "UI_NL_GeneEffect_chakra_instability_Desc",
+                isBuff = false,
+                chakraCostMultiplier = 1.30,
+            },
+            {
+                id = "muscle_atrophy",
+                nameKey = "UI_NL_GeneEffect_muscle_atrophy_Name",
+                descKey = "UI_NL_GeneEffect_muscle_atrophy_Desc",
+                isBuff = false,
+                damageMultiplier = 0.80,
+            },
+            {
+                id = "sensory_disorientation",
+                nameKey = "UI_NL_GeneEffect_sensory_disorientation_Name",
+                descKey = "UI_NL_GeneEffect_sensory_disorientation_Desc",
+                isBuff = false,
+                dizzinessBonus = true,
+            },
+        },
+    },
+}
+

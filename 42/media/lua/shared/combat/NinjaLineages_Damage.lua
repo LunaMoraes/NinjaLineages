@@ -64,7 +64,9 @@ function NinjaLineages.Damage.applyPlayerDamage(caster, targetPlayer, payload)
     local targetData = NinjaLineages.getNLData(targetPlayer)
     if NinjaLineages.hasSharingan(targetPlayer) and targetData.eyePowerActive then
         local stage = NinjaLineages.getSharinganStage(targetPlayer)
-        local chance = NinjaLineages.Constants.Uchiha.SharinganDodgeChance[stage] or 0
+        local baseChance = NinjaLineages.Constants.Uchiha.SharinganDodgeChance[stage] or 0
+        local multiplier = NinjaLineages.getEyePowerMultiplier(targetPlayer, "sharingan")
+        local chance = math.floor(baseChance * multiplier)
         local active = NinjaLineages.AbilityExecution and NinjaLineages.AbilityExecution.active or {}
         local kamuiActive = active[targetPlayer] and active[targetPlayer].kamuiUntil
         local dodged = kamuiActive or ZombRand(1, 101) <= chance
@@ -104,6 +106,19 @@ function NinjaLineages.Damage.applyPlayerDamage(caster, targetPlayer, payload)
     local synced = syncPart(bodyPart, syncMask)
     local healthAfter = safeRead(function() return bodyPart:getHealth() end, nil)
     notifyDamagePresentation(caster, targetPlayer, damage)
+
+    -- Head damage reduces installed eye freshness
+    if bodyPart:getType() == BodyPartType.Head and targetData and targetData.eyes then
+        local factor = (NinjaLineages.Constants.GeneExperimentation and NinjaLineages.Constants.GeneExperimentation.Surgery.HEAD_DAMAGE_FRESHNESS_FACTOR) or 0.5
+        local eyeLoss = damage * factor
+        if targetData.eyes.left and (targetData.eyes.left.freshness or 0) > 0 then
+            targetData.eyes.left.freshness = math.max(0, (targetData.eyes.left.freshness or 100) - eyeLoss)
+        end
+        if targetData.eyes.right and (targetData.eyes.right.freshness or 0) > 0 then
+            targetData.eyes.right.freshness = math.max(0, (targetData.eyes.right.freshness or 100) - eyeLoss)
+        end
+        NinjaLineages.transmitPlayerData(targetPlayer)
+    end
 
     local result = {
         bodyPartIndex = partIndex,
@@ -168,3 +183,44 @@ function NinjaLineages.Damage.applyTargetDamageAndControl(caster, target, payloa
     end
     return applied, result
 end
+
+local function monitorHeadDamage(player)
+    if not player or player:isDead() then return end
+    local bodyDamage = player:getBodyDamage()
+    if not bodyDamage then return end
+    local head = bodyDamage:getBodyPart(BodyPartType.Head)
+    if not head then return end
+
+    local currentHealth = head:getHealth()
+    local data = NinjaLineages.getNLData(player)
+    if not data then return end
+
+    if data.lastHeadHealth == nil then
+        data.lastHeadHealth = currentHealth
+        return
+    end
+
+    if currentHealth < data.lastHeadHealth then
+        local delta = data.lastHeadHealth - currentHealth
+        local factor = (NinjaLineages.Constants.GeneExperimentation and NinjaLineages.Constants.GeneExperimentation.Surgery.HEAD_DAMAGE_FRESHNESS_FACTOR) or 0.5
+        local eyeLoss = delta * factor
+        if data.eyes then
+            local changed = false
+            if data.eyes.left and (data.eyes.left.freshness or 0) > 0 then
+                data.eyes.left.freshness = math.max(0, (data.eyes.left.freshness or 100) - eyeLoss)
+                changed = true
+            end
+            if data.eyes.right and (data.eyes.right.freshness or 0) > 0 then
+                data.eyes.right.freshness = math.max(0, (data.eyes.right.freshness or 100) - eyeLoss)
+                changed = true
+            end
+            if changed then
+                NinjaLineages.transmitPlayerData(player)
+            end
+        end
+    end
+    data.lastHeadHealth = currentHealth
+end
+
+NinjaLineages.registerPlayerUpdate("shared.damage.monitorHead", monitorHeadDamage)
+

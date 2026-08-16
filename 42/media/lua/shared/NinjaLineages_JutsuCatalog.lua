@@ -511,7 +511,8 @@ Catalog.Definitions = {
     },
     node("blood_extraction", "gene_experimentation", "GENIN", 20),
     node("ocular_extraction", "gene_experimentation", "CHUNIN", 10, { "blood_extraction" }),
-    node("gene_extraction", "gene_experimentation", "JONIN", 10, { "ocular_extraction" }),
+    node("gene_extraction", "gene_experimentation", "CHUNIN", 20, { "ocular_extraction" }),
+    node("experimental_surgeries", "gene_experimentation", "JONIN", 10, { "gene_extraction" }),
 }
 
 local rankOrder = { GENIN = 1, CHUNIN = 2, JONIN = 3 }
