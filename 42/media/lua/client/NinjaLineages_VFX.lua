@@ -260,7 +260,7 @@ function VFX.addShinraTenseiPulse(x, y, z, maxRadius)
         y = y,
         z = z,
         maxRadius = resolvedRadius,
-        startedAt = NinjaLineages.Utils.Time.realMilliseconds(),
+        startGameMinutes = NinjaLineages.Utils.Time.gameMinutes(),
     })
 end
 
@@ -411,79 +411,115 @@ local function renderTravelingProjectiles(nowMs)
     end
 end
 
-local function renderShinraTenseiShockwaves(nowMs)
+local function renderShinraTenseiShockwaves(nowGameMinutes)
     local pulseConsts = consts.Rinnegan and consts.Rinnegan.ShinraTensei or {
-        VISUAL_DURATION_MS = 600,
+        PUSH_DURATION_MINUTES = 0.28,
         PULSE_SEGMENTS = 48,
-        PULSE_THICKNESS = 2.2,
-        PULSE_COLOR = { R = 0.9, G = 0.9, B = 1.0 },
+        PULSE_THICKNESS = 2.5,
+        PULSE_COLOR = { R = 0.82, G = 0.88, B = 1.0 },
     }
-
-    local latitudeAngles = { -65, -45, -25, 0, 25, 45, 65 }
-    local meridianAngles = { 0, 45, 90, 135 }
+    local duration = pulseConsts.PUSH_DURATION_MINUTES or 0.28
 
     for i = #activeShinraTenseiPulses, 1, -1 do
         local pulse = activeShinraTenseiPulses[i]
-        local progress = (nowMs - pulse.startedAt) / pulseConsts.VISUAL_DURATION_MS
+        local progress = duration > 0 and math.min(1, math.max(0, (nowGameMinutes - pulse.startGameMinutes) / duration)) or 1
         if progress >= 1 then
             table.remove(activeShinraTenseiPulses, i)
         elseif progress >= 0 then
             local currentRadius = math.max(0.15, pulse.maxRadius * progress)
-            local alpha = 0.85 * (1.0 - (progress * 0.35))
+            local baseAlpha = 0.85 * (1.0 - (progress * 0.30))
             local c = pulseConsts.PULSE_COLOR
-            local centerZ = pulse.z + 0.18
+            local groundZ = pulse.z
+            local rSq = currentRadius * currentRadius
 
-            -- 1. Latitude Rings of the expanding sphere
-            local ringPoints = {}
-            for latIdx, deg in ipairs(latitudeAngles) do
-                local radAngle = math.rad(deg)
-                local cosP = math.cos(radAngle)
-                local sinP = math.sin(radAngle)
-                local ringRadius = math.max(0.05, currentRadius * cosP)
-                local ringZ = centerZ + (sinP * currentRadius * 0.33)
-                local ringAlpha = alpha * (0.6 + 0.4 * cosP)
-                local thickness = deg == 0 and (pulseConsts.PULSE_THICKNESS * 1.3) or pulseConsts.PULSE_THICKNESS
+            -- 1. Ultra-dense overlapping concentric bands filling every gap (strictly Z >= groundZ)
+            local stepSize = 0.05
+            local r = 0.04
+            while r <= currentRadius do
+                local h = math.sqrt(math.max(0, rSq - (r * r))) * 0.33
+                local ringZ = groundZ + h
+                local fillAlpha = baseAlpha * 0.22
 
                 renderIsoCircle(
                     pulse.x, pulse.y, ringZ,
-                    ringRadius,
-                    pulseConsts.PULSE_SEGMENTS or 36,
-                    thickness,
+                    r,
+                    32,
+                    5.5,
                     c.R, c.G, c.B,
-                    ringAlpha
+                    fillAlpha
                 )
-
-                ringPoints[latIdx] = { radius = ringRadius, z = ringZ }
+                r = r + stepSize
             end
 
-            -- 2. Meridian Ribs connecting latitude tiers across the sphere
-            local ribAlpha = alpha * 0.7
+            -- 2. Ground perimeter base ring (locked to floor plane)
+            renderIsoCircle(
+                pulse.x, pulse.y, groundZ,
+                currentRadius,
+                pulseConsts.PULSE_SEGMENTS or 48,
+                3.2,
+                c.R, c.G, c.B,
+                baseAlpha * 0.90
+            )
+
+            -- 3. Outer boundary rim at mid-dome elevation
+            local midH = currentRadius * 0.165
+            local midR = math.sqrt(math.max(0, rSq - ((midH / 0.33) * (midH / 0.33))))
+            renderIsoCircle(
+                pulse.x, pulse.y, groundZ + midH,
+                midR,
+                pulseConsts.PULSE_SEGMENTS or 48,
+                2.5,
+                c.R, c.G, c.B,
+                baseAlpha * 0.70
+            )
+
+            -- 4. Apex crown ring at the top of the dome
+            local topH = currentRadius * 0.30
+            local topR = math.max(0.1, math.sqrt(math.max(0, rSq - ((topH / 0.33) * (topH / 0.33)))))
+            renderIsoCircle(
+                pulse.x, pulse.y, groundZ + topH,
+                topR,
+                32,
+                2.2,
+                c.R, c.G, c.B,
+                baseAlpha * 0.65
+            )
+
+            -- 5. Meridian surface energy ribs connecting ground to apex
+            local meridianAngles = { 0, 45, 90, 135 }
+            local ribAlpha = baseAlpha * 0.50
             for _, mDeg in ipairs(meridianAngles) do
                 local mRad = math.rad(mDeg)
                 local cosM = math.cos(mRad)
                 local sinM = math.sin(mRad)
 
-                for latIdx = 1, #ringPoints - 1 do
-                    local p1 = ringPoints[latIdx]
-                    local p2 = ringPoints[latIdx + 1]
+                local sampleStep = math.max(0.15, currentRadius / 10)
+                local sR = 0
+                while sR + sampleStep <= currentRadius do
+                    local r1 = sR
+                    local r2 = sR + sampleStep
+                    local h1 = math.sqrt(math.max(0, rSq - (r1 * r1))) * 0.33
+                    local h2 = math.sqrt(math.max(0, rSq - (r2 * r2))) * 0.33
 
-                    -- Positive hemisphere rib
+                    -- Positive side rib
                     renderIsoLine(
-                        pulse.x + (cosM * p1.radius), pulse.y + (sinM * p1.radius), p1.z,
-                        pulse.x + (cosM * p2.radius), pulse.y + (sinM * p2.radius), p2.z,
-                        pulseConsts.PULSE_THICKNESS,
+                        pulse.x + (cosM * r1), pulse.y + (sinM * r1), groundZ + h1,
+                        pulse.x + (cosM * r2), pulse.y + (sinM * r2), groundZ + h2,
+                        2.0,
                         c.R, c.G, c.B,
                         ribAlpha
                     )
 
-                    -- Negative hemisphere rib
+                    -- Negative side rib
                     renderIsoLine(
-                        pulse.x - (cosM * p1.radius), pulse.y - (sinM * p1.radius), p1.z,
-                        pulse.x - (cosM * p2.radius), pulse.y - (sinM * p2.radius), p2.z,
-                        pulseConsts.PULSE_THICKNESS,
+                        pulse.x - (cosM * r1), pulse.y - (sinM * r1), groundZ + h1,
+                        pulse.x - (cosM * r2), pulse.y - (sinM * r2), groundZ + h2,
+                        2.0,
                         c.R, c.G, c.B,
                         ribAlpha
                     )
+
+                    sR = sR + sampleStep
                 end
             end
         end
@@ -592,10 +628,11 @@ end
 
 function VFX.renderAll()
     local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
+    local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
     renderStaticBeams(nowMs)
     renderTravelingProjectiles(nowMs)
     renderKatonStreams(nowMs)
-    renderShinraTenseiShockwaves(nowMs)
+    renderShinraTenseiShockwaves(nowGameMinutes)
     renderGenjutsuCircles(nowMs)
     renderSageModeAuras()
 end
