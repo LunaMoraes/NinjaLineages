@@ -5,5 +5,5 @@ poster=42/poster.png
 icon=42/icon.png
 author=Luna
 modversion=2.5.0
-versionMin=42.17.0
+versionMin=42.20.0
 require=MoodleFramework
