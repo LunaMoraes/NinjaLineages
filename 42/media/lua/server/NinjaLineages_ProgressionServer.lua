@@ -219,9 +219,10 @@ local function handleDebugLearnSenninMode(player)
     local data = NinjaLineages.getNLData(player)
     if not state or not data then return end
 
-    state.disciplines["sennin_mode"] = true
     data.visibleDisciplines = data.visibleDisciplines or {}
     data.visibleDisciplines.sennin_mode = true
+    data.unlockedDisciplines = data.unlockedDisciplines or {}
+    data.unlockedDisciplines.sennin_mode = true
 
     if not NinjaLineages.Progression.getChosenContract(player) then
         state.nodes["toad_contract"] = "completed"

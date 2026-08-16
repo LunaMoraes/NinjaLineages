@@ -27,6 +27,7 @@ require "lineages/NinjaLineages_Hyuga"
 require "lineages/NinjaLineages_Senju"
 require "lineages/NinjaLineages_Rinnegan"
 require "lineages/NinjaLineages_Uzumaki"
+require "lineages/NinjaLineages_SageMode"
 
 NinjaLineages.JutsuCatalog.registerSelectableAbilities()
 NinjaLineages.JutsuCatalog.validateExecutors()
@@ -346,6 +347,9 @@ local function onPlayerUpdate(player)
     NinjaLineages.AbilityAuthority.updatePending()
     NinjaLineages.AbilityAuthority.maintainLocalKamuiNoClip(player)
     NinjaLineages.AbilityAuthority.updateLocalMovement(player)
+    if NinjaLineages.SageMode and NinjaLineages.SageMode.update then
+        NinjaLineages.SageMode.update(player)
+    end
     if not NinjaLineages.isClient() then
         NinjaLineages.AbilityAuthority.updatePlayer(player)
         if player:getPlayerNum() == 0 then NinjaLineages.AbilityAuthority.updateWorld() end

@@ -132,25 +132,34 @@ function SageMode.onCastJutsu(player)
     end
 end
 
-local lastSprintUpdateAt = {}
+local sageSprintState = {}
 
-local function updateSageModeSprint(player)
+function SageMode.update(player)
     if not player or player:isDead() then return end
-    if not SageMode.isActive(player) then return end
+    if not SageMode.isActive(player) then
+        sageSprintState[player] = nil
+        return
+    end
 
     if player:isSprinting() then
-        -- 1. Forward Momentum Boost (+70% forward travel)
-        local fx = player:getForwardDirectionX()
-        local fy = player:getForwardDirectionY()
-        local lenSq = (fx * fx) + (fy * fy)
-        if lenSq > 0.01 then
-            local boostDist = 0.08
-            local nextX = player:getX() + (fx * boostDist)
-            local nextY = player:getY() + (fy * boostDist)
-            local cell = getCell()
-            if cell then
-                local curSq = player:getCurrentSquare()
-                local nextSq = cell:getGridSquare(nextX, nextY, player:getZ())
+        local now = NinjaLineages.Utils.Time.gameMinutes()
+        local state = sageSprintState[player]
+        if not state then
+            state = { lastDrain = now }
+            sageSprintState[player] = state
+        end
+
+        -- 1. Forward Superhuman Sprint Boost (Same collision stepping as Dash)
+        local forward = player:getForwardDirection()
+        if forward then
+            local fx, fy = forward:getX(), forward:getY()
+            if (fx * fx + fy * fy) > 0.001 then
+                local stepDistance = NinjaLineages.Constants.CommonJutsu.Dash.STEP_DISTANCE
+                local nextX = player:getX() + (fx * stepDistance)
+                local nextY = player:getY() + (fy * stepDistance)
+                local cell = getCell()
+                local curSq = cell and cell:getGridSquare(player:getX(), player:getY(), player:getZ())
+                local nextSq = cell and cell:getGridSquare(nextX, nextY, player:getZ())
                 if curSq and nextSq and not nextSq:isBlockedTo(curSq) then
                     player:setX(nextX)
                     player:setY(nextY)
@@ -158,23 +167,21 @@ local function updateSageModeSprint(player)
             end
         end
 
-        -- 2. Sprinting Nature Chakra Drain
-        local now = NinjaLineages.Utils.Time.gameMinutes()
-        local last = lastSprintUpdateAt[player] or now
-        lastSprintUpdateAt[player] = now
-        local elapsed = math.max(0, now - last)
+        -- 2. Nature Chakra Drain (In-Game Clock: gameMinutes)
+        local elapsed = math.max(0, now - state.lastDrain)
+        state.lastDrain = now
         if elapsed > 0 then
-            local drain = Balance.getSustainedDrain("STANDARD") * elapsed
-            NinjaLineages.Chakra.spendNatureChakra(player, drain)
+            local drainRate = NinjaLineages.Balance.getSustainedDrain("HIGH")
+            NinjaLineages.Chakra.spendNatureChakra(player, drainRate * elapsed)
             if NinjaLineages.Chakra.getNatureChakra(player) <= 0 then
+                sageSprintState[player] = nil
                 SageMode.deactivate(player)
             end
         end
+    else
+        sageSprintState[player] = nil
     end
 end
-
--- Register Sprint loop
-NinjaLineages.registerPlayerUpdate("sageMode.sprint", updateSageModeSprint)
 
 -- Register Executor for Sage Mode
 NinjaLineages = NinjaLineages or {}

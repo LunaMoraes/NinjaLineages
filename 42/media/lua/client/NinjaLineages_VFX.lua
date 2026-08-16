@@ -95,7 +95,13 @@ function VFX.renderAura(character, r, g, b, baseAlpha, baseRadius)
 
         local sparkAlpha = math.sin(progress * math.pi) * ((baseAlpha or 0.8) * 0.75)
         if sparkAlpha > 0.05 then
-            renderIsoCircle(sparkX, sparkY, sparkZ, 0.04, 8, 2.0, r, g, b, sparkAlpha)
+            renderIsoLine(
+                sparkX, sparkY, sparkZ,
+                sparkX, sparkY, sparkZ + 0.04,
+                1.5,
+                r, g, b,
+                sparkAlpha
+            )
         end
     end
 end

@@ -99,8 +99,8 @@ end
 
 function NinjaLineages.Chakra.spendNatureChakra(player, amount)
     local current = NinjaLineages.Chakra.getNatureChakra(player)
-    if current < amount then return false end
-    NinjaLineages.Chakra.setNatureChakra(player, current - amount)
-    return true
+    local remaining = math.max(0, current - (amount or 0))
+    NinjaLineages.Chakra.setNatureChakra(player, remaining)
+    return remaining > 0
 end
 
