@@ -35,6 +35,9 @@ jobs:
 
           webhook = os.environ["DISCORD_WEBHOOK_URL"]
 
+          separator = "&" if "?" in webhook else "?"
+          webhook = f"{webhook}{separator}wait=true"
+
           message = os.environ["COMMIT_MESSAGE"].strip()
           commit_url = os.environ["COMMIT_URL"]
           github_actor = os.environ["GITHUB_ACTOR"]
@@ -107,7 +110,7 @@ jobs:
 
           payload = {
               "username": "NinjaLineages",
-              "avatar_url": "https://raw.githubusercontent.com/LunaMoraes/NinjaLineages/main/42/poster.png",
+              "avatar_url": "https://raw.githubusercontent.com/LunaMoraes/NinjaLineages/main/42/icon.png",
               "embeds": [
                   {
                       "author": {
@@ -155,5 +158,7 @@ jobs:
           )
 
           with urllib.request.urlopen(request) as response:
-              print(f"Discord response: {response.status}")
+            response_body = response.read().decode("utf-8")
+            print(f"Discord response: {response.status}")
+            print(response_body)
           PY
