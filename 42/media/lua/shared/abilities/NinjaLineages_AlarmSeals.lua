@@ -92,7 +92,9 @@ function Authority.updateAlarmSeals()
     local records = alarmRecords()
     local cell = getCell()
     if not cell then return end
-    local radius = NinjaLineages.Constants.Uzumaki.AlarmSeal.RADIUS
+    local radius = NinjaLineages.Balance.getRadius(
+        NinjaLineages.Balance.Lineages.Uzumaki.ALARM_RADIUS_TIER
+    )
     local radiusSquared = radius * radius
     local changed = false
 

@@ -1,3 +1,5 @@
+require "NinjaLineages_Balance"
+
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Skills = NinjaLineages.Skills or {}
 
@@ -45,20 +47,26 @@ end
 -- Multiplier scales
 -- Chakra Control Level 0-10 -> 1.0x to 2.5x regen
 function NinjaLineages.Skills.getRegenMultiplier(level)
-    return 1.0 + (level * 0.15)
+    local scaling = NinjaLineages.Balance.SkillScaling
+    return scaling.REGEN_BASE + (level * scaling.REGEN_PER_CONTROL_LEVEL)
 end
 
 -- Chakra Control Level 0-10 -> 0% to 50% drain reduction (so returns a factor 1.0 to 0.5)
 function NinjaLineages.Skills.getDrainReduction(level)
-    return 1.0 - (level * 0.05)
+    local scaling = NinjaLineages.Balance.SkillScaling
+    return scaling.DRAIN_BASE - (level * scaling.DRAIN_REDUCTION_PER_CONTROL_LEVEL)
 end
 
 -- Jutsu Prowess Level 0-10 -> 50% to 100% effectiveness scaling
 function NinjaLineages.Skills.getJutsuEffectiveness(level)
-    return 0.5 + (level * 0.05)
+    local scaling = NinjaLineages.Balance.SkillScaling
+    return scaling.JUTSU_EFFECTIVENESS_BASE
+        + (level * scaling.JUTSU_EFFECTIVENESS_PER_PROWESS_LEVEL)
 end
 
 -- Jutsu Prowess Level 0-10 -> 1.0x to 2.0x duration scaling
 function NinjaLineages.Skills.getJutsuDuration(level)
-    return 1.0 + (level * 0.1)
+    local scaling = NinjaLineages.Balance.SkillScaling
+    return scaling.JUTSU_DURATION_BASE
+        + (level * scaling.JUTSU_DURATION_PER_PROWESS_LEVEL)
 end

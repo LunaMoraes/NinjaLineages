@@ -1,3 +1,5 @@
+require "NinjaLineages_Balance"
+
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Utils = NinjaLineages.Utils or {}
 

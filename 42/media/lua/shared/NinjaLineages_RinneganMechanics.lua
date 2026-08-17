@@ -2,13 +2,15 @@ require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Chakra"
 require "NinjaLineages_Balance"
+require "NinjaLineages_Constants"
 require "NinjaLineages_JutsuCatalog"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.RinneganMechanics = NinjaLineages.RinneganMechanics or {}
 
 local mechanics = NinjaLineages.RinneganMechanics
-local consts = NinjaLineages.Constants
+local tuning = NinjaLineages.Balance.JutsuRuntime.ShinraTensei
+local geometry = NinjaLineages.Constants.Geometry
 local activePushes = {}
 
 function mechanics.getRadius()
@@ -85,7 +87,7 @@ local function getKnockdownChance(distance)
 end
 
 local function getPushDirection(player, target)
-    if target.distance > 0.001 then
+    if target.distance > geometry.DIRECTION_EPSILON then
         return target.dx / target.distance, target.dy / target.distance
     end
 
@@ -94,7 +96,7 @@ local function getPushDirection(player, target)
         local dx = forward:getX()
         local dy = forward:getY()
         local length = math.sqrt((dx * dx) + (dy * dy))
-        if length > 0.001 then
+        if length > geometry.DIRECTION_EPSILON then
             return dx / length, dy / length
         end
     end
@@ -122,7 +124,7 @@ local function getValidPush(player, target)
         return startX, startY, dirX, dirY, 0
     end
 
-    local stepSize = consts.Rinnegan.ShinraTensei.PUSH_STEP
+    local stepSize = tuning.PUSH_STEP
     local travelled = 0
     local currentSquare = zombie:getCurrentSquare()
 
@@ -146,9 +148,13 @@ end
 local function applyDamage(player, state)
     local zombie = state.zombie
     local radius = mechanics.getRadius()
-    if state.startDistance <= radius / 2 then
+    if state.startDistance <= radius * tuning.INSTANT_KILL_RADIUS_FACTOR then
         local ok, health = pcall(function() return zombie:getHealth() end)
-        NinjaLineages.Damage.applyZombieDamage(player, zombie, ok and health or 1000)
+        NinjaLineages.Damage.applyZombieDamage(
+            player,
+            zombie,
+            ok and health or tuning.INSTANT_KILL_DAMAGE_FALLBACK
+        )
         return
     end
 
@@ -163,7 +169,7 @@ local function finishPush(state)
     local zombie = state.zombie
     if not zombie or zombie:isDead() then return end
     local knockdown = ZombRand(1, 101) <= getKnockdownChance(state.startDistance)
-    local force = math.max(2.0, 8.0 - state.startDistance)
+    local force = math.max(tuning.MINIMUM_PUSH_FORCE, tuning.MAXIMUM_PUSH_FORCE - state.startDistance)
     NinjaLineages.Utils.Combat.staggerZombie(zombie, {
         knockdown = knockdown,
         position = "FRONT",
@@ -193,7 +199,7 @@ end
 function mechanics.update()
     if #activePushes == 0 then return end
     local now = NinjaLineages.Utils.Time.gameMinutes()
-    local duration = consts.Rinnegan.ShinraTensei.PUSH_DURATION_MINUTES
+    local duration = tuning.PUSH_DURATION_MINUTES
     local radius = mechanics.getRadius()
 
     for i = #activePushes, 1, -1 do

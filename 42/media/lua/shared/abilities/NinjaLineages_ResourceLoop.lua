@@ -59,7 +59,7 @@ local function processStatRestorationLoop(player, state, now, actionId, stateUnt
             break
         end
         
-        local step = resolved.costStep or 5
+        local step = resolved.costStep or Balance.getCostStep("STANDARD")
         for _, config in ipairs(statsToRestore) do
             local current = stats:get(config.stat)
             if not isStatMet(current, config.targetValue) then
@@ -112,7 +112,7 @@ local function applyKamuiVisionPenalty(player)
     local level = math.min(3, (data.kamuiVisionLevel or 0) + 1)
     data.kamuiVisionLevel = level
     data.kamuiVisionRecoverAt = NinjaLineages.Utils.Time.gameMinutes()
-        + NinjaLineages.Constants.Uchiha.Vision.RECOVERY_MINUTES[level]
+        + Balance.Lineages.Uchiha.VisionRecoveryMinutes[level]
     NinjaLineages.transmitPlayerData(player)
 end
 
@@ -128,7 +128,7 @@ function NinjaLineages.AbilityAuthority.updateLocalMovement(player)
             player,
             movement,
             now,
-            NinjaLineages.Constants.CommonJutsu.Dash.STEP_DISTANCE,
+            Balance.CommonJutsu.Dash.STEP_DISTANCE,
             function() state.forwardMovement = nil end
         )
         if not activeState then
@@ -187,18 +187,22 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
             state.kamuiUntil = nil
             NinjaLineages.KamuiState.restore(player, state)
             applyKamuiVisionPenalty(player)
-            local cost = (NinjaLineages.Constants.GeneExperimentation and NinjaLineages.Constants.GeneExperimentation.Surgery.MANGEKYO_FRESHNESS_COST) or 5
+            local cost = Balance.GeneExperimentation.Surgery.MANGEKYO_FRESHNESS_COST
             if data.eyes then
                 if data.eyes.left and data.eyes.left.type == "sharingan" and (data.eyes.left.freshness or 0) > 0 then
-                    data.eyes.left.freshness = math.max(0, (data.eyes.left.freshness or 100) - cost)
+                    data.eyes.left.freshness = math.max(0, (data.eyes.left.freshness or Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS) - cost)
                 elseif data.eyes.right and data.eyes.right.type == "sharingan" and (data.eyes.right.freshness or 0) > 0 then
-                    data.eyes.right.freshness = math.max(0, (data.eyes.right.freshness or 100) - cost)
+                    data.eyes.right.freshness = math.max(0, (data.eyes.right.freshness or Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS) - cost)
                 end
                 NinjaLineages.transmitPlayerData(player)
             end
             local kamuiDef = Catalog.get("kamui")
             local resolved = Catalog.resolveBalance(kamuiDef)
-            NinjaLineages.Cooldowns.set(player, Catalog.getCooldownKey(kamuiDef), resolved.cooldown or 24)
+            NinjaLineages.Cooldowns.set(
+                player,
+                Catalog.getCooldownKey(kamuiDef),
+                resolved.cooldown or Balance.getCooldown("STANDARD")
+            )
         end
     end
 
@@ -235,8 +239,8 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
         "chakraFocusUntil", "nextChakraFocusTick",
         "UI_NL_Ability_chakra_focus_Deactivated",
         {
-            { stat = CharacterStat.PANIC, targetValue = 0, conversionRate = NinjaLineages.Constants.ChakraFocus.CHAKRA_TO_PANIC },
-            { stat = CharacterStat.STRESS, targetValue = 0, conversionRate = NinjaLineages.Constants.ChakraFocus.CHAKRA_TO_STRESS },
+            { stat = CharacterStat.PANIC, targetValue = 0, conversionRate = Balance.ResourceConversion.ChakraFocus.CHAKRA_TO_PANIC },
+            { stat = CharacterStat.STRESS, targetValue = 0, conversionRate = Balance.ResourceConversion.ChakraFocus.CHAKRA_TO_STRESS },
         }
     )
 
@@ -245,8 +249,8 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
         "calorieControlUntil", "nextCalorieTick",
         "UI_NL_Ability_calorie_control_Deactivated",
         {
-            { stat = CharacterStat.HUNGER, targetValue = 0, conversionRate = NinjaLineages.Constants.CalorieControl.CHAKRA_TO_HUNGER },
-            { stat = CharacterStat.THIRST, targetValue = 0, conversionRate = NinjaLineages.Constants.CalorieControl.CHAKRA_TO_THIRST },
+            { stat = CharacterStat.HUNGER, targetValue = 0, conversionRate = Balance.ResourceConversion.CalorieControl.CHAKRA_TO_HUNGER },
+            { stat = CharacterStat.THIRST, targetValue = 0, conversionRate = Balance.ResourceConversion.CalorieControl.CHAKRA_TO_THIRST },
         }
     )
 
@@ -255,8 +259,8 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
         "physicalReinforcementUntil", "nextPhysicalReinforcementTick",
         "UI_NL_ReinforcementExpired",
         {
-            { stat = CharacterStat.ENDURANCE, targetValue = 1, conversionRate = NinjaLineages.Constants.PhysicalReinforcement.CHAKRA_TO_ENDURANCE },
-            { stat = CharacterStat.FATIGUE, targetValue = 0, conversionRate = NinjaLineages.Constants.PhysicalReinforcement.CHAKRA_TO_FATIGUE },
+            { stat = CharacterStat.ENDURANCE, targetValue = 1, conversionRate = Balance.ResourceConversion.PhysicalReinforcement.CHAKRA_TO_ENDURANCE },
+            { stat = CharacterStat.FATIGUE, targetValue = 0, conversionRate = Balance.ResourceConversion.PhysicalReinforcement.CHAKRA_TO_FATIGUE },
         }
     )
 
@@ -268,7 +272,7 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
         data.kamuiVisionLevel = visionLevel
         if visionLevel > 0 then
             data.kamuiVisionRecoverAt = data.kamuiVisionRecoverAt
-                + NinjaLineages.Constants.Uchiha.Vision.RECOVERY_MINUTES[visionLevel]
+                + Balance.Lineages.Uchiha.VisionRecoveryMinutes[visionLevel]
         else
             data.kamuiVisionRecoverAt = nil
         end
@@ -329,23 +333,29 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
         else
             -- Apply continuous gene effect passive benefits/debuffs
             local stats = player:getStats()
-            if data.activeGeneEffect.id == "vitality_surge" then
+            local effect = Balance.getGeneEffect(data.activeGeneEffect.id)
+            if data.activeGeneEffect.id == "vitality_surge" and effect then
                 local bodyDamage = player:getBodyDamage()
                 if bodyDamage and bodyDamage:getOverallBodyHealth() < 100 then
                     local currentHealth = bodyDamage:getOverallBodyHealth()
-                    pcall(function() bodyDamage:setOverallBodyHealth(math.min(100, currentHealth + (0.15 * elapsed))) end)
+                    pcall(function()
+                        bodyDamage:setOverallBodyHealth(math.min(
+                            Balance.Progression.ProbabilityMaximum,
+                            currentHealth + (effect.healthRegenPerMinute * elapsed)
+                        ))
+                    end)
                 end
-            elseif data.activeGeneEffect.id == "physical_vigor" then
+            elseif data.activeGeneEffect.id == "physical_vigor" and effect then
                 if stats then
                     local currentFatigue = stats:get(CharacterStat.FATIGUE) or 0
                     local currentEndurance = stats:get(CharacterStat.ENDURANCE) or 0
-                    stats:set(CharacterStat.FATIGUE, math.max(0, currentFatigue - (0.01 * elapsed)))
-                    stats:set(CharacterStat.ENDURANCE, math.min(1, currentEndurance + (0.02 * elapsed)))
+                    stats:set(CharacterStat.FATIGUE, math.max(0, currentFatigue - (effect.fatigueRecoveryPerMinute * elapsed)))
+                    stats:set(CharacterStat.ENDURANCE, math.min(1, currentEndurance + (effect.enduranceRecoveryPerMinute * elapsed)))
                 end
-            elseif data.activeGeneEffect.id == "cellular_rejection" then
+            elseif data.activeGeneEffect.id == "cellular_rejection" and effect then
                 if stats then
                     local currentFatigue = stats:get(CharacterStat.FATIGUE) or 0
-                    stats:set(CharacterStat.FATIGUE, math.min(1, currentFatigue + (0.005 * elapsed)))
+                    stats:set(CharacterStat.FATIGUE, math.min(1, currentFatigue + (effect.fatigueGainPerMinute * elapsed)))
                 end
             end
         end
@@ -354,15 +364,16 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
     local maxChakra = NinjaLineages.Chakra.getMaxChakra(player)
     local chakra = NinjaLineages.Chakra.getChakra(player)
     local skillLevel = NinjaLineages.Skills.getChakraControlLevel(player)
-    local regen = maxChakra * NinjaLineages.Constants.Chakra.BASE_REGEN_PCT_PER_MINUTE
+    local regen = maxChakra * Balance.Chakra.BASE_REGEN_PCT_PER_MINUTE
         * NinjaLineages.Skills.getRegenMultiplier(skillLevel)
-    if data.isMeditating then regen = regen * NinjaLineages.Constants.Chakra.MEDITATION_REGEN_MULTIPLIER end
+    if data.isMeditating then regen = regen * Balance.Chakra.MEDITATION_REGEN_MULTIPLIER end
     if data.activeGeneEffect and data.activeGeneEffect.id == "chakra_surge" then
-        regen = regen * 1.35
+        local effect = Balance.getGeneEffect("chakra_surge")
+        regen = regen * effect.chakraRegenMultiplier
     end
     if data.bloodTransfusionRegenUntil then
         if now < data.bloodTransfusionRegenUntil then
-            regen = regen * 1.50
+            regen = regen * Balance.GeneExperimentation.BloodTransfusion.REGEN_MULTIPLIER
         else
             data.bloodTransfusionRegenUntil = nil
         end
@@ -391,10 +402,7 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
             totalDrain = totalDrain + bDrain
         end
         totalDrain = totalDrain * NinjaLineages.Skills.getDrainReduction(skillLevel)
-        if data.isMeditating then totalDrain = totalDrain * NinjaLineages.Constants.Chakra.MEDITATION_DRAIN_MULTIPLIER end
-        if data.activeGeneEffect and data.activeGeneEffect.id == "chakra_instability" then
-            totalDrain = totalDrain * 1.30
-        end
+        if data.isMeditating then totalDrain = totalDrain * Balance.Chakra.MEDITATION_DRAIN_MULTIPLIER end
         chakra = math.max(0, chakra - (totalDrain * elapsed))
         if chakra <= 0 then data.eyePowerActive = false end
     end

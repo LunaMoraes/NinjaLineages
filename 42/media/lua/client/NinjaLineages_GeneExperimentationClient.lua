@@ -8,6 +8,7 @@ NinjaLineages = NinjaLineages or {}
 NinjaLineages.GeneExperimentationClient = NinjaLineages.GeneExperimentationClient or {}
 
 local ClientLogic = NinjaLineages.GeneExperimentationClient
+local geneBalance = NinjaLineages.Balance.GeneExperimentation
 local zombieMovements = {}
 local recentZombieNinjaDeaths = {}
 local pendingZombieDashRequests = {}
@@ -28,7 +29,8 @@ local function markSpawnedZombieNinjaCorpse(body)
     local key = getDeathKey(body:getX(), body:getY(), body:getZ())
     local deathAt = recentZombieNinjaDeaths[key]
     if not deathAt then return end
-    if NinjaLineages.Utils.Time.gameMinutes() - deathAt > 10 then
+    if NinjaLineages.Utils.Time.gameMinutes() - deathAt
+            > geneBalance.Extraction.CORPSE_FRESHNESS_WINDOW_MINUTES then
         recentZombieNinjaDeaths[key] = nil
         return
     end
@@ -95,8 +97,13 @@ local function startExperimentAction(player, corpse, actionId)
         docLevel = player:getPerkLevel(Perks.FirstAid)
     end
     
-    local maxTime = 900 - (docLevel * 60)
-    maxTime = math.max(300, math.min(900, maxTime))
+    local extraction = geneBalance.Extraction
+    local maxTime = extraction.TIMED_ACTION_MAX
+        - (docLevel * extraction.TIMED_ACTION_REDUCTION_PER_DOCTOR_LEVEL)
+    maxTime = math.max(
+        extraction.TIMED_ACTION_MIN,
+        math.min(extraction.TIMED_ACTION_MAX, maxTime)
+    )
     
     ISTimedActionQueue.add(NLCorpseExperimentAction:new(player, corpse, actionId, maxTime))
 end
@@ -221,7 +228,7 @@ local function updateZombieDash(zombie)
         zombie,
         movement,
         now,
-        NinjaLineages.Constants.CommonJutsu.Dash.STEP_DISTANCE,
+        NinjaLineages.Balance.CommonJutsu.Dash.STEP_DISTANCE,
         function() zombieMovements[zombie] = nil end
     )
     if not activeState then
@@ -255,7 +262,9 @@ local function onZombieUpdate(zombie)
             else
                 -- Singleplayer
                 modData.zombieNinjaRolled = true
-                local chance = SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.ZombieNinjaChance or 20
+                local chance = SandboxVars.NinjaLineages
+                    and SandboxVars.NinjaLineages.ZombieNinjaChance
+                    or geneBalance.ZOMBIE_NINJA_CHANCE_DEFAULT
                 if ZombRand(0, 100) < chance then
                     modData.isZombieNinja = true
                 else

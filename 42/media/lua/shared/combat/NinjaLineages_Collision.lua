@@ -1,7 +1,10 @@
+require "NinjaLineages_Constants"
+
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Collision = NinjaLineages.Collision or {}
 
 local Collision = NinjaLineages.Collision
+local geometry = NinjaLineages.Constants.Geometry
 
 Collision.Masks = {
     jutsu_projectile = {
@@ -28,7 +31,7 @@ function Collision.traceSegment(originX, originY, originZ, targetX, targetY, tar
     local floorZ = math.floor(originZ)
     local dx, dy = targetX - originX, targetY - originY
     local distance = math.sqrt((dx * dx) + (dy * dy))
-    if distance <= 0.0001 then return nil end
+    if distance <= geometry.EPSILON then return nil end
 
     local directionX, directionY = dx / distance, dy / distance
     local previousSquare = cell:getGridSquare(
@@ -38,7 +41,7 @@ function Collision.traceSegment(originX, originY, originZ, targetX, targetY, tar
     )
     if not previousSquare then return nil end
 
-    local step = 0.20
+    local step = geometry.COLLISION_TRACE_STEP
     local travelled = step
     while travelled <= distance + step do
         local sample = math.min(travelled, distance)

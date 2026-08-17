@@ -22,14 +22,16 @@ function NinjaTools.onWeaponHit(attacker, target, weapon, damage)
 
     -- Maintenance skill recovery scaling: up to 80% at level 10 (never 100%)
     local maintLevel = attacker:getPerkLevel(Perks.Maintenance) or 0
-    local recoveryChance = (maintLevel / 10.0) * 0.80
+    local tuning = NinjaLineages.Balance.NinjaTools
+    local recoveryChance = (maintLevel / tuning.MAINTENANCE_LEVEL_CAP)
+        * tuning.MAXIMUM_RECOVERY_CHANCE
     local roll = ZombRand(1, 101)
 
     if roll <= math.floor(recoveryChance * 100 + 0.5) then
         local inv = target.getInventory and target:getInventory()
         if inv then
             inv:AddItem(ammoType)
-            attacker:getXp():AddXP(Perks.Maintenance, 2)
+            attacker:getXp():AddXP(Perks.Maintenance, tuning.MAINTENANCE_XP)
         end
     end
 end

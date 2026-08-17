@@ -2,6 +2,7 @@ require "ISUI/ISModalDialog"
 require "ISUI/ISTextEntryBox"
 require "ISUI/ISComboBox"
 require "NinjaLineages_Missions"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.MissionPanel = NinjaLineages.MissionPanel or {}

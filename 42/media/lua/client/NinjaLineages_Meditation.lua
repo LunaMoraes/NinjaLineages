@@ -65,7 +65,10 @@ function NLMeditationAction:update()
 
             -- Regenerate Nature Chakra if nature_chakra_manipulation is completed
             if NinjaLineages.Progression.isCompleted(self.character, "nature_chakra_manipulation") then
-                NinjaLineages.Chakra.addNatureChakra(self.character, natureElapsed * 10)
+                NinjaLineages.Chakra.addNatureChakra(
+                    self.character,
+                    natureElapsed * NinjaLineages.Balance.Chakra.Nature.MEDITATION_GAIN_PER_MINUTE
+                )
             end
         end
     end

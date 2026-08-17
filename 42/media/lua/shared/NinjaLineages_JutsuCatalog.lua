@@ -463,8 +463,8 @@ Catalog.Definitions = {
         balance = {
             cost = "MAJOR", cooldown = "STANDARD", radius = "LARGE", duration = "BRIEF",
             innerRadius = "MEDIUM",
-            innerKnockdownChance = 65,
-            outerKnockdownChance = 35,
+            innerKnockdownChance = Balance.JutsuRuntime.BindingRoots.INNER_KNOCKDOWN_CHANCE,
+            outerKnockdownChance = Balance.JutsuRuntime.BindingRoots.OUTER_KNOCKDOWN_CHANCE,
         },
         executor = "binding_roots",
     },

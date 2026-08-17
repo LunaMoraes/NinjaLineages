@@ -1,5 +1,6 @@
 require "NinjaLineages_Missions"
 require "NinjaLineages_Progression"
+require "NinjaLineages_Balance"
 require "NinjaLineages_SocialServer"
 require "NinjaLineages_Utils"
 
@@ -138,7 +139,10 @@ local function createGeneratedMission(current, village, currentWorldHour)
         targetKillCount = target,
         currentKillCount = 0,
         generatedWorldHour = currentWorldHour,
-        expiryWorldHour = currentWorldHour + (tonumber(generatedConfig().ExpiryHours) or 24),
+        expiryWorldHour = currentWorldHour + (
+            tonumber(generatedConfig().ExpiryHours)
+            or NinjaLineages.Balance.Missions.Generated.ExpiryHours
+        ),
         generatedAt = now(),
         ninjaXpReward = NinjaLineages.Balance.scaleNinjaXP(rawNinjaXP),
         villageXpReward = villageXP,

@@ -5,13 +5,13 @@ require "NinjaLineages_Balance"
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Senju = NinjaLineages.Senju or {}
 
-local consts = NinjaLineages.Constants
+local balance = NinjaLineages.Balance
 
 local function updateCreationRebirthUnlock(player)
     if not NinjaLineages.hasSenju(player) then return end
     if NinjaLineages.CreationRebirth.isUnlocked(player) then return end
 
-    local requiredLevel = consts.Senju.CreationRebirth.SENJU_UNLOCK_LEVEL
+    local requiredLevel = balance.Lineages.Senju.CreationRebirth.UNLOCK_LEVEL
     if NinjaLineages.Skills.getChakraControlLevel(player) >= requiredLevel then
         NinjaLineages.CreationRebirth.unlock(player, "UI_NL_Unlock_CreationRebirth")
     end
@@ -64,7 +64,7 @@ NinjaLineages.registerEveryMinute("senju.passive", function(player, elapsedMinut
         math.min(
             1.0,
             currentEndurance
-                + (consts.Senju.Passive.ENDURANCE_PER_MINUTE * (elapsedMinutes or 1))
+                + (balance.Lineages.Senju.ENDURANCE_PER_MINUTE * (elapsedMinutes or 1))
         )
     )
 end)

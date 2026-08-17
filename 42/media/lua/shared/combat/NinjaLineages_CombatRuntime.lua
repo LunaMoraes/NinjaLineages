@@ -1,10 +1,13 @@
 require "combat/NinjaLineages_Collision"
 require "combat/NinjaLineages_Damage"
+require "NinjaLineages_Balance"
+require "NinjaLineages_Constants"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.CombatRuntime = NinjaLineages.CombatRuntime or {}
 
 local Runtime = NinjaLineages.CombatRuntime
+local geometry = NinjaLineages.Constants.Geometry
 Runtime.projectiles = Runtime.projectiles or {}
 Runtime.katonStreams = Runtime.katonStreams or {}
 
@@ -61,7 +64,8 @@ end
 local function collectKatonTiles(config)
     local tiles = {}
     local radius = math.max(0.1, tonumber(config.range) or 0.1)
-    local minDot = tonumber(config.minDot) or 0.82
+    local minDot = tonumber(config.minDot)
+        or NinjaLineages.Balance.TargetingTier.NARROW.minimumDot
     local baseX = math.floor(config.originX)
     local baseY = math.floor(config.originY)
     local z = math.floor(config.originZ or 0)
@@ -70,11 +74,12 @@ local function collectKatonTiles(config)
     for dx = -iRadius, iRadius do
         for dy = -iRadius, iRadius do
             local tileX, tileY = baseX + dx, baseY + dy
-            local centerX, centerY = tileX + 0.5, tileY + 0.5
+        local centerX, centerY = tileX + geometry.TILE_CENTER_OFFSET,
+            tileY + geometry.TILE_CENTER_OFFSET
             local offsetX = centerX - config.originX
             local offsetY = centerY - config.originY
             local distance = math.sqrt(offsetX * offsetX + offsetY * offsetY)
-            if distance > 0.15 and distance <= radius then
+            if distance > geometry.TILE_DISTANCE_EPSILON and distance <= radius then
                 local dot = (offsetX / distance) * config.directionX
                     + (offsetY / distance) * config.directionY
                 if dot >= minDot then
@@ -100,7 +105,7 @@ function Runtime.createKatonStream(config)
     local directionLength = math.sqrt(
         config.directionX * config.directionX + config.directionY * config.directionY
     )
-    if directionLength <= 0.0001 then return nil end
+    if directionLength <= geometry.EPSILON then return nil end
 
     local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
     local stream = {
@@ -113,8 +118,13 @@ function Runtime.createKatonStream(config)
         directionX = config.directionX / directionLength,
         directionY = config.directionY / directionLength,
         range = math.max(0.1, tonumber(config.range) or 0.1),
-        minDot = tonumber(config.minDot) or 0.82,
-        durationMs = math.max(1, tonumber(config.durationMs) or 750),
+        minDot = tonumber(config.minDot)
+            or NinjaLineages.Balance.TargetingTier.NARROW.minimumDot,
+        durationMs = math.max(
+            1,
+            tonumber(config.durationMs)
+                or NinjaLineages.Balance.JutsuRuntime.Katon.STREAM_DURATION_MS
+        ),
         startedAtMs = nowMs,
         damageRoll = config.damageRoll,
         controlTier = config.controlTier,
@@ -209,7 +219,16 @@ local function activateKatonTile(stream, tile)
     if not square then return end
     applyKatonToSquare(stream, square)
     if IsoFireManager and IsoFireManager.StartFire then
-        pcall(function() IsoFireManager.StartFire(cell, square, true, 100, 500) end)
+        local tuning = NinjaLineages.Balance.JutsuRuntime.Katon
+        pcall(function()
+            IsoFireManager.StartFire(
+                cell,
+                square,
+                true,
+                tuning.FIRE_ENERGY,
+                tuning.FIRE_LIFE
+            )
+        end)
     end
 end
 
@@ -288,8 +307,9 @@ end
 
 function Runtime.createProjectile(config)
     local now = NinjaLineages.Utils.Time.gameMinutes()
-    local speed = tonumber(config.speed) or 20
-    if speed <= 0 then speed = 20 end
+    local defaultSpeed = NinjaLineages.Balance.JutsuRuntime.Projectile.DEFAULT_SPEED
+    local speed = tonumber(config.speed) or defaultSpeed
+    if speed <= 0 then speed = defaultSpeed end
 
     local dx = (config.targetX or config.originX) - config.originX
     local dy = (config.targetY or config.originY) - config.originY
@@ -425,7 +445,7 @@ function Runtime.update()
                 local moveDistance = projectile.speed * delta
                 local nextX, nextY = projectile.targetX, projectile.targetY
 
-                if distance > moveDistance and distance > 0.0001 then
+                if distance > moveDistance and distance > geometry.EPSILON then
                     nextX = projectile.currentX + (dx / distance) * moveDistance
                     nextY = projectile.currentY + (dy / distance) * moveDistance
                 end
@@ -449,7 +469,7 @@ function Runtime.update()
                         collision.z,
                         toRemove
                     )
-                elseif distance <= moveDistance or distance <= 0.0001 then
+                elseif distance <= moveDistance or distance <= geometry.EPSILON then
                     projectile.currentX = projectile.targetX
                     projectile.currentY = projectile.targetY
 

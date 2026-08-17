@@ -6,14 +6,14 @@ NinjaLineages = NinjaLineages or {}
 NinjaLineages.RareScrolls = NinjaLineages.RareScrolls or {}
 
 local RareScrolls = NinjaLineages.RareScrolls
-local RARE_LOOT_WEIGHT = 0.2
+local scrollBalance = NinjaLineages.Balance.RareScrolls
 
 RareScrolls.Definitions = {
     creation_rebirth = {
         itemType = "Base.NL_CreationRebirthScroll",
         unlockField = "creationRebirthUnlocked",
         pages = "KAGE",
-        lootWeight = RARE_LOOT_WEIGHT,
+        lootWeight = scrollBalance.LOOT_WEIGHT,
         messages = {
             chance = "UI_NL_CreationRebirthStudyChance",
             unlocked = "UI_NL_Unlock_CreationRebirth",
@@ -24,11 +24,11 @@ RareScrolls.Definitions = {
         getLearningChance = function(player)
             local maximum = NinjaLineages.Chakra.getMaxChakra(player)
             local guaranteedAt =
-                NinjaLineages.Constants.Senju.CreationRebirth.SCROLL_GUARANTEED_MAX_CHAKRA
+                NinjaLineages.Balance.Lineages.Senju.CreationRebirth.SCROLL_GUARANTEED_MAX_CHAKRA
             return math.max(0, math.min(1, maximum / guaranteedAt))
         end,
         canStudy = function(player)
-            local minimum = NinjaLineages.Constants.Senju.CreationRebirth.SCROLL_MIN_MAX_CHAKRA
+            local minimum = NinjaLineages.Balance.Lineages.Senju.CreationRebirth.SCROLL_MIN_MAX_CHAKRA
             if NinjaLineages.Chakra.getMaxChakra(player) < minimum then
                 return false, "maxChakra"
             end
@@ -39,7 +39,7 @@ RareScrolls.Definitions = {
         itemType = "Base.NL_KirigakureScroll",
         unlockField = "kirigakureUnlocked",
         pages = "KAGE",
-        lootWeight = RARE_LOOT_WEIGHT,
+        lootWeight = scrollBalance.LOOT_WEIGHT,
         messages = {
             chance = "UI_NL_KirigakureStudyChance",
             unlocked = "UI_NL_Unlock_Kirigakure",
@@ -48,7 +48,7 @@ RareScrolls.Definitions = {
         },
         getLearningChance = function(player)
             local level = NinjaLineages.Skills.getJutsuProwessLevel(player)
-            return math.min(1, (level + 1) * 0.125)
+            return math.min(1, (level + 1) * scrollBalance.LEARNING_CHANCE_PER_LEVEL)
         end,
     },
     sennin_mode = {
@@ -56,7 +56,7 @@ RareScrolls.Definitions = {
         unlockField = "senninModeUnlocked",
         disciplineId = "sennin_mode",
         pages = "KAGE",
-        lootWeight = RARE_LOOT_WEIGHT,
+        lootWeight = scrollBalance.LOOT_WEIGHT,
         messages = {
             chance = "UI_NL_SageScrollStudyChance",
             unlocked = "UI_NL_Unlock_SenninMode",
@@ -65,7 +65,7 @@ RareScrolls.Definitions = {
         },
         getLearningChance = function(player)
             local level = NinjaLineages.Skills.getChakraControlLevel(player)
-            return math.min(1, (level + 1) * 0.125)
+            return math.min(1, (level + 1) * scrollBalance.LEARNING_CHANCE_PER_LEVEL)
         end,
     },
 }

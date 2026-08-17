@@ -1,5 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Balance"
+require "NinjaLineages_Constants"
 require "NinjaLineages_AbilityAuthority"
 require "NinjaLineages_JutsuCatalog"
 require "NinjaLineages_RinneganMechanics"
@@ -29,7 +30,7 @@ local boundZombies = NinjaLineages.AbilityExecution.boundZombies
 local sharinganRolls = NinjaLineages.AbilityExecution.sharinganRolls
 
 local specializedExecutors = NinjaLineages.AbilityExecution.specializedExecutors
-local KAMUI_SP_STEP_DISTANCE = 0.055
+local KAMUI_SP_STEP_DISTANCE = Balance.JutsuRuntime.Kamui.STEP_DISTANCE
 local kamuiMoveVector = Vector2.new()
 
 local function cooldownKey(definition)
@@ -576,7 +577,7 @@ specializedExecutors.katon = function(player, definition)
     local originX, originY = player:getX(), player:getY()
     local originZ = math.floor(player:getZ())
     local directionX, directionY = forward:getX(), forward:getY()
-    local durationMs = 750
+    local durationMs = Balance.JutsuRuntime.Katon.STREAM_DURATION_MS
 
     local stream = NinjaLineages.CombatRuntime.createKatonStream({
         casterObject = player,
@@ -633,7 +634,8 @@ end
 
 local function launchChakraNeedleProjectile(player, definition, resolved, target, startGameMinutes)
     local projectileDefinition = definition.projectile or {}
-    local speed = 40
+    local tuning = Balance.JutsuRuntime.ChakraNeedle
+    local speed = tuning.PROJECTILE_SPEED
     local projectileConfig = {
         casterObject = player,
         casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
@@ -648,7 +650,7 @@ local function launchChakraNeedleProjectile(player, definition, resolved, target
         targetX = target.x,
         targetY = target.y,
         speed = speed,
-        maximumTravelDistance = resolved.targeting.range * 2,
+        maximumTravelDistance = resolved.targeting.range * tuning.MAX_TRAVEL_RANGE_MULTIPLIER,
         damagePayload = {
             damage = rollDamage(resolved),
             controlTier = resolved.control and resolved.control.tier or nil,
@@ -790,7 +792,7 @@ function NinjaLineages.AbilityAuthority.updateLocalKamuiPhaseMovement(player)
     local dx = inputY + inputX
     local dy = inputY - inputX
     local lengthSquared = dx * dx + dy * dy
-    if lengthSquared <= 0.0001 then return end
+    if lengthSquared <= NinjaLineages.Constants.Geometry.EPSILON then return end
 
     local length = math.sqrt(lengthSquared)
     dx, dy = dx / length, dy / length
@@ -884,7 +886,14 @@ Authority.registerEventHandler("katon_fire", function(args)
             for _, sq in ipairs(args.squares) do
                 local square = cell:getGridSquare(sq.x, sq.y, sq.z)
                 if square then
-                    IsoFireManager.StartFire(cell, square, true, 100, 500)
+                    local tuning = Balance.JutsuRuntime.Katon
+                    IsoFireManager.StartFire(
+                        cell,
+                        square,
+                        true,
+                        tuning.FIRE_ENERGY,
+                        tuning.FIRE_LIFE
+                    )
                 end
             end
         end

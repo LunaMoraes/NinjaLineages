@@ -3,6 +3,7 @@ require "NinjaLineages_Utils"
 require "NinjaLineages_Moodles"
 require "NinjaLineages_UI"
 require "NinjaLineages_Balance"
+require "NinjaLineages_Constants"
 require "lineages/NinjaLineages_UchihaPassives"
 
 NinjaLineages = NinjaLineages or {}

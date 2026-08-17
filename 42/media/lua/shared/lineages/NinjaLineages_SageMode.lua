@@ -1,5 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Balance"
+require "NinjaLineages_Constants"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Chakra"
 require "NinjaLineages_AbilityAuthority"
@@ -10,6 +11,7 @@ NinjaLineages = NinjaLineages or {}
 NinjaLineages.SageMode = NinjaLineages.SageMode or {}
 
 local SageMode = NinjaLineages.SageMode
+local SageBalance = NinjaLineages.Balance.SageMode
 local Balance = NinjaLineages.Balance
 local Authority = NinjaLineages.AbilityAuthority
 
@@ -73,41 +75,41 @@ end
 function SageMode.getMeleeDamageMultiplier(player)
     if not SageMode.isActive(player) then return 1.0 end
     local chosen = NinjaLineages.Progression.getChosenContract(player)
-    if chosen == "toad" then return 1.40 end -- Toad specialization: +40% melee damage
-    return 1.20 -- Base: +20% melee damage
+    if chosen == "toad" then return SageBalance.TOAD_MELEE_DAMAGE_MULTIPLIER end
+    return SageBalance.BASE_MELEE_DAMAGE_MULTIPLIER
 end
 
 function SageMode.getMeleeAttackSpeedMultiplier(player)
     if not SageMode.isActive(player) then return 1.0 end
     local chosen = NinjaLineages.Progression.getChosenContract(player)
-    if chosen == "toad" then return 1.35 end -- Toad specialization: +35% attack speed
-    return 1.20 -- Base: +20% attack speed
+    if chosen == "toad" then return SageBalance.TOAD_ATTACK_SPEED_MULTIPLIER end
+    return SageBalance.BASE_ATTACK_SPEED_MULTIPLIER
 end
 
 function SageMode.getMovementSpeedMultiplier(player)
     if not SageMode.isActive(player) then return 1.0 end
-    return 1.15 -- Base: +15% movement speed for all sages
+    return SageBalance.MOVEMENT_SPEED_MULTIPLIER
 end
 
 function SageMode.getFirearmAccuracyBonus(player)
     if not SageMode.isActive(player) then return 0 end
     local chosen = NinjaLineages.Progression.getChosenContract(player)
-    if chosen == "snake" then return 35 end -- Snake specialization: +35% accuracy
-    return 15 -- Base: +15% accuracy
+    if chosen == "snake" then return SageBalance.SNAKE_ACCURACY_BONUS end
+    return SageBalance.BASE_ACCURACY_BONUS
 end
 
 function SageMode.getJutsuDamageMultiplier(player)
     if not SageMode.isActive(player) then return 1.0 end
     local chosen = NinjaLineages.Progression.getChosenContract(player)
-    if chosen == "snail" then return 1.40 end -- Snail specialization: +40% jutsu damage
-    return 1.20 -- Base: +20% jutsu damage
+    if chosen == "snail" then return SageBalance.SNAIL_JUTSU_DAMAGE_MULTIPLIER end
+    return SageBalance.BASE_JUTSU_DAMAGE_MULTIPLIER
 end
 
 function SageMode.getJutsuHealingMultiplier(player)
     if not SageMode.isActive(player) then return 1.0 end
     local chosen = NinjaLineages.Progression.getChosenContract(player)
-    if chosen == "snail" then return 1.40 end -- Snail specialization: +40% jutsu healing
-    return 1.20 -- Base: +20% jutsu healing
+    if chosen == "snail" then return SageBalance.SNAIL_JUTSU_HEALING_MULTIPLIER end
+    return SageBalance.BASE_JUTSU_HEALING_MULTIPLIER
 end
 
 -- ============================================================================
@@ -153,8 +155,8 @@ function SageMode.update(player)
         local forward = player:getForwardDirection()
         if forward then
             local fx, fy = forward:getX(), forward:getY()
-            if (fx * fx + fy * fy) > 0.001 then
-                local stepDistance = NinjaLineages.Constants.CommonJutsu.Dash.STEP_DISTANCE
+            if (fx * fx + fy * fy) > NinjaLineages.Constants.Geometry.DIRECTION_EPSILON then
+                local stepDistance = NinjaLineages.Balance.CommonJutsu.Dash.STEP_DISTANCE
                 local nextX = player:getX() + (fx * stepDistance)
                 local nextY = player:getY() + (fy * stepDistance)
                 local cell = getCell()

@@ -1,4 +1,3 @@
-require "NinjaLineages_Constants"
 require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
@@ -187,23 +186,23 @@ function NinjaLineages.initPlayerEyes(player)
     if not data.eyes then
         if NinjaLineages.hasTrait(player, "SHARINGAN", NinjaLineages.TRAIT_SHARINGAN) then
             data.eyes = {
-                left = { type = "sharingan", freshness = 100 },
-                right = { type = "sharingan", freshness = 100 },
+                left = { type = "sharingan", freshness = NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS },
+                right = { type = "sharingan", freshness = NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS },
             }
         elseif NinjaLineages.hasTrait(player, "BYAKUGAN", NinjaLineages.TRAIT_BYAKUGAN) then
             data.eyes = {
-                left = { type = "byakugan", freshness = 100 },
-                right = { type = "byakugan", freshness = 100 },
+                left = { type = "byakugan", freshness = NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS },
+                right = { type = "byakugan", freshness = NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS },
             }
         elseif NinjaLineages.hasTrait(player, "RINNEGAN", NinjaLineages.TRAIT_RINNEGAN) then
             data.eyes = {
-                left = { type = "rinnegan", freshness = 100 },
-                right = { type = "rinnegan", freshness = 100 },
+                left = { type = "rinnegan", freshness = NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS },
+                right = { type = "rinnegan", freshness = NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS },
             }
         else
             data.eyes = {
-                left = { type = "normal", freshness = 100 },
-                right = { type = "normal", freshness = 100 },
+                left = { type = "normal", freshness = NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS },
+                right = { type = "normal", freshness = NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS },
             }
         end
     end
@@ -248,8 +247,9 @@ end
 
 function NinjaLineages.getEyePowerMultiplier(player, eyeType)
     local count = NinjaLineages.getInstalledEyeCount(player, eyeType)
-    if count >= 2 then return 1.0 end
-    if count == 1 then return 0.5 end
+    local ocular = NinjaLineages.Balance.Lineages.Ocular
+    if count >= ocular.FULL_POWER_EYE_COUNT then return ocular.FULL_POWER_MULTIPLIER end
+    if count == 1 then return ocular.SINGLE_EYE_MULTIPLIER end
     return 0.0
 end
 
@@ -274,7 +274,7 @@ function NinjaLineages.hasUzumaki(player)
 end
 
 function NinjaLineages.getSharinganStageKills()
-    local defaults = NinjaLineages.Constants.Uchiha.SharinganStageKills
+    local defaults = NinjaLineages.Balance.Lineages.Uchiha.SharinganStageKills
     local options = SandboxVars and SandboxVars.NinjaLineages or nil
 
     local first = math.max(0, math.floor(tonumber(options and options.SharinganFirstTomoeKills) or defaults[1]))
@@ -320,18 +320,19 @@ NinjaLineages.registerCreatePlayer("shared.eyes.init", NinjaLineages.initPlayerE
 -- Hook into foraging system to register Byakugan vision bonuses
 local function addForageSkillDefs(forageSystemInstance)
     if forageSystemInstance and forageSystemInstance.forageSkillDefinitions then
+        local ocular = NinjaLineages.Balance.Lineages.Ocular
         forageSystemInstance.forageSkillDefinitions[NinjaLineages.TRAIT_BYAKUGAN] = {
             name = NinjaLineages.TRAIT_BYAKUGAN,
             type = "trait",
-            visionBonus = 5.0,      -- Substantial search radius expansion
-            weatherEffect = 100,    -- Immune to weather foraging penalty
-            darknessEffect = 100,   -- Immune to darkness foraging penalty
+            visionBonus = ocular.ByakuganForaging.VISION_BONUS,
+            weatherEffect = ocular.ByakuganForaging.WEATHER_EFFECT,
+            darknessEffect = ocular.ByakuganForaging.DARKNESS_EFFECT,
             specialisations = {}
         }
         forageSystemInstance.forageSkillDefinitions[NinjaLineages.TRAIT_RINNEGAN] = {
             name = NinjaLineages.TRAIT_RINNEGAN,
             type = "trait",
-            visionBonus = 2.0,
+            visionBonus = ocular.RinneganForaging.VISION_BONUS,
             specialisations = {}
         }
     end

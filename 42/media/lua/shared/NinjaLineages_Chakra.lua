@@ -1,23 +1,23 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Skills"
 require "NinjaLineages_Progression"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Chakra = NinjaLineages.Chakra or {}
 
 -- Get max chakra based on traits
 function NinjaLineages.Chakra.getMaxChakra(player)
-    local maxVal = NinjaLineages.Constants.Chakra.MAX_BASE
+    local chakraBalance = NinjaLineages.Balance.Chakra
+    local maxVal = chakraBalance.MAX_BASE
     if NinjaLineages.hasSenju(player) then
-        local mult = NinjaLineages.Constants.Senju and NinjaLineages.Constants.Senju.CHAKRA_POOL_MULTIPLIER or 2.0
-        maxVal = maxVal * mult
+        maxVal = maxVal * NinjaLineages.Balance.Lineages.Senju.CHAKRA_POOL_MULTIPLIER
     elseif NinjaLineages.hasUzumaki(player) then
-        local mult = NinjaLineages.Constants.Uzumaki and NinjaLineages.Constants.Uzumaki.CHAKRA_POOL_MULTIPLIER or 1.7
-        maxVal = maxVal * mult
+        maxVal = maxVal * NinjaLineages.Balance.Lineages.Uzumaki.CHAKRA_POOL_MULTIPLIER
     end
 
     local ccLevel = NinjaLineages.Skills.getChakraControlLevel(player)
-    local ccMult = 1.0 + (ccLevel * 0.5)
+    local ccMult = 1.0 + (ccLevel * chakraBalance.CONTROL_MAX_PER_LEVEL)
     maxVal = maxVal * ccMult
 
     return maxVal
@@ -42,6 +42,12 @@ end
 
 -- Spend chakra, returns boolean if successful
 function NinjaLineages.Chakra.spendChakra(player, amount, opts)
+    local data = NinjaLineages.getNLData(player)
+    local effect = data and data.activeGeneEffect
+        and NinjaLineages.Balance.getGeneEffect(data.activeGeneEffect.id)
+    if effect and effect.chakraCostMultiplier then
+        amount = amount * effect.chakraCostMultiplier
+    end
     local current = NinjaLineages.Chakra.getChakra(player)
     if current < amount then return false end
 
@@ -60,6 +66,12 @@ end
 
 -- Check if can afford chakra cost
 function NinjaLineages.Chakra.canAffordChakra(player, amount)
+    local data = NinjaLineages.getNLData(player)
+    local effect = data and data.activeGeneEffect
+        and NinjaLineages.Balance.getGeneEffect(data.activeGeneEffect.id)
+    if effect and effect.chakraCostMultiplier then
+        amount = amount * effect.chakraCostMultiplier
+    end
     return NinjaLineages.Chakra.getChakra(player) >= amount
 end
 
@@ -73,10 +85,8 @@ end
 -- Nature Chakra API (Max 100, Generated only through meditation)
 -- ============================================================================
 
-NinjaLineages.Chakra.MAX_NATURE_CHAKRA = 100
-
 function NinjaLineages.Chakra.getMaxNatureChakra(player)
-    return NinjaLineages.Chakra.MAX_NATURE_CHAKRA
+    return NinjaLineages.Balance.Chakra.Nature.MAXIMUM
 end
 
 function NinjaLineages.Chakra.getNatureChakra(player)
@@ -88,7 +98,7 @@ end
 function NinjaLineages.Chakra.setNatureChakra(player, val)
     local data = NinjaLineages.getNLData(player)
     if not data then return end
-    data.natureChakra = math.max(0.0, math.min(NinjaLineages.Chakra.MAX_NATURE_CHAKRA, val or 0))
+    data.natureChakra = math.max(0.0, math.min(NinjaLineages.Balance.Chakra.Nature.MAXIMUM, val or 0))
     NinjaLineages.transmitPlayerData(player)
 end
 

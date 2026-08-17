@@ -1,5 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.EarthWall = NinjaLineages.EarthWall or {}
@@ -7,8 +8,8 @@ NinjaLineages.EarthWall = NinjaLineages.EarthWall or {}
 local EarthWall = NinjaLineages.EarthWall
 local DATA_KEY = "NinjaLineagesEarthWalls"
 local LOG_PREFIX = "[DEBUG-NL-EARTH-WALL] "
-local HEALTH = 250
-local DURATION_GAME_MINUTES = 12
+local wallBalance = NinjaLineages.Balance.JutsuRuntime.EarthWall
+local HEALTH = wallBalance.HEALTH
 local WEST_WALL_SPRITE = "fencing_01_35"
 local NORTH_WALL_SPRITE = "fencing_01_33"
 
@@ -151,7 +152,10 @@ function EarthWall.spawn(player, placement, duration)
         placement.north,
         createdAt
     )
-    local expiresAt = createdAt + (tonumber(duration) or DURATION_GAME_MINUTES)
+    local expiresAt = createdAt + (
+        tonumber(duration)
+        or NinjaLineages.Balance.getDuration(wallBalance.DURATION_TIER)
+    )
     local sprite = placement.north and NORTH_WALL_SPRITE or WEST_WALL_SPRITE
     local wall = IsoThumpable.new(getCell(), square, sprite, placement.north, {})
     wall:setName("Doton: Doryuheki")

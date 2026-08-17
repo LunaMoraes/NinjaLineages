@@ -1,4 +1,5 @@
 require "NinjaLineages_Social"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Targeting = NinjaLineages.Targeting or {}
@@ -149,7 +150,7 @@ function NinjaLineages.Targeting.resolveRequestedTargets(caster, targetingConfig
     if not caster or not targetingConfig then return targets end
 
     local maxTargets = targetingConfig.maxTargets or 1
-    local range = targetingConfig.range or 10
+    local range = targetingConfig.range or NinjaLineages.Balance.getRadius("LARGE")
 
     local hasRequestedZombies = args and args.targetZombies and #args.targetZombies > 0
     local hasRequestedIds = args and args.targetIds and #args.targetIds > 0

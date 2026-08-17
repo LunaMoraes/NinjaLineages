@@ -122,10 +122,11 @@ function Progression.requestDebugLearnSenninMode(player)
     end
 
     data.sageTrial = data.sageTrial or {}
-    data.sageTrial.meditationMinutes = math.max(30, data.sageTrial.meditationMinutes or 30)
-    data.sageTrial.meleeKills = math.max(50, data.sageTrial.meleeKills or 50)
-    data.sageTrial.rangedKills = math.max(30, data.sageTrial.rangedKills or 30)
-    data.sageTrial.healthHealed = math.max(200, data.sageTrial.healthHealed or 200)
+    local trials = Balance.SageMode.Trials
+    data.sageTrial.meditationMinutes = math.max(trials.MEDITATION_MINUTES, data.sageTrial.meditationMinutes or trials.MEDITATION_MINUTES)
+    data.sageTrial.meleeKills = math.max(trials.TOAD_MELEE_KILLS, data.sageTrial.meleeKills or trials.TOAD_MELEE_KILLS)
+    data.sageTrial.rangedKills = math.max(trials.SNAKE_RANGED_KILLS, data.sageTrial.rangedKills or trials.SNAKE_RANGED_KILLS)
+    data.sageTrial.healthHealed = math.max(trials.SNAIL_HEALTH_HEALED, data.sageTrial.healthHealed or trials.SNAIL_HEALTH_HEALED)
     data.sageTrial.completed = true
     data.sageTrial.notified = true
 
@@ -342,15 +343,16 @@ function Progression.isSageTrialComplete(player)
     local data = NinjaLineages.getNLData(player)
     local trial = data and data.sageTrial or {}
 
+    local requirements = Balance.SageMode.Trials
     local medMin = trial.meditationMinutes or 0
-    if medMin < 30 then return false end
+    if medMin < requirements.MEDITATION_MINUTES then return false end
 
     if chosen == "toad" then
-        return (trial.meleeKills or 0) >= 50
+        return (trial.meleeKills or 0) >= requirements.TOAD_MELEE_KILLS
     elseif chosen == "snake" then
-        return (trial.rangedKills or 0) >= 30
+        return (trial.rangedKills or 0) >= requirements.SNAKE_RANGED_KILLS
     elseif chosen == "snail" then
-        return (trial.healthHealed or 0) >= 200
+        return (trial.healthHealed or 0) >= requirements.SNAIL_HEALTH_HEALED
     end
     return false
 end

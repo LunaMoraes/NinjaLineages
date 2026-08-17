@@ -1,4 +1,5 @@
 require "NinjaLineages_RareScrolls"
+require "NinjaLineages_Balance"
 require "TimedActions/ISReadABook"
 require "TimedActions/ISTimedActionQueue"
 require "ISUI/ISInventoryPaneContextMenu"
@@ -47,7 +48,16 @@ ISInventoryPaneContextMenu.readItem = function(item, player)
     local canStudy, reason = NinjaLineages.RareScrolls.canStudy(playerObj, definition.id)
     if not canStudy then
         local messageKey = NinjaLineages.RareScrolls.getErrorMessage(definition, reason)
-        if messageKey then playerObj:Say(getText(messageKey)) end
+        if messageKey then
+            if reason == "maxChakra" then
+                playerObj:Say(getText(
+                    messageKey,
+                    tostring(NinjaLineages.Balance.Lineages.Senju.CreationRebirth.SCROLL_MIN_MAX_CHAKRA)
+                ))
+            else
+                playerObj:Say(getText(messageKey))
+            end
+        end
         return
     end
 

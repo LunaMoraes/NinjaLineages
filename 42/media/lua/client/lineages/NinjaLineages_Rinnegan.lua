@@ -1,6 +1,7 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Balance"
+require "NinjaLineages_Constants"
 require "NinjaLineages_RinneganMechanics"
 require "NinjaLineages_AbilityAuthority"
 require "NinjaLineages_VFX"

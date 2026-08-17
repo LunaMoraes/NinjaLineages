@@ -1,7 +1,6 @@
 require "NinjaLineages_Progression"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Balance"
-require "NinjaLineages_Constants"
 require "NinjaLineages_Traits"
 require "disciplines/NinjaLineages_CorpseUtils"
 
@@ -9,7 +8,7 @@ NinjaLineages = NinjaLineages or {}
 NinjaLineages.GeneExperimentationServer = NinjaLineages.GeneExperimentationServer or {}
 
 local ServerLogic = NinjaLineages.GeneExperimentationServer
-local consts = NinjaLineages.Constants.GeneExperimentation
+local consts = NinjaLineages.Balance.GeneExperimentation
 
 local function notifyPlayer(player, textKey)
     if not player or not textKey then return end
@@ -27,7 +26,7 @@ end
 local function rollSampleFreshness()
     local roll = ZombRand(1, 101) -- 1..100
     if roll >= consts.Extraction.PERFECT_ROLL_THRESHOLD then
-        return 100
+        return consts.Extraction.MAX_ROLL_FRESHNESS
     end
     local fraction = (roll - 1) / (consts.Extraction.PERFECT_ROLL_THRESHOLD - 2) -- 0..1 across 1..84
     return math.floor(consts.Extraction.MIN_ROLL_FRESHNESS + fraction * (consts.Extraction.MAX_ROLL_FRESHNESS - consts.Extraction.MIN_ROLL_FRESHNESS) + 0.5)
@@ -44,7 +43,7 @@ local function applyItemFreshness(item, freshness)
 end
 
 local function getItemCurrentFreshness(item)
-    if not item then return 100 end
+    if not item then return consts.Extraction.MAX_ROLL_FRESHNESS end
     local offAgeMax = (item.getOffAgeMax and item:getOffAgeMax()) or 0
     local age = (item.getAge and item:getAge()) or 0
     if offAgeMax > 0 then
@@ -52,7 +51,7 @@ local function getItemCurrentFreshness(item)
         local remaining = math.max(0, math.min(1.0, 1.0 - (age / offAgeMax)))
         return math.floor(remaining * 100 + 0.5)
     end
-    return item:getModData().freshness or 100
+    return item:getModData().freshness or consts.Extraction.MAX_ROLL_FRESHNESS
 end
 
 -- Retrieve a zombie by its online ID
@@ -78,7 +77,9 @@ local function handleRollZombieNinja(player, args)
         local modData = zombie:getModData()
         if not modData.zombieNinjaRolled then
             modData.zombieNinjaRolled = true
-            local chance = SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.ZombieNinjaChance or 20
+            local chance = SandboxVars.NinjaLineages
+                and SandboxVars.NinjaLineages.ZombieNinjaChance
+                or consts.ZOMBIE_NINJA_CHANCE_DEFAULT
             if ZombRand(0, 100) < chance then
                 modData.isZombieNinja = true
             else
@@ -179,7 +180,9 @@ end
 -- Experimental Surgery Server Handlers
 -- ============================================================================
 
-local MAX_PATIENT_DISTANCE = 2.5
+local MAX_PATIENT_DISTANCE = NinjaLineages.Balance.getRadius(
+    consts.Surgery.PATIENT_RANGE_TIER
+)
 
 local function isPatientInRange(doctor, patient)
     if not doctor or not patient or doctor:isDead() or patient:isDead() then return false end
@@ -216,7 +219,7 @@ function ServerLogic.removeEye(doctor, patient, eyeSlot)
 
     local currentEye = data.eyes[eyeSlot]
     local eyeType = currentEye.type
-    local freshness = currentEye.freshness or 100
+    local freshness = currentEye.freshness or consts.Extraction.MAX_ROLL_FRESHNESS
 
     -- Empty slot
     data.eyes[eyeSlot] = nil
@@ -304,7 +307,7 @@ function ServerLogic.implantGenes(doctor, patient, itemID)
     -- Player must have Mangekyo Sharingan stage (>= 4) and at least 1 installed Sharingan eye
     local sharinganCount = NinjaLineages.getInstalledEyeCount(patient, "sharingan")
     if (data.sharinganStage or 0) >= 4 and sharinganCount > 0 then
-        local chance = consts.Surgery.RINNEGAN_AWAKENING_CHANCE or 10
+        local chance = consts.Surgery.RINNEGAN_AWAKENING_CHANCE
         if ZombRand(1, 101) <= chance then
             -- Convert one installed Sharingan eye into Rinnegan (preserve Mangekyo stage 4 on player)
             if data.eyes.left and data.eyes.left.type == "sharingan" then
@@ -357,10 +360,13 @@ local function handleCompleteCorpseExperiment(player, args)
     
     local corpse = NinjaLineages.CorpseUtils.getCorpseFromIdentifier(corpseId)
     if corpse then
-        -- Validate player distance to corpse (within 4 tiles)
+        -- Validate player distance to corpse using the shared extraction range.
         local dx = player:getX() - corpse:getX()
         local dy = player:getY() - corpse:getY()
-        if (dx * dx + dy * dy) <= 16 then
+        local radius = NinjaLineages.Balance.getRadius(
+            consts.Extraction.CORPSE_VALIDATION_RADIUS_TIER
+        )
+        if (dx * dx + dy * dy) <= (radius * radius) then
             local completed = ServerLogic.completeExperiment(player, corpse, actionId)
             
             if completed then
@@ -419,27 +425,40 @@ function ServerLogic.transfuseBlood(doctor, patient, itemId)
 
     NinjaLineages.Utils.Inventory.consumeInventoryItem(doctor, item)
 
-    -- Immediate chakra restore scaling with freshness: Balance.getCost("MAJOR") * (freshness / 100)
-    local restoreAmount = NinjaLineages.Balance.getCost("MAJOR") * (freshness / 100.0)
+    local transfusion = consts.BloodTransfusion
+    local percentMaximum = NinjaLineages.Balance.Progression.PercentScale
+    local restoreAmount = NinjaLineages.Balance.getCost(transfusion.CHAKRA_RESTORE_COST_TIER)
+        * (freshness / percentMaximum)
     NinjaLineages.Chakra.addChakra(patient, restoreAmount)
 
-    -- Temporary chakra regeneration boost: duration scales with freshness (1 game hour * (freshness / 100))
+    -- Temporary chakra regeneration boost: six in-game minutes at full freshness.
     local now = NinjaLineages.Utils.Time.gameMinutes()
-    local duration = NinjaLineages.Balance.getDuration("STANDARD") * (freshness / 100.0)
+    local duration = NinjaLineages.Balance.getDuration(transfusion.REGEN_DURATION_TIER)
+        * (freshness / percentMaximum)
     local data = NinjaLineages.getNLData(patient)
     data.bloodTransfusionRegenUntil = math.max(data.bloodTransfusionRegenUntil or 0, now + duration)
 
     -- Sickness roll if freshness < 100%
-    if freshness < 100 then
-        local sicknessChance = (100 - freshness) * 0.5
+    if freshness < percentMaximum then
+        local missingFreshness = percentMaximum - freshness
+        local sicknessChance = missingFreshness
+            * transfusion.SICKNESS_CHANCE_PER_MISSING_FRESHNESS
         local roll = ZombRand(1, 101)
         if roll <= sicknessChance then
             local bodyDamage = patient:getBodyDamage()
             if bodyDamage then
                 local currentPoison = bodyDamage:getPoisonLevel() or 0
-                bodyDamage:setPoisonLevel(math.min(100, currentPoison + (100 - freshness) * 0.4))
+                bodyDamage:setPoisonLevel(math.min(
+                    percentMaximum,
+                    currentPoison
+                        + missingFreshness * transfusion.SICKNESS_SEVERITY_PER_MISSING_FRESHNESS
+                ))
                 local currentSickness = bodyDamage:getFoodSicknessLevel() or 0
-                bodyDamage:setFoodSicknessLevel(math.min(100, currentSickness + (100 - freshness) * 0.4))
+                bodyDamage:setFoodSicknessLevel(math.min(
+                    percentMaximum,
+                    currentSickness
+                        + missingFreshness * transfusion.SICKNESS_SEVERITY_PER_MISSING_FRESHNESS
+                ))
             end
             notifyPlayer(patient, "UI_NL_BloodTransfusion_Sick")
         end

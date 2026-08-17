@@ -1,5 +1,6 @@
-require "NinjaLineages_Constants"
 require "NinjaLineages_Utils"
+require "NinjaLineages_Balance"
+require "NinjaLineages_Constants"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.DemonicFlute = NinjaLineages.DemonicFlute or {}
@@ -9,7 +10,8 @@ local slowedRecords = DemonicFlute.slowedRecords
     or setmetatable({}, { __mode = "k" })
 DemonicFlute.slowedRecords = slowedRecords
 
-local SLOW_FACTOR = 0.70 -- 70% slower
+local tuning = NinjaLineages.Balance.JutsuRuntime.DemonicFlute
+local runtime = NinjaLineages.Constants.Runtime.DemonicFlute
 
 local function applyCoordinateSlow(character, record)
     local currentX = character:getX()
@@ -22,9 +24,9 @@ local function applyCoordinateSlow(character, record)
         local dy = currentY - lastY
         
         -- Ignore teleports or fence hopps (distance > 0.5 per tick is huge)
-        if (dx*dx + dy*dy) < 0.25 then
-            local newX = currentX - (dx * SLOW_FACTOR)
-            local newY = currentY - (dy * SLOW_FACTOR)
+        if (dx*dx + dy*dy) < runtime.TELEPORT_DISTANCE_SQUARED then
+            local newX = currentX - (dx * tuning.SLOW_FACTOR)
+            local newY = currentY - (dy * tuning.SLOW_FACTOR)
             
             character:setX(newX)
             character:setY(newY)
@@ -55,9 +57,9 @@ function DemonicFlute.apply(character, expiresAt)
     }
     
     if instanceof(character, "IsoZombie") then
-        character:setVariable("Speed", 0.3)
-        character:setVariable("WalkSpeed", 0.3)
-        character:setVariable("RunSpeed", 0.3)
+        character:setVariable("Speed", tuning.MOVEMENT_VARIABLE)
+        character:setVariable("WalkSpeed", tuning.MOVEMENT_VARIABLE)
+        character:setVariable("RunSpeed", tuning.MOVEMENT_VARIABLE)
     end
     
     return true
@@ -73,9 +75,9 @@ function DemonicFlute.updatePlayer(player)
         return
     end
     
-    player:setVariable("Speed", 0.3)
-    player:setVariable("WalkSpeed", 0.3)
-    player:setVariable("RunSpeed", 0.3)
+    player:setVariable("Speed", tuning.MOVEMENT_VARIABLE)
+    player:setVariable("WalkSpeed", tuning.MOVEMENT_VARIABLE)
+    player:setVariable("RunSpeed", tuning.MOVEMENT_VARIABLE)
     player:setForceSprint(false)
     player:setForceRun(false)
     
@@ -89,9 +91,9 @@ function DemonicFlute.updateZombies()
             if not character or character:isDead() or now >= record.expiresAt then
                 DemonicFlute.clear(character)
             else
-                character:setVariable("Speed", 0.3)
-                character:setVariable("WalkSpeed", 0.3)
-                character:setVariable("RunSpeed", 0.3)
+                character:setVariable("Speed", tuning.MOVEMENT_VARIABLE)
+                character:setVariable("WalkSpeed", tuning.MOVEMENT_VARIABLE)
+                character:setVariable("RunSpeed", tuning.MOVEMENT_VARIABLE)
                 
                 applyCoordinateSlow(character, record)
             end

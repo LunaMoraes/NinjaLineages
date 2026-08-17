@@ -1,11 +1,12 @@
 require "NinjaLineages_Utils"
 require "NinjaLineages_Traits"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.UzumakiPassives = NinjaLineages.UzumakiPassives or {}
 
 local UzumakiPassives = NinjaLineages.UzumakiPassives
-local consts = NinjaLineages.Constants
+local balance = NinjaLineages.Balance
 local THICK_SKINNED_TRAIT_ID = "base:thickskinned"
 local OWNED_THICK_SKINNED_KEY = "uzumakiAddedThickSkinned"
 
@@ -47,7 +48,7 @@ function UzumakiPassives.applyRapidClotting(player)
     local parts = bodyDamage and bodyDamage:getBodyParts()
     if not parts then return end
 
-    local remaining = consts.Uzumaki.Passive.BLEEDING_REMAINING_PER_MINUTE
+    local remaining = balance.Lineages.Uzumaki.BLEEDING_REMAINING_PER_MINUTE
     for i = 0, parts:size() - 1 do
         local part = parts:get(i)
         if part then

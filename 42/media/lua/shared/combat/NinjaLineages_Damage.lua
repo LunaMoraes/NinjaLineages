@@ -1,5 +1,6 @@
 require "NinjaLineages_Utils"
 require "combat/NinjaLineages_Targeting"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Damage = NinjaLineages.Damage or {}
@@ -64,7 +65,7 @@ function NinjaLineages.Damage.applyPlayerDamage(caster, targetPlayer, payload)
     local targetData = NinjaLineages.getNLData(targetPlayer)
     if NinjaLineages.hasSharingan(targetPlayer) and targetData.eyePowerActive then
         local stage = NinjaLineages.getSharinganStage(targetPlayer)
-        local baseChance = NinjaLineages.Constants.Uchiha.SharinganDodgeChance[stage] or 0
+        local baseChance = NinjaLineages.Balance.Lineages.Uchiha.SharinganDodgeChance[stage] or 0
         local multiplier = NinjaLineages.getEyePowerMultiplier(targetPlayer, "sharingan")
         local chance = math.floor(baseChance * multiplier)
         local active = NinjaLineages.AbilityExecution and NinjaLineages.AbilityExecution.active or {}
@@ -109,13 +110,13 @@ function NinjaLineages.Damage.applyPlayerDamage(caster, targetPlayer, payload)
 
     -- Head damage reduces installed eye freshness
     if bodyPart:getType() == BodyPartType.Head and targetData and targetData.eyes then
-        local factor = (NinjaLineages.Constants.GeneExperimentation and NinjaLineages.Constants.GeneExperimentation.Surgery.HEAD_DAMAGE_FRESHNESS_FACTOR) or 0.5
+        local factor = NinjaLineages.Balance.GeneExperimentation.Surgery.HEAD_DAMAGE_FRESHNESS_FACTOR
         local eyeLoss = damage * factor
         if targetData.eyes.left and (targetData.eyes.left.freshness or 0) > 0 then
-            targetData.eyes.left.freshness = math.max(0, (targetData.eyes.left.freshness or 100) - eyeLoss)
+            targetData.eyes.left.freshness = math.max(0, (targetData.eyes.left.freshness or NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS) - eyeLoss)
         end
         if targetData.eyes.right and (targetData.eyes.right.freshness or 0) > 0 then
-            targetData.eyes.right.freshness = math.max(0, (targetData.eyes.right.freshness or 100) - eyeLoss)
+            targetData.eyes.right.freshness = math.max(0, (targetData.eyes.right.freshness or NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS) - eyeLoss)
         end
         NinjaLineages.transmitPlayerData(targetPlayer)
     end
@@ -202,16 +203,16 @@ local function monitorHeadDamage(player)
 
     if currentHealth < data.lastHeadHealth then
         local delta = data.lastHeadHealth - currentHealth
-        local factor = (NinjaLineages.Constants.GeneExperimentation and NinjaLineages.Constants.GeneExperimentation.Surgery.HEAD_DAMAGE_FRESHNESS_FACTOR) or 0.5
+        local factor = NinjaLineages.Balance.GeneExperimentation.Surgery.HEAD_DAMAGE_FRESHNESS_FACTOR
         local eyeLoss = delta * factor
         if data.eyes then
             local changed = false
             if data.eyes.left and (data.eyes.left.freshness or 0) > 0 then
-                data.eyes.left.freshness = math.max(0, (data.eyes.left.freshness or 100) - eyeLoss)
+                data.eyes.left.freshness = math.max(0, (data.eyes.left.freshness or NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS) - eyeLoss)
                 changed = true
             end
             if data.eyes.right and (data.eyes.right.freshness or 0) > 0 then
-                data.eyes.right.freshness = math.max(0, (data.eyes.right.freshness or 100) - eyeLoss)
+                data.eyes.right.freshness = math.max(0, (data.eyes.right.freshness or NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS) - eyeLoss)
                 changed = true
             end
             if changed then
@@ -223,4 +224,3 @@ local function monitorHeadDamage(player)
 end
 
 NinjaLineages.registerPlayerUpdate("shared.damage.monitorHead", monitorHeadDamage)
-

@@ -1,6 +1,7 @@
 require "NinjaLineages_Constants"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Progression"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.VFX = NinjaLineages.VFX or {}
@@ -433,12 +434,11 @@ end
 
 local function renderShinraTenseiShockwaves(nowGameMinutes)
     local pulseConsts = consts.Rinnegan and consts.Rinnegan.ShinraTensei or {
-        PUSH_DURATION_MINUTES = 0.28,
         PULSE_SEGMENTS = 48,
         PULSE_THICKNESS = 2.5,
         PULSE_COLOR = { R = 0.82, G = 0.88, B = 1.0 },
     }
-    local duration = pulseConsts.PUSH_DURATION_MINUTES or 0.28
+    local duration = NinjaLineages.Balance.JutsuRuntime.ShinraTensei.PUSH_DURATION_MINUTES
 
     for i = #activeShinraTenseiPulses, 1, -1 do
         local pulse = activeShinraTenseiPulses[i]

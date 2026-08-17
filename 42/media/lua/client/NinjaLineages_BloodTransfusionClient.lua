@@ -3,10 +3,13 @@ require "XpSystem/ISUI/ISHealthPanel"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Traits"
-require "NinjaLineages_Constants"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.BloodTransfusionClient = NinjaLineages.BloodTransfusionClient or {}
+
+local geneBalance = NinjaLineages.Balance.GeneExperimentation
+local patientRange = NinjaLineages.Balance.getRadius(geneBalance.Surgery.PATIENT_RANGE_TIER)
 
 local function getItemFreshness(item)
     if not item then return 100 end
@@ -17,7 +20,8 @@ local function getItemFreshness(item)
         local remaining = math.max(0, math.min(1.0, 1.0 - (age / offAgeMax)))
         return math.floor(remaining * 100 + 0.5)
     end
-    return item:getModData().freshness or 100
+    return item:getModData().freshness
+        or geneBalance.Extraction.MAX_ROLL_FRESHNESS
 end
 
 local function getBloodSamples(doctor)
@@ -47,7 +51,7 @@ NLBloodTransfusionAction = ISBaseTimedAction:derive("NLBloodTransfusionAction")
 function NLBloodTransfusionAction:isValid()
     if not self.character or self.character:isDead() then return false end
     if not self.patient or self.patient:isDead() then return false end
-    if self.character ~= self.patient and self.character:DistTo(self.patient) > 2.5 then return false end
+    if self.character ~= self.patient and self.character:DistTo(self.patient) > patientRange then return false end
     if not self.item or not self.character:getInventory():contains(self.item) then return false end
     if self.item.isRotten and self.item:isRotten() then return false end
     return true
@@ -89,7 +93,7 @@ function NLBloodTransfusionAction:new(character, patient, item)
     o.item = item
     o.stopOnWalk = true
     o.stopOnRun = true
-    o.maxTime = 120
+    o.maxTime = geneBalance.BloodTransfusion.TIMED_ACTION_DURATION
     return o
 end
 

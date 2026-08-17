@@ -5,6 +5,7 @@ require "NinjaLineages_RareScrollsClient"
 require "NinjaLineages_BingoBook"
 require "NinjaLineages_MissionClient"
 require "NinjaLineages_Chakra"
+require "NinjaLineages_Balance"
 require "NinjaLineages_Skills"
 require "NinjaLineages_Moodles"
 require "NinjaLineages_UI"
@@ -33,7 +34,6 @@ NinjaLineages.JutsuCatalog.registerSelectableAbilities()
 NinjaLineages.JutsuCatalog.validateExecutors()
 
 
-local consts = NinjaLineages.Constants
 local lastMinuteUpdateAt = {}
 
 local function updateChakraMoodle(player)
@@ -41,9 +41,9 @@ local function updateChakraMoodle(player)
     local currentChakra = NinjaLineages.Chakra.getChakra(player)
     local pct = maxChakra > 0 and (currentChakra / maxChakra) or 0
 
-    if pct < consts.Chakra.CRITICAL_THRESHOLD then
+    if pct < NinjaLineages.Balance.Chakra.CRITICAL_THRESHOLD then
         NinjaLineages.Moodles.setValue("NLChakra", player, 0.3)
-    elseif pct < consts.Chakra.LOW_THRESHOLD then
+    elseif pct < NinjaLineages.Balance.Chakra.LOW_THRESHOLD then
         NinjaLineages.Moodles.setValue("NLChakra", player, 0.4)
     else
         NinjaLineages.Moodles.setValue("NLChakra", player, 0.5)

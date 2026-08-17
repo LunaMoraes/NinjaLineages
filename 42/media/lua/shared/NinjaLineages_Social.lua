@@ -1,3 +1,5 @@
+require "NinjaLineages_Balance"
+
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Social = NinjaLineages.Social or {}
 
@@ -5,10 +7,10 @@ local Social = NinjaLineages.Social
 
 Social.DATA_KEY = "NinjaLineagesSocial"
 Social.VERSION = 1
-Social.INVITE_LIFETIME_SECONDS = 60
-Social.INVITE_RANGE = 2
-Social.MAX_TEAM_SIZE = 3
-Social.MAX_FLAG_SEVERITY = 5
+Social.INVITE_LIFETIME_SECONDS = NinjaLineages.Balance.Social.INVITE_LIFETIME_SECONDS
+Social.INVITE_RANGE = NinjaLineages.Balance.getRadius(NinjaLineages.Balance.Social.INVITE_RANGE_TIER)
+Social.MAX_TEAM_SIZE = NinjaLineages.Balance.Social.MAX_TEAM_SIZE
+Social.MAX_FLAG_SEVERITY = NinjaLineages.Balance.Social.MAX_FLAG_SEVERITY
 Social.ReputationFlagTypes = Social.ReputationFlagTypes or {
     "Wanted",
     "Traitor",

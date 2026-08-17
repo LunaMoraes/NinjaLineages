@@ -1,4 +1,5 @@
 require "NinjaLineages_Chakra"
+require "NinjaLineages_Balance"
 
 if not getActivatedMods():contains("simpleStatus") then
     return
@@ -41,10 +42,9 @@ end
 
 chakra.colorFn = function(player)
     local percent = getPercent(player)
-    local consts = NinjaLineages.Constants
-    if percent < consts.Chakra.CRITICAL_THRESHOLD then
+    if percent < NinjaLineages.Balance.Chakra.CRITICAL_THRESHOLD then
         return { r = 1, g = 0, b = 0 }
-    elseif percent < consts.Chakra.LOW_THRESHOLD then
+    elseif percent < NinjaLineages.Balance.Chakra.LOW_THRESHOLD then
         return { r = 1, g = 0.55, b = 0 }
     end
     return { r = 0.15, g = 0.55, b = 1 }
@@ -83,4 +83,3 @@ natureChakra.colorFn = function(player)
 end
 
 SimpleStatus:addStat("nl_nature_chakra", natureChakra)
-

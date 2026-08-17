@@ -1,5 +1,6 @@
 require "NinjaLineages_Traits"
 require "NinjaLineages_Balance"
+require "NinjaLineages_Constants"
 require "NinjaLineages_AbilityAuthority"
 require "NinjaLineages_Utils"
 require "combat/NinjaLineages_Damage"
@@ -17,8 +18,7 @@ local sharinganRolls = NinjaLineages.AbilityExecution.sharinganRolls
 local boundZombies = NinjaLineages.AbilityExecution.boundZombies
 local active = NinjaLineages.AbilityExecution.active
 local pvpDodgeHits = NinjaLineages.AbilityExecution.pvpDodgeHits
-local PVP_DODGE_DEDUP_MS = NinjaLineages.Constants and NinjaLineages.Constants.Uchiha
-    and NinjaLineages.Constants.Uchiha.PVP_DODGE_DEDUP_MS or 300
+local PVP_DODGE_DEDUP_MS = NinjaLineages.Constants.Uchiha.PVP_DODGE_DEDUP_MS
 
 local function playerIdentity(player)
     if not player then return "unknown" end
@@ -68,7 +68,7 @@ local function sharinganPvPMeleeEvade(attacker, player, weapon, damage)
 
     local kamuiActive = active[player] and active[player].kamuiUntil
     local stage = NinjaLineages.getSharinganStage(player)
-    local baseChance = NinjaLineages.Constants.Uchiha.SharinganDodgeChance[stage] or 0
+    local baseChance = NinjaLineages.Balance.Lineages.Uchiha.SharinganDodgeChance[stage] or 0
     local multiplier = NinjaLineages.getEyePowerMultiplier(player, "sharingan")
     local chance = math.floor(baseChance * multiplier)
     local dodged = kamuiActive or ZombRand(1, 101) <= chance
@@ -128,7 +128,7 @@ local function sharinganEvade(zombie)
         return
     end
     local stage = NinjaLineages.getSharinganStage(player)
-    local baseChance = NinjaLineages.Constants.Uchiha.SharinganDodgeChance[stage] or 0
+    local baseChance = NinjaLineages.Balance.Lineages.Uchiha.SharinganDodgeChance[stage] or 0
     local multiplier = NinjaLineages.getEyePowerMultiplier(player, "sharingan")
     local chance = math.floor(baseChance * multiplier)
     if ZombRand(1, 101) <= chance then

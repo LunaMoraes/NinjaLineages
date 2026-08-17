@@ -6,10 +6,13 @@ require "ISUI/ISContextMenu"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Traits"
-require "NinjaLineages_Constants"
+require "NinjaLineages_Balance"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.ExperimentalSurgeryClient = NinjaLineages.ExperimentalSurgeryClient or {}
+
+local surgeryBalance = NinjaLineages.Balance.GeneExperimentation.Surgery
+local patientRange = NinjaLineages.Balance.getRadius(surgeryBalance.PATIENT_RANGE_TIER)
 
 local SurgeryClient = NinjaLineages.ExperimentalSurgeryClient
 
@@ -26,7 +29,8 @@ local function getItemFreshness(item)
         local remaining = math.max(0, math.min(1.0, 1.0 - (age / offAgeMax)))
         return math.floor(remaining * 100 + 0.5)
     end
-    return item:getModData().freshness or 100
+    return item:getModData().freshness
+        or NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS
 end
 
 local function getOcularSamples(doctor)
@@ -83,7 +87,7 @@ NLExperimentalSurgeryAction = ISBaseTimedAction:derive("NLExperimentalSurgeryAct
 function NLExperimentalSurgeryAction:isValid()
     if not self.character or self.character:isDead() then return false end
     if not self.patient or self.patient:isDead() then return false end
-    if self.character ~= self.patient and self.character:DistTo(self.patient) > 2.5 then return false end
+    if self.character ~= self.patient and self.character:DistTo(self.patient) > patientRange then return false end
     return true
 end
 
@@ -135,7 +139,7 @@ function NLExperimentalSurgeryAction:new(doctor, patient, surgeryType, eyeSlot, 
     o.item = item
     o.stopOnWalk = true
     o.stopOnRun = true
-    o.maxTime = maxTime or 300
+    o.maxTime = maxTime or surgeryBalance.TIMED_ACTION_MIN
     return o
 end
 
@@ -147,7 +151,11 @@ local function onPerformSurgery(doctor, patient, surgeryType, eyeSlot, item)
     elseif Perks.FirstAid then
         docLevel = doctor:getPerkLevel(Perks.FirstAid)
     end
-    local maxTime = math.max(120, 350 - (docLevel * 20))
+    local maxTime = math.max(
+        surgeryBalance.TIMED_ACTION_MIN,
+        surgeryBalance.TIMED_ACTION_BASE
+            - (docLevel * surgeryBalance.TIMED_ACTION_REDUCTION_PER_DOCTOR_LEVEL)
+    )
     ISTimedActionQueue.add(NLExperimentalSurgeryAction:new(doctor, patient, surgeryType, eyeSlot, item, maxTime))
 end
 
@@ -466,7 +474,10 @@ end
 function NLEyePanelUI:renderEyeSlot(slotName, x, y, w, h, eyeData, stage)
     local isOccupied = eyeData ~= nil and eyeData.type ~= nil
     local eyeType = isOccupied and eyeData.type or "empty"
-    local freshness = isOccupied and (eyeData.freshness or 100) or 0
+    local freshness = isOccupied and (
+        eyeData.freshness
+        or NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS
+    ) or 0
 
     -- Background Card Box
     local isHovered = self:isMouseOverSlot(x, y, w, h)
@@ -618,7 +629,8 @@ function NLEyePanelUI:openEyeContextMenu(eyeSlot, screenX, screenY)
 
     if currentEye ~= nil then
         -- 1. Remove Eye Option
-        local freshness = currentEye.freshness or 100
+        local freshness = currentEye.freshness
+            or NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS
         local typeName = currentEye.type == "sharingan" and getText("UI_NL_Ability_Sharingan_Name")
             or (currentEye.type == "byakugan" and getText("UI_NL_Ability_Byakugan_Name")
             or (currentEye.type == "rinnegan" and getText("UI_NL_Eye_Rinnegan") or getText("UI_NL_Eye_Normal")))
@@ -791,7 +803,7 @@ function ISHealthPanel:update()
     ISPanelJoypad.update(self)
     if self.otherPlayer then
         local dist = self.character:DistToProper(self.otherPlayer)
-        if dist > 2.5 then
+        if dist > patientRange then
             if not self.blockingMessage then 
                 self:getDoctor():stopReceivingBodyDamageUpdates(self:getPatient())
                 self:getPatient():getBodyDamageRemote():RestoreToFullHealth() 

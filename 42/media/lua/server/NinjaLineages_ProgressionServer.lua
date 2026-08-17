@@ -1,4 +1,5 @@
 require "NinjaLineages_Progression"
+require "NinjaLineages_Balance"
 require "NinjaLineages_Utils"
 
 NinjaLineages = NinjaLineages or {}
@@ -205,10 +206,11 @@ local function handleDebugLearnSenninMode(player)
     end
 
     data.sageTrial = data.sageTrial or {}
-    data.sageTrial.meditationMinutes = math.max(30, data.sageTrial.meditationMinutes or 30)
-    data.sageTrial.meleeKills = math.max(50, data.sageTrial.meleeKills or 50)
-    data.sageTrial.rangedKills = math.max(30, data.sageTrial.rangedKills or 30)
-    data.sageTrial.healthHealed = math.max(200, data.sageTrial.healthHealed or 200)
+    local trials = NinjaLineages.Balance.SageMode.Trials
+    data.sageTrial.meditationMinutes = math.max(trials.MEDITATION_MINUTES, data.sageTrial.meditationMinutes or trials.MEDITATION_MINUTES)
+    data.sageTrial.meleeKills = math.max(trials.TOAD_MELEE_KILLS, data.sageTrial.meleeKills or trials.TOAD_MELEE_KILLS)
+    data.sageTrial.rangedKills = math.max(trials.SNAKE_RANGED_KILLS, data.sageTrial.rangedKills or trials.SNAKE_RANGED_KILLS)
+    data.sageTrial.healthHealed = math.max(trials.SNAIL_HEALTH_HEALED, data.sageTrial.healthHealed or trials.SNAIL_HEALTH_HEALED)
     data.sageTrial.completed = true
     data.sageTrial.notified = true
 

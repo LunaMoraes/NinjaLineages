@@ -4,6 +4,7 @@ require "ISUI/ISButton"
 require "TimedActions/ISTimedActionQueue"
 require "NinjaLineages_TreeDefinitions"
 require "NinjaLineages_Progression"
+require "NinjaLineages_Balance"
 require "NinjaLineages_Training"
 require "NinjaLineages_Social"
 require "NinjaLineages_SocialPanel"
@@ -310,17 +311,18 @@ function NLJutsuTreeUI:initialise()
                     local chosen = NinjaLineages.Progression.getChosenContract(self.player)
                     local data = NinjaLineages.getNLData(self.player)
                     local trial = data and data.sageTrial or {}
+                    local requirements = NinjaLineages.Balance.SageMode.Trials
                     if not chosen then
                         nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_NoContract")
                     elseif chosen == "toad" then
                         nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_ToadTrial")
-                            .. "\n\n" .. getText("UI_NL_TrialProgress_Toad", tostring(math.min(30, math.floor(trial.meditationMinutes or 0))), tostring(math.min(50, math.floor(trial.meleeKills or 0))))
+                            .. "\n\n" .. getText("UI_NL_TrialProgress_Toad", tostring(math.min(requirements.MEDITATION_MINUTES, math.floor(trial.meditationMinutes or 0))), tostring(requirements.MEDITATION_MINUTES), tostring(math.min(requirements.TOAD_MELEE_KILLS, math.floor(trial.meleeKills or 0))), tostring(requirements.TOAD_MELEE_KILLS))
                     elseif chosen == "snake" then
                         nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_SnakeTrial")
-                            .. "\n\n" .. getText("UI_NL_TrialProgress_Snake", tostring(math.min(30, math.floor(trial.meditationMinutes or 0))), tostring(math.min(30, math.floor(trial.rangedKills or 0))))
+                            .. "\n\n" .. getText("UI_NL_TrialProgress_Snake", tostring(math.min(requirements.MEDITATION_MINUTES, math.floor(trial.meditationMinutes or 0))), tostring(requirements.MEDITATION_MINUTES), tostring(math.min(requirements.SNAKE_RANGED_KILLS, math.floor(trial.rangedKills or 0))), tostring(requirements.SNAKE_RANGED_KILLS))
                     elseif chosen == "snail" then
                         nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_SnailTrial")
-                            .. "\n\n" .. getText("UI_NL_TrialProgress_Snail", tostring(math.min(30, math.floor(trial.meditationMinutes or 0))), tostring(math.min(200, math.floor(trial.healthHealed or 0))))
+                            .. "\n\n" .. getText("UI_NL_TrialProgress_Snail", tostring(math.min(requirements.MEDITATION_MINUTES, math.floor(trial.meditationMinutes or 0))), tostring(requirements.MEDITATION_MINUTES), tostring(math.min(requirements.SNAIL_HEALTH_HEALED, math.floor(trial.healthHealed or 0))), tostring(requirements.SNAIL_HEALTH_HEALED))
                     end
                 elseif self.selectedNode == "summoning" then
                     local chosen = NinjaLineages.Progression.getChosenContract(self.player)

@@ -11,7 +11,7 @@ require "disciplines/NinjaLineages_ScrollUtils"
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Uzumaki = NinjaLineages.Uzumaki or {}
 
-local consts = NinjaLineages.Constants
+local balance = NinjaLineages.Balance
 
 -- Alarm Seal Logic
 local function getActualInventoryItem(item)
@@ -70,7 +70,7 @@ function NLUnsealScrollAction:new(character, scroll)
     self.__index = self
     o.character = character
     o.scroll = scroll
-    o.maxTime = character:isTimedActionInstant() and 1 or consts.Uzumaki.StorageSeal.UNSEAL_TIME
+    o.maxTime = character:isTimedActionInstant() and 1 or balance.Lineages.Uzumaki.STORAGE_UNSEAL_TIME
     return o
 end
 

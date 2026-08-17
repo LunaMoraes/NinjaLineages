@@ -14,6 +14,7 @@ NinjaLineages.Summoning = NinjaLineages.Summoning or {}
 local Summoning = NinjaLineages.Summoning
 local Balance = NinjaLineages.Balance
 local Authority = NinjaLineages.AbilityAuthority
+local SummonBalance = Balance.Summoning
 
 Summoning.activeSummons = Summoning.activeSummons or {}
 
@@ -64,7 +65,7 @@ function Summoning.cast(player, args)
         return false, "no_contract"
     end
 
-    local cost = Balance.getCost("MAJOR")
+    local cost = Balance.getCost(SummonBalance.COST_TIER)
     if not NinjaLineages.Chakra.spendChakra(player, cost) then
         return false, "chakra"
     end
@@ -75,7 +76,7 @@ function Summoning.cast(player, args)
     end
 
     local now = NinjaLineages.Utils.Time.gameMinutes()
-    local duration = Balance.getDuration("LONG")
+    local duration = Balance.getDuration(SummonBalance.DURATION_TIER)
     local key = getSummonKey(player)
 
     Summoning.activeSummons[key] = {
@@ -115,11 +116,14 @@ end
 -- ============================================================================
 
 local function updateToadCompanion(summon, player, nowMs)
-    if nowMs - summon.lastActionTick < 2500 then return end
+    local tuning = SummonBalance.Toad
+    if nowMs - summon.lastActionTick < tuning.ACTION_INTERVAL_MS then return end
     summon.lastActionTick = nowMs
 
     local px, py, pz = player:getX(), player:getY(), player:getZ()
-    local targets = NinjaLineages.Targeting.getZombiesInRadius(px, py, pz, 7)
+    local targetRadius = Balance.getRadius(tuning.TARGET_RADIUS_TIER)
+    local splashRadius = Balance.getRadius(tuning.SPLASH_RADIUS_TIER)
+    local targets = NinjaLineages.Targeting.getZombiesInRadius(px, py, pz, targetRadius)
     if #targets > 0 then
         -- Toad attacks closest zombies with heavy ground slam
         local closest = targets[1]
@@ -128,10 +132,10 @@ local function updateToadCompanion(summon, player, nowMs)
         summon.y = slamY
         summon.z = pz
 
-        local splash = NinjaLineages.Targeting.getZombiesInRadius(slamX, slamY, pz, 3.5)
+        local splash = NinjaLineages.Targeting.getZombiesInRadius(slamX, slamY, pz, splashRadius)
         for _, zed in ipairs(splash) do
             NinjaLineages.Utils.Combat.staggerZombie(zed, { knockdown = true, position = "FRONT" })
-            local dmg = Balance.rollDamage("HEAVY")
+            local dmg = Balance.rollDamage(tuning.DAMAGE_TIER)
             NinjaLineages.Damage.applyZombieDamage(player, zed, dmg)
         end
 
@@ -140,7 +144,7 @@ local function updateToadCompanion(summon, player, nowMs)
             x = slamX,
             y = slamY,
             z = pz,
-            radius = 3.5,
+            radius = splashRadius,
         }
         if NinjaLineages.isServer() then
             sendServerCommand("NinjaLineages", "abilityEvent", event)
@@ -153,11 +157,17 @@ local function updateToadCompanion(summon, player, nowMs)
 end
 
 local function updateSnakeCompanion(summon, player, nowMs)
-    if nowMs - summon.lastActionTick < 1500 then return end
+    local tuning = SummonBalance.Snake
+    if nowMs - summon.lastActionTick < tuning.ACTION_INTERVAL_MS then return end
     summon.lastActionTick = nowMs
 
     local px, py, pz = player:getX(), player:getY(), player:getZ()
-    local targets = NinjaLineages.Targeting.getZombiesInRadius(px, py, pz, 9)
+    local targets = NinjaLineages.Targeting.getZombiesInRadius(
+        px,
+        py,
+        pz,
+        Balance.getRadius(tuning.TARGET_RADIUS_TIER)
+    )
     if #targets > 0 then
         local target = targets[1]
         local tx, ty = target:getX(), target:getY()
@@ -166,7 +176,7 @@ local function updateSnakeCompanion(summon, player, nowMs)
         summon.z = pz
 
         NinjaLineages.Utils.Combat.staggerZombie(target, { knockdown = false, position = "BEHIND" })
-        local dmg = Balance.rollDamage("HEAVY")
+        local dmg = Balance.rollDamage(tuning.DAMAGE_TIER)
         NinjaLineages.Damage.applyZombieDamage(player, target, dmg)
 
         local event = {
@@ -186,7 +196,8 @@ local function updateSnakeCompanion(summon, player, nowMs)
 end
 
 local function updateSnailCompanion(summon, player, nowMs)
-    if nowMs - summon.lastActionTick < 4000 then return end
+    local tuning = SummonBalance.Snail
+    if nowMs - summon.lastActionTick < tuning.ACTION_INTERVAL_MS then return end
     summon.lastActionTick = nowMs
 
     local px, py, pz = player:getX(), player:getY(), player:getZ()
@@ -195,8 +206,9 @@ local function updateSnailCompanion(summon, player, nowMs)
     summon.z = pz
 
     -- Radiant healing wave in 6-tile radius
-    local healConfig = Balance.getHealing("HEAVY")
-    local healAmount = healConfig and healConfig.health or 20.0
+    local healConfig = Balance.getHealing(tuning.HEALING_TIER)
+    local healAmount = healConfig.health
+    local radius = Balance.getRadius(tuning.RADIUS_TIER)
     local bodyDamage = player:getBodyDamage()
     if bodyDamage and bodyDamage:getOverallBodyHealth() < 100 then
         local currentHealth = bodyDamage:getOverallBodyHealth()
@@ -213,7 +225,7 @@ local function updateSnailCompanion(summon, player, nowMs)
 
     -- Heal nearby allies/players in multiplayer
     if isClient() or isServer() then
-        local players = NinjaLineages.Targeting.getPlayersInRadius(px, py, pz, 6)
+        local players = NinjaLineages.Targeting.getPlayersInRadius(px, py, pz, radius)
         for _, otherPlayer in ipairs(players) do
             if otherPlayer ~= player and not otherPlayer:isDead() then
                 local otherBd = otherPlayer:getBodyDamage()
@@ -230,7 +242,7 @@ local function updateSnailCompanion(summon, player, nowMs)
         x = px,
         y = py,
         z = pz,
-        radius = 6.0,
+        radius = radius,
     }
     if NinjaLineages.isServer() then
         sendServerCommand("NinjaLineages", "abilityEvent", event)
