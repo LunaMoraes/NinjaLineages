@@ -21,7 +21,7 @@ function NLJutsuTrainingAction:stop()
     local data = NinjaLineages.getNLData(self.character)
     data.trainingProgress = data.trainingProgress or {}
     data.trainingProgress[self.nodeId] = readPages
-    NinjaLineages.Progression.requestTrainingProgress(self.character, self.nodeId, readPages)
+    NinjaLineages.Progression.requestTrainingProgress(self.character, self.nodeId, self.item)
 end
 
 function NLJutsuTrainingAction:complete()
@@ -33,7 +33,7 @@ function NLJutsuTrainingAction:complete()
     data.trainingProgress = data.trainingProgress or {}
     data.trainingProgress[self.nodeId] = required
 
-    NinjaLineages.Progression.requestTrainingProgress(self.character, self.nodeId, required)
+    NinjaLineages.Progression.requestTrainingProgress(self.character, self.nodeId, self.item)
     NinjaLineages.Progression.requestCompleteTraining(self.character, self.nodeId, self.item)
     return true
 end

@@ -26,16 +26,6 @@ local function handleAbilityRequest(player, args)
         NinjaLineages.ServerPassives.updatePlayer(player)
     end
 
-    if result.ok and result.actionId == "shinra_tensei" then
-        sendServerCommand("NinjaLineages", "abilityEvent", {
-            kind = "shinra_tensei_pulse",
-            x = player:getX(),
-            y = player:getY(),
-            z = math.floor(player:getZ()),
-            casterOnlineId = player:getOnlineID(),
-        })
-    end
-
     if result.ok and result.state and result.state.event then
         local event = result.state.event
         event.casterOnlineId = event.casterOnlineId or player:getOnlineID()

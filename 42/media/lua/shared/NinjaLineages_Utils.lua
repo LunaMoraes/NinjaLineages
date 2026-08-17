@@ -68,17 +68,18 @@ function NinjaLineages.Utils.Inventory.findItem(player, itemID, fullType)
 
     if itemID then
         local item = inv:getItemById(itemID)
-        if item then return item end
+        if item and (not fullType or item:getFullType() == fullType) then return item end
         local items = inv:getItems()
         if items then
             for i = 0, items:size() - 1 do
                 local child = items:get(i)
                 if child and child:IsInventoryContainer() and child.getInventory then
                     local subItem = child:getInventory():getItemById(itemID)
-                    if subItem then return subItem end
+                    if subItem and (not fullType or subItem:getFullType() == fullType) then return subItem end
                 end
             end
         end
+        return nil
     end
 
     if fullType then

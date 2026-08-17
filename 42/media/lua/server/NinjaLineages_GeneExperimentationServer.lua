@@ -110,17 +110,17 @@ end
 
 -- Server completion logic for experiments (called from singleplayer or server command handler)
 function ServerLogic.completeExperiment(player, corpse, actionId)
-    if not corpse then return end
+    if not player or not corpse then return false end
     local modData = corpse:getModData()
-    if modData.experimented then return end
+    if modData.experimented then return false end
     
     local isZombieNinja = modData.isZombieNinja == true
-    if not isZombieNinja then return end
+    if not isZombieNinja then return false end
     
     local data = NinjaLineages.getNLData(player)
     
     if actionId == "Crude Chakra Autopsy" then
-        if not NinjaLineages.Progression.isDisciplineLocked(player, "gene_experimentation") then return end
+        if not NinjaLineages.Progression.isDisciplineLocked(player, "gene_experimentation") then return false end
         
         -- Mark as experimented
         modData.experimented = true
@@ -136,14 +136,14 @@ function ServerLogic.completeExperiment(player, corpse, actionId)
         notifyPlayer(player, "UI_NL_GeneExperimentationUnlocked")
     
     elseif actionId == "Extract Blood Sample" then
-        if not NinjaLineages.Progression.isCompleted(player, "blood_extraction") then return end
+        if not NinjaLineages.Progression.isCompleted(player, "blood_extraction") then return false end
         
         modData.experimented = true
         local item = instanceItem("Base.NL_BloodSample")
         if item then player:getInventory():AddItem(item) end
         
     elseif actionId == "Extract Ocular Tissue" then
-        if not NinjaLineages.Progression.isCompleted(player, "ocular_extraction") then return end
+        if not NinjaLineages.Progression.isCompleted(player, "ocular_extraction") then return false end
         
         modData.experimented = true
         local item = instanceItem("Base.NL_OcularTissueSample")
@@ -158,7 +158,7 @@ function ServerLogic.completeExperiment(player, corpse, actionId)
         end
         
     elseif actionId == "Extract Gene Sample" then
-        if not NinjaLineages.Progression.isCompleted(player, "gene_extraction") then return end
+        if not NinjaLineages.Progression.isCompleted(player, "gene_extraction") then return false end
         
         modData.experimented = true
         local item = instanceItem("Base.NL_GeneSample")
@@ -167,17 +167,47 @@ function ServerLogic.completeExperiment(player, corpse, actionId)
             applyItemFreshness(item, freshness)
             player:getInventory():AddItem(item)
         end
+    else
+        return false
     end
     
     NinjaLineages.transmitPlayerData(player)
+    return true
 end
 
 -- ============================================================================
 -- Experimental Surgery Server Handlers
 -- ============================================================================
 
+local MAX_PATIENT_DISTANCE = 2.5
+
+local function isPatientInRange(doctor, patient)
+    if not doctor or not patient or doctor:isDead() or patient:isDead() then return false end
+    if doctor == patient then return true end
+    if math.floor(doctor:getZ()) ~= math.floor(patient:getZ()) then return false end
+    local dx = doctor:getX() - patient:getX()
+    local dy = doctor:getY() - patient:getY()
+    return (dx * dx + dy * dy) <= (MAX_PATIENT_DISTANCE * MAX_PATIENT_DISTANCE)
+end
+
+local function resolvePatient(doctor, patientOnlineId)
+    if not doctor then return nil end
+    if patientOnlineId == nil then return doctor end
+    if not getPlayerByOnlineID then return nil end
+    local onlineId = tonumber(patientOnlineId)
+    if not onlineId then return nil end
+    local patient = getPlayerByOnlineID(onlineId)
+    if not isPatientInRange(doctor, patient) then return nil end
+    return patient
+end
+
+local function isValidEyeSlot(eyeSlot)
+    return eyeSlot == "left" or eyeSlot == "right"
+end
+
 function ServerLogic.removeEye(doctor, patient, eyeSlot)
-    if not doctor or not patient or not eyeSlot then return false end
+    if not doctor or not patient or not isValidEyeSlot(eyeSlot) then return false end
+    if not isPatientInRange(doctor, patient) then return false end
     if not NinjaLineages.Progression.isCompleted(doctor, "experimental_surgeries") then return false end
 
     NinjaLineages.initPlayerEyes(patient)
@@ -216,7 +246,8 @@ function ServerLogic.removeEye(doctor, patient, eyeSlot)
 end
 
 function ServerLogic.implantEye(doctor, patient, eyeSlot, itemID)
-    if not doctor or not patient or not eyeSlot then return false end
+    if not doctor or not patient or not isValidEyeSlot(eyeSlot) then return false end
+    if not isPatientInRange(doctor, patient) then return false end
     if not NinjaLineages.Progression.isCompleted(doctor, "experimental_surgeries") then return false end
 
     NinjaLineages.initPlayerEyes(patient)
@@ -228,7 +259,10 @@ function ServerLogic.implantEye(doctor, patient, eyeSlot, itemID)
     if not item then return false end
 
     local freshness = getItemCurrentFreshness(item)
-    local eyeType = item:getModData().eyeType or "sharingan"
+    local eyeType = item:getModData().eyeType
+    if eyeType ~= "sharingan" and eyeType ~= "byakugan" and eyeType ~= "rinnegan" then
+        return false
+    end
 
     -- Consume item
     NinjaLineages.Utils.Inventory.consumeInventoryItem(doctor, item)
@@ -249,6 +283,7 @@ end
 
 function ServerLogic.implantGenes(doctor, patient, itemID)
     if not doctor or not patient then return false end
+    if not isPatientInRange(doctor, patient) then return false end
     if not NinjaLineages.Progression.isCompleted(doctor, "experimental_surgeries") then return false end
 
     NinjaLineages.initPlayerEyes(patient)
@@ -326,18 +361,20 @@ local function handleCompleteCorpseExperiment(player, args)
         local dx = player:getX() - corpse:getX()
         local dy = player:getY() - corpse:getY()
         if (dx * dx + dy * dy) <= 16 then
-            ServerLogic.completeExperiment(player, corpse, actionId)
+            local completed = ServerLogic.completeExperiment(player, corpse, actionId)
             
-            -- Broadcast corpse experiment sync to all clients
-            sendServerCommand("NinjaLineages", "syncCorpseState", {
-                x = corpseId.x,
-                y = corpseId.y,
-                z = corpseId.z,
-                index = corpseId.index,
-                zombieId = corpseId.zombieId,
-                isZombie = corpseId.isZombie,
-                experimented = true
-            })
+            if completed then
+                -- Broadcast only state that the authoritative mutation accepted.
+                sendServerCommand("NinjaLineages", "syncCorpseState", {
+                    x = corpseId.x,
+                    y = corpseId.y,
+                    z = corpseId.z,
+                    index = corpseId.index,
+                    zombieId = corpseId.zombieId,
+                    isZombie = corpseId.isZombie,
+                    experimented = corpse:getModData().experimented == true
+                })
+            end
         end
     end
 end
@@ -348,11 +385,8 @@ local function handlePerformExperimentalSurgery(doctor, args)
     local eyeSlot = args.eyeSlot
     local itemId = args.itemId
 
-    local patient = doctor
-    if args.patientOnlineId and getPlayerByOnlineID then
-        local target = getPlayerByOnlineID(args.patientOnlineId)
-        if target then patient = target end
-    end
+    local patient = resolvePatient(doctor, args.patientOnlineId)
+    if not patient then return end
 
     if surgeryType == "remove_eye" then
         ServerLogic.removeEye(doctor, patient, eyeSlot)
@@ -365,6 +399,7 @@ end
 
 function ServerLogic.transfuseBlood(doctor, patient, itemId)
     if not doctor or not patient then return false end
+    if not isPatientInRange(doctor, patient) then return false end
     if not NinjaLineages.Progression.isCompleted(doctor, "blood_extraction") then
         notifyPlayer(doctor, "UI_NL_Error_NeedBloodExtraction")
         return false
@@ -418,11 +453,8 @@ end
 local function handlePerformBloodTransfusion(doctor, args)
     if not doctor or not args then return end
     local itemId = args.itemId
-    local patient = doctor
-    if args.patientOnlineId and getPlayerByOnlineID then
-        local target = getPlayerByOnlineID(args.patientOnlineId)
-        if target then patient = target end
-    end
+    local patient = resolvePatient(doctor, args.patientOnlineId)
+    if not patient then return end
     ServerLogic.transfuseBlood(doctor, patient, itemId)
 end
 

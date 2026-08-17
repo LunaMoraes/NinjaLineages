@@ -403,9 +403,14 @@ end
 
 function NinjaLineages.AbilityAuthority.pruneDeadPlayers(deadPlayerIDs)
     if not deadPlayerIDs then return end
+    local dead = {}
     for _, id in ipairs(deadPlayerIDs) do
-        local key = "online:" .. tostring(id)
-        active[key] = nil
+        dead[tostring(id)] = true
+    end
+    for player in pairs(active) do
+        if player and player.getOnlineID and dead[tostring(player:getOnlineID())] then
+            active[player] = nil
+        end
     end
 end
 

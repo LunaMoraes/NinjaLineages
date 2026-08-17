@@ -117,8 +117,8 @@ end
 function SageMode.onHit(player)
     if not SageMode.isActive(player) then return end
     local cost = Balance.getCost("BASIC")
-    NinjaLineages.Chakra.spendNatureChakra(player, cost)
-    if NinjaLineages.Chakra.getNatureChakra(player) <= 0 then
+    if not NinjaLineages.Chakra.spendNatureChakra(player, cost)
+            or NinjaLineages.Chakra.getNatureChakra(player) <= 0 then
         SageMode.deactivate(player)
     end
 end
@@ -126,8 +126,8 @@ end
 function SageMode.onCastJutsu(player)
     if not SageMode.isActive(player) then return end
     local cost = Balance.getCostStep("STANDARD")
-    NinjaLineages.Chakra.spendNatureChakra(player, cost)
-    if NinjaLineages.Chakra.getNatureChakra(player) <= 0 then
+    if not NinjaLineages.Chakra.spendNatureChakra(player, cost)
+            or NinjaLineages.Chakra.getNatureChakra(player) <= 0 then
         SageMode.deactivate(player)
     end
 end
@@ -172,8 +172,8 @@ function SageMode.update(player)
         state.lastDrain = now
         if elapsed > 0 then
             local drainRate = NinjaLineages.Balance.getSustainedDrain("HIGH")
-            NinjaLineages.Chakra.spendNatureChakra(player, drainRate * elapsed)
-            if NinjaLineages.Chakra.getNatureChakra(player) <= 0 then
+            if not NinjaLineages.Chakra.spendNatureChakra(player, drainRate * elapsed)
+                    or NinjaLineages.Chakra.getNatureChakra(player) <= 0 then
                 sageSprintState[player] = nil
                 SageMode.deactivate(player)
             end

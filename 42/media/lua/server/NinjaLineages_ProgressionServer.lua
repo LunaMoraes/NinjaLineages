@@ -78,11 +78,12 @@ end
 
 local function handleTrainingProgress(player, args)
     local nodeId = args and args.nodeId
-    local pages = args and args.pages
-    local ok, reason, savedPages, required = NinjaLineages.Progression.setTrainingProgress(player, nodeId, pages)
+    local itemId = tonumber(args and args.itemId) or -1
+    local item = player:getInventory():getItemById(itemId)
+    local ok, reason, savedPages, required = NinjaLineages.Progression.setTrainingProgress(player, nodeId, item)
     if isDebugMode() then
         print("[DEBUG-NL-TRAINING] server checkpoint node=" .. tostring(nodeId)
-            .. " clientPages=" .. tostring(pages)
+            .. " itemId=" .. tostring(itemId)
             .. " savedPages=" .. tostring(savedPages)
             .. " required=" .. tostring(required)
             .. " ok=" .. tostring(ok == true)
@@ -188,31 +189,6 @@ local function revealGeneExperimentation(player)
     return true
 end
 
-local function onClientCommand(module, command, player, args)
-    if module ~= "NinjaLineages" then return end
-    if command == "awardNinjaXP" then
-        handleAward(player, args)
-    elseif command == "unlockNode" then
-        handleUnlock(player, args)
-    elseif command == "completeTraining" then
-        handleCompleteTraining(player, args)
-    elseif command == "trainingProgress" then
-        handleTrainingProgress(player, args)
-    elseif command == "debugAddNinjaXP" then
-        handleDebugAddXP(player, args)
-    elseif command == "debugToggleBypass" then
-        handleDebugToggleBypass(player)
-    elseif command == "debugToggleAllVisible" then
-        handleDebugToggleAllVisible(player)
-    elseif command == "debugToggleAllUnlocked" then
-        handleDebugToggleAllUnlocked(player)
-    elseif command == "debugCompleteCoreTrees" then
-        handleDebugCompleteCoreTrees(player)
-    elseif command == "debugLearnSenninMode" then
-        handleDebugLearnSenninMode(player)
-    end
-end
-
 local function handleDebugLearnSenninMode(player)
     if not canUseDebugCommands(player) then return end
     local state = NinjaLineages.Progression.getState(player)
@@ -241,6 +217,31 @@ local function handleDebugLearnSenninMode(player)
     NinjaLineages.transmitPlayerData(player)
     sendState(player, "progressionUpdated")
     notifyPlayer(player, "UI_NL_Debug_SenninModeLearned")
+end
+
+local function onClientCommand(module, command, player, args)
+    if module ~= "NinjaLineages" then return end
+    if command == "awardNinjaXP" then
+        handleAward(player, args)
+    elseif command == "unlockNode" then
+        handleUnlock(player, args)
+    elseif command == "completeTraining" then
+        handleCompleteTraining(player, args)
+    elseif command == "trainingProgress" then
+        handleTrainingProgress(player, args)
+    elseif command == "debugAddNinjaXP" then
+        handleDebugAddXP(player, args)
+    elseif command == "debugToggleBypass" then
+        handleDebugToggleBypass(player)
+    elseif command == "debugToggleAllVisible" then
+        handleDebugToggleAllVisible(player)
+    elseif command == "debugToggleAllUnlocked" then
+        handleDebugToggleAllUnlocked(player)
+    elseif command == "debugCompleteCoreTrees" then
+        handleDebugCompleteCoreTrees(player)
+    elseif command == "debugLearnSenninMode" then
+        handleDebugLearnSenninMode(player)
+    end
 end
 
 local function onZombieDead(zombie)

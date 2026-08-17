@@ -37,17 +37,19 @@ local function getOcularSamples(doctor)
     for _, item in ipairs(items) do
         if item and not (item.isRotten and item:isRotten()) then
             local freshness = getItemFreshness(item)
-            local eyeType = item:getModData().eyeType or "sharingan"
-            local typeName = eyeType == "sharingan" and getText("UI_NL_Ability_Sharingan_Name")
-                or (eyeType == "byakugan" and getText("UI_NL_Ability_Byakugan_Name")
-                or (eyeType == "rinnegan" and getText("UI_NL_Eye_Rinnegan") or getText("UI_NL_Eye_Normal")))
-            local label = typeName .. " (" .. freshness .. "%)"
-            table.insert(list, {
-                item = item,
-                label = label,
-                freshness = freshness,
-                eyeType = eyeType,
-            })
+            local eyeType = item:getModData().eyeType
+            if eyeType == "sharingan" or eyeType == "byakugan" or eyeType == "rinnegan" then
+                local typeName = eyeType == "sharingan" and getText("UI_NL_Ability_Sharingan_Name")
+                    or (eyeType == "byakugan" and getText("UI_NL_Ability_Byakugan_Name")
+                    or getText("UI_NL_Eye_Rinnegan"))
+                local label = typeName .. " (" .. freshness .. "%)"
+                table.insert(list, {
+                    item = item,
+                    label = label,
+                    freshness = freshness,
+                    eyeType = eyeType,
+                })
+            end
         end
     end
     return list
