@@ -286,7 +286,7 @@ module Base
     {
         DisplayCategory = Material,
         ItemType = base:food,
-        DisplayName = Ninja Ocular Tissue,
+        DisplayName = Zombie Ninja Ocular Tissue,
         Weight = 0.1,
         Icon = NLOcularTissueSample,
         HungerChange = 0,
@@ -302,7 +302,7 @@ module Base
     {
         DisplayCategory = Material,
         ItemType = base:food,
-        DisplayName = Ninja Gene Sample,
+        DisplayName = Zombie Ninja Gene Sample,
         Weight = 0.1,
         Icon = NLGeneSample,
         HungerChange = 0,

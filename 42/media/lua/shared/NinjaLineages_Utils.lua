@@ -61,11 +61,65 @@ function NinjaLineages.Utils.Inventory.getFirstInventoryItem(player, fullType)
     return inv:getItemFromType(fullType)
 end
 
+function NinjaLineages.Utils.Inventory.findItem(player, itemID, fullType)
+    if not player then return nil end
+    local inv = player:getInventory()
+    if not inv then return nil end
+
+    if itemID then
+        local item = inv:getItemById(itemID)
+        if item then return item end
+        local items = inv:getItems()
+        if items then
+            for i = 0, items:size() - 1 do
+                local child = items:get(i)
+                if child and child:IsInventoryContainer() and child.getInventory then
+                    local subItem = child:getInventory():getItemById(itemID)
+                    if subItem then return subItem end
+                end
+            end
+        end
+    end
+
+    if fullType then
+        local item = inv:getFirstTypeRecurse(fullType)
+        if item then return item end
+    end
+
+    return nil
+end
+
+function NinjaLineages.Utils.Inventory.collectItems(playerOrContainer, fullType, outList)
+    outList = outList or {}
+    local container = playerOrContainer
+    if container and container.getInventory then
+        container = container:getInventory()
+    end
+    if not container then return outList end
+    local items = container:getItems()
+    if not items then return outList end
+    for i = 0, items:size() - 1 do
+        local item = items:get(i)
+        if item then
+            if not fullType or item:getFullType() == fullType then
+                table.insert(outList, item)
+            end
+            if item:IsInventoryContainer() and item.getInventory then
+                NinjaLineages.Utils.Inventory.collectItems(item:getInventory(), fullType, outList)
+            end
+        end
+    end
+    return outList
+end
+
 function NinjaLineages.Utils.Inventory.consumeInventoryItem(player, item)
-    local inv = player and player:getInventory()
-    if not inv or not item then return false end
-    inv:Remove(item)
-    pcall(function() sendRemoveItemFromContainer(inv, item) end)
+    if not item then return false end
+    local container = item:getContainer() or (player and player:getInventory())
+    if not container then return false end
+    container:Remove(item)
+    if NinjaLineages.isServer() then
+        pcall(function() sendRemoveItemFromContainer(container, item) end)
+    end
     return true
 end
 

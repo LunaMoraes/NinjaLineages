@@ -337,12 +337,15 @@ function NinjaLineages.AbilityAuthority.everyMinute(player)
                 end
             elseif data.activeGeneEffect.id == "physical_vigor" then
                 if stats then
-                    stats:setFatigue(math.max(0, stats:getFatigue() - (0.01 * elapsed)))
-                    stats:setEndurance(math.min(1, stats:getEndurance() + (0.02 * elapsed)))
+                    local currentFatigue = stats:get(CharacterStat.FATIGUE) or 0
+                    local currentEndurance = stats:get(CharacterStat.ENDURANCE) or 0
+                    stats:set(CharacterStat.FATIGUE, math.max(0, currentFatigue - (0.01 * elapsed)))
+                    stats:set(CharacterStat.ENDURANCE, math.min(1, currentEndurance + (0.02 * elapsed)))
                 end
             elseif data.activeGeneEffect.id == "cellular_rejection" then
                 if stats then
-                    stats:setFatigue(math.min(1, stats:getFatigue() + (0.005 * elapsed)))
+                    local currentFatigue = stats:get(CharacterStat.FATIGUE) or 0
+                    stats:set(CharacterStat.FATIGUE, math.min(1, currentFatigue + (0.005 * elapsed)))
                 end
             end
         end

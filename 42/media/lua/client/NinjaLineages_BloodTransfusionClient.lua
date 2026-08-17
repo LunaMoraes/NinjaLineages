@@ -22,12 +22,10 @@ end
 
 local function getBloodSamples(doctor)
     local list = {}
-    local inv = doctor:getInventory()
+    local inv = doctor and doctor:getInventory()
     if not inv then return list end
-    local items = inv:getItemsFromType("Base.NL_BloodSample")
-    if not items then return list end
-    for i = 0, items:size() - 1 do
-        local item = items:get(i)
+    local items = NinjaLineages.Utils.Inventory.collectItems(inv, "Base.NL_BloodSample")
+    for _, item in ipairs(items) do
         if item and not (item.isRotten and item:isRotten()) then
             local freshness = getItemFreshness(item)
             if freshness > 0 then

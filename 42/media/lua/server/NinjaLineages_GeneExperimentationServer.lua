@@ -223,28 +223,15 @@ function ServerLogic.implantEye(doctor, patient, eyeSlot, itemID)
     local data = NinjaLineages.getNLData(patient)
     if not data or not data.eyes or data.eyes[eyeSlot] ~= nil then return false end
 
-    -- Find ocular item in doctor inventory
-    local inv = doctor:getInventory()
-    local item = nil
-    if itemID then
-        item = inv:getItemById(itemID)
-    end
-    if not item then
-        local items = inv:getItemsFromType("Base.NL_OcularTissueSample")
-        if items and items:size() > 0 then
-            item = items:get(0)
-        end
-    end
+    -- Find ocular item in doctor inventory or bags
+    local item = NinjaLineages.Utils.Inventory.findItem(doctor, itemID, "Base.NL_OcularTissueSample")
     if not item then return false end
 
     local freshness = getItemCurrentFreshness(item)
     local eyeType = item:getModData().eyeType or "sharingan"
 
     -- Consume item
-    inv:Remove(item)
-    if NinjaLineages.isServer() then
-        pcall(function() sendRemoveItemFromContainer(inv, item) end)
-    end
+    NinjaLineages.Utils.Inventory.consumeInventoryItem(doctor, item)
 
     -- Implant
     data.eyes[eyeSlot] = {
@@ -268,24 +255,12 @@ function ServerLogic.implantGenes(doctor, patient, itemID)
     local data = NinjaLineages.getNLData(patient)
     if not data then return false end
 
-    local inv = doctor:getInventory()
-    local item = nil
-    if itemID then
-        item = inv:getItemById(itemID)
-    end
-    if not item then
-        local items = inv:getItemsFromType("Base.NL_GeneSample")
-        if items and items:size() > 0 then
-            item = items:get(0)
-        end
-    end
+    -- Find gene sample in doctor inventory or bags
+    local item = NinjaLineages.Utils.Inventory.findItem(doctor, itemID, "Base.NL_GeneSample")
     if not item then return false end
 
     -- Consume gene sample
-    inv:Remove(item)
-    if NinjaLineages.isServer() then
-        pcall(function() sendRemoveItemFromContainer(inv, item) end)
-    end
+    NinjaLineages.Utils.Inventory.consumeInventoryItem(doctor, item)
 
     local now = NinjaLineages.Utils.Time.gameMinutes()
     local rinneganAwakened = false
@@ -395,7 +370,7 @@ function ServerLogic.transfuseBlood(doctor, patient, itemId)
         return false
     end
 
-    local item = findItemInInventory(doctor, itemId)
+    local item = NinjaLineages.Utils.Inventory.findItem(doctor, itemId, "Base.NL_BloodSample")
     if not item then
         notifyPlayer(doctor, "UI_NL_Error_NoBloodSample")
         return false
@@ -407,7 +382,7 @@ function ServerLogic.transfuseBlood(doctor, patient, itemId)
         return false
     end
 
-    doctor:getInventory():Remove(item)
+    NinjaLineages.Utils.Inventory.consumeInventoryItem(doctor, item)
 
     -- Immediate chakra restore scaling with freshness: Balance.getCost("MAJOR") * (freshness / 100)
     local restoreAmount = NinjaLineages.Balance.getCost("MAJOR") * (freshness / 100.0)
