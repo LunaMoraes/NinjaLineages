@@ -206,6 +206,7 @@ module Base
         StaticModel = HuntingKnife,
         WorldStaticModel = HuntingKnifeGround,
         Count = 1,
+        Tags = base:ammo,
     }
 
     item NL_ShurikenAmmo
@@ -218,6 +219,7 @@ module Base
         StaticModel = HuntingKnife,
         WorldStaticModel = HuntingKnifeGround,
         Count = 1,
+        Tags = base:ammo,
     }
 
     item NL_KunaiShooter

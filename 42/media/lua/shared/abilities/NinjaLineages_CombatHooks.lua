@@ -19,6 +19,7 @@ local boundZombies = NinjaLineages.AbilityExecution.boundZombies
 local active = NinjaLineages.AbilityExecution.active
 local pvpDodgeHits = NinjaLineages.AbilityExecution.pvpDodgeHits
 local PVP_DODGE_DEDUP_MS = NinjaLineages.Constants.Uchiha.PVP_DODGE_DEDUP_MS
+local Balance = NinjaLineages.Balance
 
 local function playerIdentity(player)
     if not player then return "unknown" end
@@ -106,7 +107,7 @@ local function sageCombatHook(zombie, attacker, bodyPartType, weapon)
     end
 end
 
-if not NinjaLineages.isClient() and Events and Events.OnHitZombie then
+if Events and Events.OnHitZombie then
     NinjaLineages.addEventOnce("shared.abilityExecution.onHitZombie", Events.OnHitZombie, gentleFist)
     NinjaLineages.addEventOnce("shared.abilityExecution.onHitZombie.sage", Events.OnHitZombie, sageCombatHook)
 end

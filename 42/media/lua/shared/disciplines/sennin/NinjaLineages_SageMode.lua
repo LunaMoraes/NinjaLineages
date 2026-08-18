@@ -4,6 +4,7 @@ require "NinjaLineages_Constants"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Chakra"
 require "NinjaLineages_AbilityAuthority"
+require "NinjaLineages_AbilityExecution"
 require "NinjaLineages_Utils"
 
 NinjaLineages = NinjaLineages or {}
@@ -185,11 +186,9 @@ function SageMode.update(player)
 end
 
 -- Register Executor for Sage Mode
-if NinjaLineages.AbilityExecution and NinjaLineages.AbilityExecution.registerSpecializedExecutor then
-    NinjaLineages.AbilityExecution.registerSpecializedExecutor("sage_mode", function(player, definition, args)
-        return SageMode.toggle(player)
-    end)
-end
+NinjaLineages.AbilityExecution.registerSpecializedExecutor("sage_mode", function(player, definition, args)
+    return SageMode.toggle(player)
+end)
 
 Authority.register("sage_mode", function(player, args)
     return SageMode.toggle(player)

@@ -402,10 +402,16 @@ local function everyOneMinute()
 end
 
 local function initKeybinds()
+    if not keyBinding then return end
+    for _, bind in ipairs(keyBinding) do
+        if bind.value == "[Ninja Lineages]" then return end
+    end
     table.insert(keyBinding, { value = "[Ninja Lineages]" })
     table.insert(keyBinding, { value = "Ninja Ability", key = Keyboard.KEY_NONE })
     table.insert(keyBinding, { value = "Ninja Ability Radial", key = Keyboard.KEY_NONE })
 end
+
+initKeybinds()
 
 local function onCreatePlayer(playerIndex, player)
     if player then

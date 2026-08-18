@@ -106,13 +106,12 @@ NinjaLineages.addEventOnce(
     onClientCommand
 )
 
-NinjaLineages.addEventOnce(
-    "server.onTick.updateAbilities",
-    Events.OnTick,
-    updateAbilities
-)
-
 if NinjaLineages.isServer() then
+    NinjaLineages.addEventOnce(
+        "server.onTick.updateAbilities",
+        Events.OnTick,
+        updateAbilities
+    )
     NinjaLineages.addEventOnce(
         "server.everyOneMinute",
         Events.EveryOneMinute,
