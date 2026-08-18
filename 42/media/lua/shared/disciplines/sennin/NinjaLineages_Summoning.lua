@@ -3,7 +3,6 @@ require "NinjaLineages_Balance"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Chakra"
 require "NinjaLineages_AbilityAuthority"
-require "NinjaLineages_AbilityExecution"
 require "NinjaLineages_Utils"
 require "combat/NinjaLineages_Damage"
 require "combat/NinjaLineages_Targeting"
@@ -287,15 +286,7 @@ NinjaLineages.addEventOnce("shared.summoning.update", Events.OnTick, function()
 end)
 
 -- Register Executor for Summoning Jutsu
-NinjaLineages = NinjaLineages or {}
-NinjaLineages.AbilityExecution = NinjaLineages.AbilityExecution or {}
-NinjaLineages.AbilityExecution.specializedExecutors = NinjaLineages.AbilityExecution.specializedExecutors or {}
-
-NinjaLineages.AbilityExecution.specializedExecutors["summoning_jutsu"] = function(player, definition, args)
-    return Summoning.cast(player, args)
-end
-
-if NinjaLineages.AbilityExecution.registerSpecializedExecutor then
+if NinjaLineages.AbilityExecution and NinjaLineages.AbilityExecution.registerSpecializedExecutor then
     NinjaLineages.AbilityExecution.registerSpecializedExecutor("summoning_jutsu", function(player, definition, args)
         return Summoning.cast(player, args)
     end)

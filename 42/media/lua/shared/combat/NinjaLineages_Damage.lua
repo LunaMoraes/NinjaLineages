@@ -108,19 +108,6 @@ function NinjaLineages.Damage.applyPlayerDamage(caster, targetPlayer, payload)
     local healthAfter = safeRead(function() return bodyPart:getHealth() end, nil)
     notifyDamagePresentation(caster, targetPlayer, damage)
 
-    -- Head damage reduces installed eye freshness
-    if bodyPart:getType() == BodyPartType.Head and targetData and targetData.eyes then
-        local factor = NinjaLineages.Balance.GeneExperimentation.Surgery.HEAD_DAMAGE_FRESHNESS_FACTOR
-        local eyeLoss = damage * factor
-        if targetData.eyes.left and (targetData.eyes.left.freshness or 0) > 0 then
-            targetData.eyes.left.freshness = math.max(0, (targetData.eyes.left.freshness or NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS) - eyeLoss)
-        end
-        if targetData.eyes.right and (targetData.eyes.right.freshness or 0) > 0 then
-            targetData.eyes.right.freshness = math.max(0, (targetData.eyes.right.freshness or NinjaLineages.Balance.GeneExperimentation.Extraction.MAX_ROLL_FRESHNESS) - eyeLoss)
-        end
-        NinjaLineages.transmitPlayerData(targetPlayer)
-    end
-
     local result = {
         bodyPartIndex = partIndex,
         bodyPartType = safeRead(function() return tostring(bodyPart:getType()) end, "unknown"),

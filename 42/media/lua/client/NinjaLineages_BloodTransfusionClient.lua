@@ -4,25 +4,14 @@ require "NinjaLineages_Progression"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Traits"
 require "NinjaLineages_Balance"
+require "disciplines/medicine/NinjaLineages_MedicineUtils"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.BloodTransfusionClient = NinjaLineages.BloodTransfusionClient or {}
 
 local geneBalance = NinjaLineages.Balance.GeneExperimentation
-local patientRange = NinjaLineages.Balance.getRadius(geneBalance.Surgery.PATIENT_RANGE_TIER)
-
-local function getItemFreshness(item)
-    if not item then return 100 end
-    local offAgeMax = (item.getOffAgeMax and item:getOffAgeMax()) or 0
-    local age = (item.getAge and item:getAge()) or 0
-    if offAgeMax > 0 then
-        if item.isRotten and item:isRotten() then return 0 end
-        local remaining = math.max(0, math.min(1.0, 1.0 - (age / offAgeMax)))
-        return math.floor(remaining * 100 + 0.5)
-    end
-    return item:getModData().freshness
-        or geneBalance.Extraction.MAX_ROLL_FRESHNESS
-end
+local patientRange = NinjaLineages.MedicineUtils.getPatientMaxDistance()
+local getItemFreshness = NinjaLineages.MedicineUtils.getItemFreshness
 
 local function getBloodSamples(doctor)
     local list = {}

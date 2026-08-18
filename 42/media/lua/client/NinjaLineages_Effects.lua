@@ -28,7 +28,7 @@ require "lineages/NinjaLineages_Hyuga"
 require "lineages/NinjaLineages_Senju"
 require "lineages/NinjaLineages_Rinnegan"
 require "lineages/NinjaLineages_Uzumaki"
-require "lineages/NinjaLineages_SageMode"
+require "disciplines/sennin/NinjaLineages_SageMode"
 
 NinjaLineages.JutsuCatalog.registerSelectableAbilities()
 NinjaLineages.JutsuCatalog.validateExecutors()
