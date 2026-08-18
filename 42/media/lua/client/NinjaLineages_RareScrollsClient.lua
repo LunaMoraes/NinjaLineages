@@ -23,10 +23,14 @@ function NLRareScrollReadAction:isBook(item)
     return true
 end
 
-function NLRareScrollReadAction:complete()
-    local completed = ISReadABook.complete(self)
-    if completed ~= true then return completed end
+function NLRareScrollReadAction:perform()
+    ISReadABook.perform(self)
+    NinjaLineages.RareScrolls.tryLearn(self.character, self.rareScrollId)
+    resetReadProgress(self.character, self.item)
+end
 
+function NLRareScrollReadAction:complete()
+    ISReadABook.complete(self)
     NinjaLineages.RareScrolls.tryLearn(self.character, self.rareScrollId)
     resetReadProgress(self.character, self.item)
     return true

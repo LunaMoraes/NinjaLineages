@@ -80,8 +80,9 @@ end
 local function handleTrainingProgress(player, args)
     local nodeId = args and args.nodeId
     local itemId = tonumber(args and args.itemId) or -1
+    local pages = args and args.pages
     local item = player:getInventory():getItemById(itemId)
-    local ok, reason, savedPages, required = NinjaLineages.Progression.setTrainingProgress(player, nodeId, item)
+    local ok, reason, savedPages, required = NinjaLineages.Progression.setTrainingProgress(player, nodeId, item, pages)
     if isDebugMode() then
         print("[DEBUG-NL-TRAINING] server checkpoint node=" .. tostring(nodeId)
             .. " itemId=" .. tostring(itemId)

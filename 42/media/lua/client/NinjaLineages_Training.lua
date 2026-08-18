@@ -9,7 +9,16 @@ end
 
 function NLJutsuTrainingAction:update()
     ISReadABook.update(self)
-    local readPages = self.item:getAlreadyReadPages()
+    local delta = self:getJobDelta()
+    local maxPages = self.item and self.item:getNumberOfPages() or 0
+    local readPages = self.item and self.item:getAlreadyReadPages() or 0
+    if maxPages > 0 and delta > 0 then
+        local deltaPages = math.min(maxPages, math.max(0, math.floor(maxPages * delta)))
+        if deltaPages > readPages then
+            readPages = deltaPages
+            if self.item then self.item:setAlreadyReadPages(readPages) end
+        end
+    end
     local data = NinjaLineages.getNLData(self.character)
     data.trainingProgress = data.trainingProgress or {}
     data.trainingProgress[self.nodeId] = readPages
@@ -17,24 +26,34 @@ end
 
 function NLJutsuTrainingAction:stop()
     ISReadABook.stop(self)
-    local readPages = self.item:getAlreadyReadPages()
+    local readPages = (self.item and self.item:getAlreadyReadPages()) or 0
     local data = NinjaLineages.getNLData(self.character)
     data.trainingProgress = data.trainingProgress or {}
     data.trainingProgress[self.nodeId] = readPages
-    NinjaLineages.Progression.requestTrainingProgress(self.character, self.nodeId, self.item)
+    NinjaLineages.Progression.requestTrainingProgress(self.character, self.nodeId, self.item, readPages)
 end
 
-function NLJutsuTrainingAction:complete()
-    local completed = ISReadABook.complete(self)
-    if completed ~= true then return completed end
-    
+function NLJutsuTrainingAction:onFinished()
     local required = NinjaLineages.Progression.getTrainingPages(self.character, self.nodeId)
     local data = NinjaLineages.getNLData(self.character)
     data.trainingProgress = data.trainingProgress or {}
     data.trainingProgress[self.nodeId] = required
+    if self.item then
+        self.item:setAlreadyReadPages(required)
+    end
 
-    NinjaLineages.Progression.requestTrainingProgress(self.character, self.nodeId, self.item)
+    NinjaLineages.Progression.requestTrainingProgress(self.character, self.nodeId, self.item, required)
     NinjaLineages.Progression.requestCompleteTraining(self.character, self.nodeId, self.item)
+end
+
+function NLJutsuTrainingAction:perform()
+    ISReadABook.perform(self)
+    self:onFinished()
+end
+
+function NLJutsuTrainingAction:complete()
+    ISReadABook.complete(self)
+    self:onFinished()
     return true
 end
 

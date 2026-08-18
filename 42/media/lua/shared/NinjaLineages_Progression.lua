@@ -272,24 +272,22 @@ function Progression.requestCompleteTraining(player, nodeId, item)
     return Progression.completeTraining(player, nodeId, item)
 end
 
-function Progression.setTrainingProgress(player, nodeId, item)
+function Progression.setTrainingProgress(player, nodeId, item, pages)
     if NinjaLineages.isClient() then return false, "client_unauthorized", 0, 0 end
     if Progression.getNodeState(player, nodeId) ~= "unlocked" then
         return false, "unavailable", 0, 0
     end
 
-    if not item or item:getFullType() ~= "Base.NL_TrainingScroll" then
-        return false, "invalid_item", 0, 0
-    end
-    if item:getModData().nodeId ~= nodeId then
-        return false, "invalid_node", 0, 0
-    end
-
     local required = Progression.getTrainingPages(player, nodeId)
     if required <= 0 then return false, "invalid", 0, 0 end
 
-    -- Project Zomboid's server-side ISReadABook action owns this field in MP.
-    local savedPages = math.min(required, math.max(0, math.floor(item:getAlreadyReadPages() or 0)))
+    local readPages = tonumber(pages)
+    if not readPages and item and item:getFullType() == "Base.NL_TrainingScroll" then
+        readPages = item:getAlreadyReadPages()
+    end
+    readPages = readPages or 0
+
+    local savedPages = math.min(required, math.max(0, math.floor(readPages)))
     local data = NinjaLineages.getNLData(player)
     data.trainingProgress = data.trainingProgress or {}
     data.trainingProgress[nodeId] = savedPages
@@ -297,19 +295,22 @@ function Progression.setTrainingProgress(player, nodeId, item)
     return true, nil, savedPages, required
 end
 
-function Progression.requestTrainingProgress(player, nodeId, item)
+function Progression.requestTrainingProgress(player, nodeId, item, pages)
+    local readPages = tonumber(pages) or (item and item:getAlreadyReadPages()) or 0
     if NinjaLineages.isClient() then
         if isDebugMode() then
             print("[DEBUG-NL-TRAINING] client checkpoint request node=" .. tostring(nodeId)
-                .. " itemId=" .. tostring(item and item:getID() or -1))
+                .. " itemId=" .. tostring(item and item:getID() or -1)
+                .. " pages=" .. tostring(readPages))
         end
         sendClientCommand(player, "NinjaLineages", "trainingProgress", {
             nodeId = nodeId,
             itemId = item and item:getID() or -1,
+            pages = readPages,
         })
         return true
     end
-    return Progression.setTrainingProgress(player, nodeId, item)
+    return Progression.setTrainingProgress(player, nodeId, item, readPages)
 end
 
 function Progression.isUnlocked(player, nodeId)
@@ -497,13 +498,6 @@ end
 function Progression.completeTraining(player, nodeId, item)
     if NinjaLineages.isClient() then return false, "client_unauthorized" end
     if Progression.getNodeState(player, nodeId) ~= "unlocked" then return false, "unavailable" end
-    if not item or item:getFullType() ~= "Base.NL_TrainingScroll" then return false, "invalid_item" end
-    if item:getModData().nodeId ~= nodeId then return false, "invalid_node" end
-    
-    local required = Progression.getTrainingPages(player, nodeId)
-    -- In multiplayer ISReadABook advances this item field on the server.
-    local readPages = math.max(0, math.floor(item:getAlreadyReadPages() or 0))
-    if readPages < required then return false, "incomplete" end
     
     local state = getState(player)
     state.nodes[nodeId] = "completed"
@@ -513,7 +507,20 @@ function Progression.completeTraining(player, nodeId, item)
     data.trainingProgress[nodeId] = nil
     
     local inventory = player:getInventory()
-    inventory:Remove(item)
+    if item and item:getFullType() == "Base.NL_TrainingScroll" then
+        inventory:Remove(item)
+    else
+        local items = inventory:getItemsFromType("Base.NL_TrainingScroll")
+        if items then
+            for i = 0, items:size() - 1 do
+                local candidate = items:get(i)
+                if candidate and candidate:getModData().nodeId == nodeId then
+                    inventory:Remove(candidate)
+                    break
+                end
+            end
+        end
+    end
     
     NinjaLineages.transmitPlayerData(player)
     refreshSocialProgressionSummary(player)
