@@ -9,9 +9,7 @@ NinjaLineages.GeneExperimentationClient = NinjaLineages.GeneExperimentationClien
 
 local ClientLogic = NinjaLineages.GeneExperimentationClient
 local geneBalance = NinjaLineages.Balance.GeneExperimentation
-local zombieMovements = {}
 local recentZombieNinjaDeaths = {}
-local pendingZombieDashRequests = {}
 
 local function getDeathKey(x, y, z)
     return tostring(math.floor(x or 0)) .. ":" .. tostring(math.floor(y or 0)) .. ":" .. tostring(math.floor(z or 0))
@@ -191,155 +189,11 @@ local function addGeneExperimentationContextMenu(playerNum, context, worldObject
     end
 end
 
--- Start Zombie Dash locally
-local function startZombieDash(zombie)
-    local target = zombie:getTarget()
-    if not target then return end
-    
-    local dx = target:getX() - zombie:getX()
-    local dy = target:getY() - zombie:getY()
-    local dist = math.sqrt(dx * dx + dy * dy)
-    if dist <= 0 then return end
-    
-    zombie:addLineChatElement("..dAsH..")
-    
-    local dirX = dx / dist
-    local dirY = dy / dist
-    
-    local now = NinjaLineages.Utils.Time.gameMinutes()
-    local distance = NinjaLineages.Balance.getRadius("SMALL")
-    
-    zombieMovements[zombie] = {
-        startedAt = now,
-        endsAt = now + NinjaLineages.Balance.getDuration("BURST"),
-        directionX = dirX,
-        directionY = dirY,
-        distance = distance,
-        travelled = 0,
-    }
-end
-
-local function updateZombieDash(zombie)
-    local movement = zombieMovements[zombie]
-    if not movement then return end
-    
-    local now = NinjaLineages.Utils.Time.gameMinutes()
-    local activeState, progress = NinjaLineages.Utils.Movement.updateDash(
-        zombie,
-        movement,
-        now,
-        NinjaLineages.Balance.CommonJutsu.Dash.STEP_DISTANCE,
-        function() zombieMovements[zombie] = nil end
-    )
-    if not activeState then
-        zombieMovements[zombie] = nil
-    end
-end
-
-
--- Zombie Update loop (aggression checking + dash update)
-local function onZombieUpdate(zombie)
-    if not zombie or zombie:isDead() then
-        rememberZombieNinjaDeath(zombie)
-        zombieMovements[zombie] = nil
-        return
-    end
-    
-    -- Prevent dashing while downed, falling, or getting up
-    if zombie:isKnockedDown() or zombie:isFalling() or zombie:isProne() or zombie:isGettingUp() then
-        zombieMovements[zombie] = nil
-        return
-    end
-    
-    -- 1. Aggression / Mutation Check
-    local target = zombie:getTarget()
-    if target and instanceof(target, "IsoPlayer") and target:isLocalPlayer() then
-        local modData = zombie:getModData()
-        if not modData.zombieNinjaRolled then
-            if NinjaLineages.isClient() then
-                sendClientCommand(target, "NinjaLineages", "rollZombieNinja", { zombieId = zombie:getOnlineID() })
-                modData.zombieNinjaRolled = true
-            else
-                -- Singleplayer
-                modData.zombieNinjaRolled = true
-                local chance = SandboxVars.NinjaLineages
-                    and SandboxVars.NinjaLineages.ZombieNinjaChance
-                    or geneBalance.ZOMBIE_NINJA_CHANCE_DEFAULT
-                if ZombRand(0, 100) < chance then
-                    modData.isZombieNinja = true
-                else
-                    modData.isZombieNinja = false
-                end
-            end
-        end
-        
-        -- 2. Zombie Ninja Dash Check
-        if modData.isZombieNinja and not zombieMovements[zombie] then
-            local distance = zombie:DistTo(target)
-            if distance >= NinjaLineages.Balance.getRadius("TOUCH")
-                    and distance <= NinjaLineages.Balance.getRadius("MEDIUM") then
-                local now = NinjaLineages.Utils.Time.gameMinutes()
-                local lastDash = modData.lastZombieDashTime or 0
-                local cooldown = NinjaLineages.Balance.getCooldown("DASH")
-                local zombieId = zombie:getOnlineID()
-                if now - lastDash >= cooldown and not pendingZombieDashRequests[zombieId] then
-                    if NinjaLineages.isClient() then
-                        pendingZombieDashRequests[zombieId] = now
-                        sendClientCommand(target, "NinjaLineages", "zombieDashRequest", { zombieId = zombieId })
-                    else
-                        -- Singleplayer
-                        modData.lastZombieDashTime = now
-                        startZombieDash(zombie)
-                    end
-                end
-            end
-        end
-    end
-    
-    -- 3. Update active dash
-    if zombieMovements[zombie] then
-        updateZombieDash(zombie)
-    end
-end
-
 -- Server Command Listener
 local function onServerCommand(module, command, args)
     if module ~= "NinjaLineages" then return end
     
-    if command == "syncZombieNinjaState" then
-        local zombieId = args and args.zombieId
-        local isZombieNinja = args and args.isZombieNinja
-        if zombieId then
-            local zombies = getCell() and getCell():getZombieList()
-            if zombies then
-                for i = 0, zombies:size() - 1 do
-                    local z = zombies:get(i)
-                    if z and z:getOnlineID() == zombieId then
-                        local modData = z:getModData()
-                        modData.zombieNinjaRolled = true
-                        modData.isZombieNinja = isZombieNinja
-                        break
-                    end
-                end
-            end
-        end
-    elseif command == "executeZombieDash" then
-        local zombieId = args and args.zombieId
-        if zombieId then
-            pendingZombieDashRequests[zombieId] = nil
-            local zombies = getCell() and getCell():getZombieList()
-            if zombies then
-                for i = 0, zombies:size() - 1 do
-                    local z = zombies:get(i)
-                    if z and z:getOnlineID() == zombieId then
-                        z:getModData().lastZombieDashTime = NinjaLineages.Utils.Time.gameMinutes()
-                        startZombieDash(z)
-                        break
-                    end
-                end
-            end
-        end
-    elseif command == "syncCorpseState" then
+    if command == "syncCorpseState" then
         local corpse = NinjaLineages.CorpseUtils.getCorpseFromIdentifier(args)
         if corpse then
             corpse:getModData().experimented = true
@@ -360,7 +214,6 @@ end
 
 -- Event Registrations
 NinjaLineages.addEventOnce("client.geneExperimentation.onFillWorldObjectContextMenu", Events.OnFillWorldObjectContextMenu, addGeneExperimentationContextMenu)
-NinjaLineages.addEventOnce("client.geneExperimentation.onZombieUpdate", Events.OnZombieUpdate, onZombieUpdate)
 NinjaLineages.addEventOnce("client.geneExperimentation.onZombieDead", Events.OnZombieDead, rememberZombieNinjaDeath)
 NinjaLineages.addEventOnce("client.geneExperimentation.onDeadBodySpawn", Events.OnDeadBodySpawn, markSpawnedZombieNinjaCorpse)
 NinjaLineages.addEventOnce("client.geneExperimentation.onServerCommand", Events.OnServerCommand, onServerCommand)

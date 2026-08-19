@@ -126,6 +126,7 @@ local activeSnakeStrikes = {}
 local activeKatsuyuHealWaves = {}
 local activeRasengans = {}
 local activeRasenganWallImpacts = {}
+local activeSnareTethers = {}
 
 local katonFireTexture = nil
 local katonTextureProbed = false
@@ -288,6 +289,8 @@ function VFX.addGenericPulse(args)
 
     table.insert(activeGenericPulses, {
         casterOnlineId = args.casterOnlineId,
+        zombieOnlineId = args.zombieOnlineId,
+        zombie = args.zombie,
         x = args.x or 0,
         y = args.y or 0,
         z = args.z or 0,
@@ -297,6 +300,25 @@ function VFX.addGenericPulse(args)
         color = color,
         startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
     })
+end
+
+function VFX.addSnareTether(args)
+    if not args or not args.runtimeId then return end
+    activeSnareTethers[args.runtimeId] = {
+        runtimeId = args.runtimeId,
+        zombie = args.zombie,
+        zombieId = args.zombieId,
+        targetPlayer = args.targetPlayer,
+        targetOnlineId = args.targetOnlineId,
+        startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
+        durationGameMinutes = args.durationGameMinutes or (NinjaLineages.Balance and NinjaLineages.Balance.getDuration("BURST")) or 0.015,
+    }
+end
+
+function VFX.removeSnareTether(runtimeId)
+    if runtimeId then
+        activeSnareTethers[runtimeId] = nil
+    end
 end
 
 function VFX.addShinraTenseiPulse(x, y, z, maxRadius)
@@ -716,7 +738,9 @@ local function renderGenericAbilityPulses(nowGameMinutes)
         if progress >= 1 then
             table.remove(activeGenericPulses, i)
         elseif progress >= 0 then
-            local caster = pulse.casterOnlineId and getPlayerByOnlineID and getPlayerByOnlineID(pulse.casterOnlineId)
+            local caster = (pulse.casterOnlineId and getPlayerByOnlineID and getPlayerByOnlineID(pulse.casterOnlineId))
+                or (pulse.zombieOnlineId and NinjaLineages.Utils.Zombies.getByOnlineID(pulse.zombieOnlineId))
+                or (pulse.zombie and not (pulse.zombie.isDead and pulse.zombie:isDead()) and pulse.zombie)
             local x = caster and caster:getX() or pulse.x
             local y = caster and caster:getY() or pulse.y
             local z = caster and caster:getZ() or pulse.z
@@ -762,6 +786,40 @@ local function renderGenericAbilityPulses(nowGameMinutes)
                     pulse.thickness * 0.75,
                     c.R, c.G, c.B,
                     baseAlpha * 0.75
+                )
+            end
+        end
+    end
+end
+
+local function renderSnareTethers(nowGameMinutes)
+    local medConsts = consts.Medical and consts.Medical.ChakraNeedle or {}
+    local color = medConsts.COLOR or { R = 0.25, G = 0.55, B = 1.0 }
+    local thickness = medConsts.THICKNESS or 2.0
+
+    for runtimeId, tether in pairs(activeSnareTethers) do
+        local elapsed = nowGameMinutes - tether.startedAtGameMinutes
+        if elapsed >= tether.durationGameMinutes or elapsed < 0 then
+            activeSnareTethers[runtimeId] = nil
+        else
+            local zombie = (tether.zombie and not (tether.zombie.isDead and tether.zombie:isDead()) and tether.zombie)
+                or (tether.zombieId and NinjaLineages.Utils.Zombies.getByOnlineID(tether.zombieId))
+            local player = (tether.targetPlayer and not (tether.targetPlayer.isDead and tether.targetPlayer:isDead()) and tether.targetPlayer)
+                or (tether.targetOnlineId and getPlayerByOnlineID and getPlayerByOnlineID(tether.targetOnlineId))
+
+            if not zombie or not player or (player.isDead and player:isDead()) or (zombie.isDead and zombie:isDead()) then
+                activeSnareTethers[runtimeId] = nil
+            else
+                local zx, zy, zz = VFX.getCharacterAnchor(zombie, "chest")
+                local px, py, pz = VFX.getCharacterAnchor(player, "chest")
+                local alpha = 0.85 * (1.0 - (elapsed / tether.durationGameMinutes) * 0.25)
+
+                VFX.renderLine(
+                    zx, zy, zz,
+                    px, py, pz,
+                    thickness * 1.5,
+                    color.R, color.G, color.B,
+                    alpha
                 )
             end
         end
@@ -1072,6 +1130,7 @@ function VFX.renderAll()
     renderShinraTenseiShockwaves(nowGameMinutes)
     renderGenjutsuCircles(nowGameMinutes)
     renderGenericAbilityPulses(nowGameMinutes)
+    renderSnareTethers(nowGameMinutes)
 
     -- Summoning & Companion Renderers (game-time driven)
     renderSummonMarkers(nowGameMinutes)

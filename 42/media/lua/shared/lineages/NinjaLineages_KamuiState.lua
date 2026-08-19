@@ -155,14 +155,7 @@ function KamuiState.isSafeExitSquare(square)
 end
 
 function KamuiState.placePhasedPlayer(player, x, y, z)
-    player:setX(x)
-    player:setY(y)
-    player:setZ(z)
-    pcall(function() player:setLastX(x) end)
-    pcall(function() player:setLastY(y) end)
-    pcall(function() player:setLastZ(z) end)
-    pcall(function() player:setCurrentSquareFromPosition(x, y, z) end)
-    pcall(function() player:setMovingSquareNow() end)
+    NinjaLineages.Utils.Movement.placeEntity(player, x, y, z)
 end
 
 function KamuiState.getLocalState(player)

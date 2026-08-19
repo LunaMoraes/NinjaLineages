@@ -20,6 +20,7 @@ require "NinjaLineages_RadialMenu"
 require "NinjaLineages_JutsuTreeUI"
 require "NinjaLineages_GeneExperimentationClient"
 require "NinjaLineages_BloodTransfusionClient"
+require "NinjaLineages_ZombieNinjaClient"
 require "NinjaLineages_VFX"
 
 -- Load modular lineages (dynamic registries)

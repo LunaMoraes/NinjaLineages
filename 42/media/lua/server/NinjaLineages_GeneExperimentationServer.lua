@@ -13,61 +13,6 @@ local ServerLogic = NinjaLineages.GeneExperimentationServer
 local MedicineUtils = NinjaLineages.MedicineUtils
 local consts = NinjaLineages.Balance.GeneExperimentation
 
--- Retrieve a zombie by its online ID
-function ServerLogic.getZombieByOnlineID(onlineID)
-    if not onlineID then return nil end
-    local zombies = getCell() and getCell():getZombieList()
-    if not zombies then return nil end
-    for i = 0, zombies:size() - 1 do
-        local zombie = zombies:get(i)
-        if zombie and zombie:getOnlineID() == onlineID then
-            return zombie
-        end
-    end
-    return nil
-end
-
--- Handle Zombie Ninja Mutation Roll
-local function handleRollZombieNinja(player, args)
-    local zombieId = args and args.zombieId
-    if not zombieId then return end
-    local zombie = ServerLogic.getZombieByOnlineID(zombieId)
-    if zombie then
-        local modData = zombie:getModData()
-        if not modData.zombieNinjaRolled then
-            modData.zombieNinjaRolled = true
-            local chance = SandboxVars.NinjaLineages
-                and SandboxVars.NinjaLineages.ZombieNinjaChance
-                or consts.ZOMBIE_NINJA_CHANCE_DEFAULT
-            if ZombRand(0, 100) < chance then
-                modData.isZombieNinja = true
-            else
-                modData.isZombieNinja = false
-            end
-        end
-        sendServerCommand("NinjaLineages", "syncZombieNinjaState", { zombieId = zombieId, isZombieNinja = modData.isZombieNinja })
-    end
-end
-
--- Handle Zombie Dash Request
-local function handleZombieDashRequest(player, args)
-    local zombieId = args and args.zombieId
-    if not zombieId then return end
-    local zombie = ServerLogic.getZombieByOnlineID(zombieId)
-    if zombie then
-        if zombie:isKnockedDown() or zombie:isFalling() or zombie:isProne() or zombie:isGettingUp() then return end
-        local modData = zombie:getModData()
-        if modData.isZombieNinja then
-            local now = NinjaLineages.Utils.Time.gameMinutes()
-            local lastDash = modData.lastZombieDashTime or 0
-            if now - lastDash >= NinjaLineages.Balance.getCooldown("DASH") then
-                modData.lastZombieDashTime = now
-                sendServerCommand("NinjaLineages", "executeZombieDash", { zombieId = zombieId })
-            end
-        end
-    end
-end
-
 local recentZombieNinjaDeaths = {}
 
 local function getDeathKey(x, y, z)
@@ -210,15 +155,11 @@ local function handleCompleteCorpseExperiment(player, args)
     end
 end
 
--- Client Command Router for Corpse Experiments and Zombie Ninjas
+-- Client Command Router for Corpse Experiments
 local function onClientCommand(module, command, player, args)
     if module ~= "NinjaLineages" then return end
     
-    if command == "rollZombieNinja" then
-        handleRollZombieNinja(player, args)
-    elseif command == "zombieDashRequest" then
-        handleZombieDashRequest(player, args)
-    elseif command == "completeCorpseExperiment" then
+    if command == "completeCorpseExperiment" then
         handleCompleteCorpseExperiment(player, args)
     end
 end

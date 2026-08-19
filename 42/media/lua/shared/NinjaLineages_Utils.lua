@@ -592,3 +592,15 @@ function NinjaLineages.Utils.Movement.updateDash(entity, movement, now, stepDist
     end
     return true, progress
 end
+
+function NinjaLineages.Utils.Movement.placeEntity(entity, x, y, z)
+    if not entity then return end
+    entity:setX(x)
+    entity:setY(y)
+    entity:setZ(z)
+    pcall(function() entity:setLastX(x) end)
+    pcall(function() entity:setLastY(y) end)
+    pcall(function() entity:setLastZ(z) end)
+    pcall(function() entity:setCurrentSquareFromPosition(x, y, z) end)
+    pcall(function() entity:setMovingSquareNow() end)
+end
