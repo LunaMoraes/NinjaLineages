@@ -222,42 +222,94 @@ module Base
         Tags = base:ammo,
     }
 
+    model NL_KunaiShooter
+    {
+        mesh = weapons/1handed/HuntingKnife,
+        attachment muzzle
+        {
+            offset = 0.0 0.15 0.0,
+            rotate = -90.0 0.0 0.0,
+        }
+        attachment world
+        {
+            offset = -0.0119 0.058 0.0,
+            rotate = 0.0 0.0 0.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0542 0.0363 0.0009,
+            rotate = 90.0038 0.2177 -90.9911,
+        }
+    }
+
+    model NL_ShurikenShooter
+    {
+        mesh = weapons/1handed/HuntingKnife,
+        attachment muzzle
+        {
+            offset = 0.0 0.15 0.0,
+            rotate = -90.0 0.0 0.0,
+        }
+        attachment world
+        {
+            offset = -0.0119 0.058 0.0,
+            rotate = 0.0 0.0 0.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0542 0.0363 0.0009,
+            rotate = 90.0038 0.2177 -90.9911,
+        }
+    }
+
     item NL_KunaiShooter
     {
         DisplayCategory = Weapon,
         ItemType = base:weapon,
         DisplayName = UI_item_NL_KunaiShooter,
-        WeaponType = handgun,
         Weight = 0.3,
         Icon = HuntingKnife,
-        WeaponSprite = HuntingKnife,
-        StaticModel = HuntingKnife,
+        WeaponSprite = NL_KunaiShooter,
+        StaticModel = NL_KunaiShooter,
         WorldStaticModel = HuntingKnifeGround,
         MinRange = 0.6,
-        MaxRange = 12.0,
-        MinDamage = 1.2,
-        MaxDamage = 2.2,
+        MaxRange = 10.0,
+        MinDamage = 0.5,
+        MaxDamage = 0.9,
         DoorDamage = 1,
         MinAngle = 0.90,
-        AimingPerkRangeModifier = 1.5,
-        AimingPerkHitChanceModifier = 10.0,
-        HitChance = 65,
-        AimingTime = 20,
-        ReloadTime = 15,
-        RecoilDelay = 25,
+        AimingPerkRangeModifier = 1.2,
+        AimingPerkHitChanceModifier = 5.0,
+        AimingPerkCritModifier = 6,
+        HitChance = 55,
+        Aimingtime = 18,
+        Reloadtime = 15,
+        RecoilDelay = 20,
         SoundRadius = 3,
         SoundVolume = 4,
-        AmmoType = Base.NL_KunaiAmmo,
-        MaxAmmo = 1,
+        AmmoType = ninjalineages:kunai_ammo,
+        MaxAmmo = 10,
+        Projectilecount = 1,
+        MaxHitcount = 1,
+        MinimumSwingtime = 0.5,
+        Swingtime = 0.5,
+        SwingAmountBeforeImpact = 0.0,
+        ToHitModifier = 1.2,
+        PushBackMod = 0.3,
+        KnockdownMod = 1.0,
+        CriticalChance = 25.0,
+        CritDmgMultiplier = 3.0,
+        HitSound = BulletImpact,
+        SplatBloodOnNoDeath = true,
+        MultipleHitConditionAffected = false,
+        RunAnim = Run_Weapon2,
+        HaveChamber = false,
+        ManuallyRemoveSpentRounds = false,
+        WeaponReloadType = revolver,
         SwingAnim = Handgun,
         SwingSound = BatSwing,
         ImpactSound = HuntingKnifeHit,
         DoorHitSound = HuntingKnifeHit,
-        MuzzleFlashModelKey = null,
-        ShellFallSound = null,
-        RackSound = null,
-        ClickSound = null,
-        EjectAmmoSound = null,
         TwoHandWeapon = false,
         ConditionMax = 100,
         ConditionLowerChanceOneIn = 30,
@@ -265,8 +317,8 @@ module Base
         ShareDamage = false,
         SubCategory = Firearm,
         IsAimedFirearm = true,
-        IsAimedHandWeapon = true,
         UseEndurance = false,
+        Tags = base:firearm,
     }
 
     item NL_ShurikenShooter
@@ -274,37 +326,49 @@ module Base
         DisplayCategory = Weapon,
         ItemType = base:weapon,
         DisplayName = UI_item_NL_ShurikenShooter,
-        WeaponType = handgun,
         Weight = 0.2,
         Icon = Spiffo,
-        WeaponSprite = HuntingKnife,
-        StaticModel = HuntingKnife,
+        WeaponSprite = NL_ShurikenShooter,
+        StaticModel = NL_ShurikenShooter,
         WorldStaticModel = HuntingKnifeGround,
         MinRange = 0.5,
-        MaxRange = 8.0,
-        MinDamage = 0.6,
-        MaxDamage = 1.2,
+        MaxRange = 7.0,
+        MinDamage = 0.3,
+        MaxDamage = 0.6,
         DoorDamage = 1,
         MinAngle = 0.80,
-        AimingPerkRangeModifier = 1.2,
-        AimingPerkHitChanceModifier = 8.0,
-        HitChance = 50,
-        AimingTime = 10,
-        ReloadTime = 10,
-        RecoilDelay = 12,
+        AimingPerkRangeModifier = 1.0,
+        AimingPerkHitChanceModifier = 4.0,
+        AimingPerkCritModifier = 4,
+        HitChance = 45,
+        Aimingtime = 10,
+        Reloadtime = 10,
+        RecoilDelay = 10,
         SoundRadius = 2,
         SoundVolume = 3,
-        AmmoType = Base.NL_ShurikenAmmo,
-        MaxAmmo = 1,
+        AmmoType = ninjalineages:shuriken_ammo,
+        MaxAmmo = 10,
+        Projectilecount = 1,
+        MaxHitcount = 1,
+        MinimumSwingtime = 0.5,
+        Swingtime = 0.5,
+        SwingAmountBeforeImpact = 0.0,
+        ToHitModifier = 1.0,
+        PushBackMod = 0.3,
+        KnockdownMod = 1.0,
+        CriticalChance = 15.0,
+        CritDmgMultiplier = 2.5,
+        HitSound = BulletImpact,
+        SplatBloodOnNoDeath = true,
+        MultipleHitConditionAffected = false,
+        RunAnim = Run_Weapon2,
+        HaveChamber = false,
+        ManuallyRemoveSpentRounds = false,
+        WeaponReloadType = revolver,
         SwingAnim = Handgun,
         SwingSound = BatSwing,
         ImpactSound = HuntingKnifeHit,
         DoorHitSound = HuntingKnifeHit,
-        MuzzleFlashModelKey = null,
-        ShellFallSound = null,
-        RackSound = null,
-        ClickSound = null,
-        EjectAmmoSound = null,
         TwoHandWeapon = false,
         ConditionMax = 100,
         ConditionLowerChanceOneIn = 30,
@@ -312,8 +376,8 @@ module Base
         ShareDamage = false,
         SubCategory = Firearm,
         IsAimedFirearm = true,
-        IsAimedHandWeapon = true,
         UseEndurance = false,
+        Tags = base:firearm,
     }
 
     item NL_OcularTissueSample

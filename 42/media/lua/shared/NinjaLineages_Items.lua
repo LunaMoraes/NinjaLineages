@@ -9,6 +9,48 @@ NinjaLineages = NinjaLineages or {}
 AcceptItemFunction = AcceptItemFunction or {}
 RecipeCodeOnTest = RecipeCodeOnTest or {}
 
+-- Register custom ammunition types into Build 42's Registries.AMMO_TYPE
+local function registerCustomAmmoTypes()
+    if not AmmoType or not AmmoType.register or not AmmoType.get or not ResourceLocation or not ResourceLocation.of then return end
+    local kunaiLoc = ResourceLocation.of("ninjalineages:kunai_ammo")
+    if not AmmoType.get(kunaiLoc) then
+        pcall(function() AmmoType.register("ninjalineages:kunai_ammo", "Base.NL_KunaiAmmo") end)
+    end
+    local shurikenLoc = ResourceLocation.of("ninjalineages:shuriken_ammo")
+    if not AmmoType.get(shurikenLoc) then
+        pcall(function() AmmoType.register("ninjalineages:shuriken_ammo", "Base.NL_ShurikenAmmo") end)
+    end
+end
+
+registerCustomAmmoTypes()
+
+local function ensureShooterAmmoTypes()
+    registerCustomAmmoTypes()
+    if not ScriptManager or not ScriptManager.instance then return end
+
+    local kunaiAmmo = AmmoType and AmmoType.get and AmmoType.get(ResourceLocation.of("ninjalineages:kunai_ammo"))
+    local shurikenAmmo = AmmoType and AmmoType.get and AmmoType.get(ResourceLocation.of("ninjalineages:shuriken_ammo"))
+
+    local kunaiShooter = ScriptManager.instance:FindItem("Base.NL_KunaiShooter")
+    if kunaiShooter then
+        if kunaiAmmo then pcall(function() kunaiShooter:setAmmoType(kunaiAmmo) end) end
+        pcall(function() kunaiShooter:resolveItemTypes() end)
+    end
+
+    local shurikenShooter = ScriptManager.instance:FindItem("Base.NL_ShurikenShooter")
+    if shurikenShooter then
+        if shurikenAmmo then pcall(function() shurikenShooter:setAmmoType(shurikenAmmo) end) end
+        pcall(function() shurikenShooter:resolveItemTypes() end)
+    end
+end
+
+if Events then
+    NinjaLineages.addEventOnce("shared.items.onGameBoot.ammoTypes", Events.OnGameBoot, ensureShooterAmmoTypes)
+    NinjaLineages.addEventOnce("shared.items.onInitGlobalModData.ammoTypes", Events.OnInitGlobalModData, ensureShooterAmmoTypes)
+end
+
+NinjaLineages.registerCreatePlayer("items.ensureShooterAmmoTypes", ensureShooterAmmoTypes)
+
 -- Recipe test condition for Uzumaki Fuinjutsu seal crafting recipes (NinjaLineages_recipes.txt).
 -- Gated on progression node completion: 'alarm_seal' or 'storage_seal'.
 function RecipeCodeOnTest.NinjaLineagesUzumakiOnly(recipe, player)
