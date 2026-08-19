@@ -302,33 +302,74 @@ local function executeSinglePlayerSubstitution(zombie, attacker, destination)
     end)
 end
 
-local function onWeaponHitCharacter(attacker, target, weapon, damage)
-    if not attacker or not target or not weapon then return end
-    if not instanceof(attacker, "IsoPlayer") or not attacker:isLocalPlayer() then return end
-    if not instanceof(target, "IsoZombie") or target:isDead() then return end
-    if not instanceof(weapon, "HandWeapon") then return end
+local function onWeaponSwing(player, weapon)
+    if not player or not player:isLocalPlayer() or player:isDead() then return end
+    if not weapon or not instanceof(weapon, "HandWeapon") then return end
 
-    if ZombieNinja.isZombieNinja(target) and ZombieNinja.isSubstitutionArmed(target) then
-        local destination = ZombieNinja.findSubstitutionDestination(target, attacker)
-        if not destination then
-            return -- No valid destination: allow hit normally, leave armed
-        end
+    local cell = getCell()
+    if not cell then return end
+    local zombieList = cell:getZombieList()
+    if not zombieList or zombieList:size() == 0 then return end
 
-        target:setAvoidDamage(true)
+    local forward = player:getForwardDirection()
+    local fX = forward and forward:getX() or 0
+    local fY = forward and forward:getY() or 1
+    local fLen = math.sqrt(fX * fX + fY * fY)
+    if fLen > 0.0001 then
+        fX, fY = fX / fLen, fY / fLen
+    else
+        fX, fY = 0, 1
+    end
 
-        if NinjaLineages.isClient() then
-            local zombieId = target.getOnlineID and target:getOnlineID() or nil
-            local idKey = getZombieIdKey(target)
-            local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
-            if zombieId and zombieId >= 0 and (not pendingSubstitutionTriggers[idKey] or (nowMs - pendingSubstitutionTriggers[idKey] > 1000)) then
-                pendingSubstitutionTriggers[idKey] = nowMs
-                sendClientCommand(attacker, "NinjaLineages", ZombieNinja.Commands.SUBSTITUTION_TRIGGER, {
-                    zombieId = zombieId,
-                    destination = destination,
-                })
+    local maxRange = (weapon.getMaxRange and weapon:getMaxRange(player)) or 2.0
+    local minRange = (weapon.getMinRange and weapon:getMinRange()) or 0
+    local effectiveMaxRange = maxRange + 0.35
+
+    local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
+
+    for i = 0, zombieList:size() - 1 do
+        local zombie = zombieList:get(i)
+        if zombie and not zombie:isDead() and ZombieNinja.isZombieNinja(zombie) and ZombieNinja.isSubstitutionArmed(zombie) then
+            if math.floor(zombie:getZ()) == pz then
+                local dx = zombie:getX() - px
+                local dy = zombie:getY() - py
+                local dist = math.sqrt(dx * dx + dy * dy)
+
+                if dist >= minRange and dist <= effectiveMaxRange then
+                    local dirX = dx / (dist > 0.0001 and dist or 1)
+                    local dirY = dy / (dist > 0.0001 and dist or 1)
+                    local dot = (dirX * fX) + (dirY * fY)
+
+                    -- Within ~60 degree half-cone
+                    if dot >= 0.50 then
+                        local hit = NinjaLineages.Collision.traceSegment(
+                            px, py, pz,
+                            zombie:getX(), zombie:getY(), pz,
+                            NinjaLineages.Collision.Masks.jutsu_projectile
+                        )
+                        if hit == nil then
+                            local destination = ZombieNinja.findSubstitutionDestination(zombie, player)
+                            if destination then
+                                if NinjaLineages.isClient() then
+                                    local zombieId = zombie.getOnlineID and zombie:getOnlineID() or nil
+                                    local idKey = getZombieIdKey(zombie)
+                                    local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
+                                    if zombieId and zombieId >= 0 and (not pendingSubstitutionTriggers[idKey] or (nowMs - pendingSubstitutionTriggers[idKey] > 1000)) then
+                                        pendingSubstitutionTriggers[idKey] = nowMs
+                                        sendClientCommand(player, "NinjaLineages", ZombieNinja.Commands.SUBSTITUTION_TRIGGER, {
+                                            zombieId = zombieId,
+                                            destination = destination,
+                                        })
+                                    end
+                                else
+                                    executeSinglePlayerSubstitution(zombie, player, destination)
+                                end
+                                break
+                            end
+                        end
+                    end
+                end
             end
-        else
-            executeSinglePlayerSubstitution(target, attacker, destination)
         end
     end
 end
@@ -435,8 +476,8 @@ end
 
 NinjaLineages.registerZombieUpdate(onZombieUpdate)
 
-if Events and Events.OnWeaponHitCharacter then
-    NinjaLineages.addEventOnce("client.zombieNinja.onWeaponHitCharacter", Events.OnWeaponHitCharacter, onWeaponHitCharacter)
+if Events and Events.OnWeaponSwing then
+    NinjaLineages.addEventOnce("client.zombieNinja.onWeaponSwing", Events.OnWeaponSwing, onWeaponSwing)
 end
 
 if Events and Events.OnServerCommand then
