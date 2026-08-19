@@ -75,22 +75,23 @@ function VFX.renderAura(character, r, g, b, baseAlpha, baseRadius)
     local x = character:getX()
     local y = character:getY()
     local z = character:getZ()
-    local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
+    local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
 
     -- 1. Very tight, subtle ground contact wisp at character feet
-    local groundPulse = 0.18 + 0.08 * math.sin(nowMs / 300)
+    local groundPulse = 0.18 + 0.08 * math.sin(nowGameMinutes * 80.0)
     VFX.renderRing(x, y, z, 0.28, 20, 1.8, r, g, b, (baseAlpha or 0.8) * groundPulse, 0.01)
 
     -- 2. Delicate chakra sparks/wisps drifting upward from feet to head
     local sparkCount = 7
+    local cycleDuration = 0.05
     for idx = 1, sparkCount do
-        local phaseOffset = (idx * (1200 / sparkCount))
-        local sparkTime = (nowMs + phaseOffset) % 1200
-        local progress = sparkTime / 1200
+        local phaseOffset = (idx * (cycleDuration / sparkCount))
+        local sparkTime = (nowGameMinutes + phaseOffset) % cycleDuration
+        local progress = sparkTime / cycleDuration
 
         local sparkZ = z + 0.02 + (progress * 0.26)
-        local baseAngle = (idx * (math.pi * 2 / sparkCount)) + (nowMs / 1400)
-        local radiusOffset = 0.22 + 0.06 * math.sin((nowMs / 250) + idx)
+        local baseAngle = (idx * (math.pi * 2 / sparkCount)) + (nowGameMinutes * 35.0)
+        local radiusOffset = 0.22 + 0.06 * math.sin((nowGameMinutes * 90.0) + idx)
         local sparkX = x + math.cos(baseAngle) * radiusOffset
         local sparkY = y + math.sin(baseAngle) * radiusOffset
 
@@ -117,6 +118,7 @@ local activeKatonStreams = {}
 local activeBringerOfDarknessCircles = {}
 local activeDemonicFluteCircles = {}
 local activeShinraTenseiPulses = {}
+local activeGenericPulses = {}
 local activeSummonMarkers = {}
 local activeSummonPoofs = {}
 local activeToadSlams = {}
@@ -194,8 +196,8 @@ function VFX.addLine(args)
         toHeight = args.toHeight or VFX.ANCHOR_CHEST,
         color = args.color or constsMedical.COLOR or { R = 0.2, G = 0.8, B = 1.0 },
         thickness = args.thickness or constsMedical.THICKNESS or 2.0,
-        startedAt = NinjaLineages.Utils.Time.realMilliseconds(),
-        durationMs = args.durationMs or constsMedical.VISUAL_DURATION_MS or 250,
+        startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
+        durationGameMinutes = args.durationGameMinutes or constsMedical.VISUAL_DURATION_GAME_MINUTES or 0.03,
     })
 end
 
@@ -207,7 +209,7 @@ function VFX.addProjectile(args)
     local dz = args.toZ - args.fromZ
     local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
     local projectileId = args.projectileId
-        or ("proj_" .. tostring(NinjaLineages.Utils.Time.realMilliseconds()))
+        or ("proj_" .. tostring(NinjaLineages.Utils.Time.gameMinutes()))
 
     activeProjectiles[projectileId] = {
         projectileId = projectileId,
@@ -234,12 +236,12 @@ function VFX.resolveProjectile(args)
     proj.resolvedX = args.x
     proj.resolvedY = args.y
     proj.resolvedZ = args.z
-    proj.resolvedAtMs = NinjaLineages.Utils.Time.realMilliseconds()
+    proj.resolvedAtGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
 end
 
 function VFX.addKatonStream(args)
     if not args then return end
-    local streamId = args.streamId or tostring(NinjaLineages.Utils.Time.realMilliseconds())
+    local streamId = args.streamId or tostring(NinjaLineages.Utils.Time.gameMinutes())
     activeKatonStreams[streamId] = {
         streamId = streamId,
         originX = args.originX,
@@ -249,8 +251,8 @@ function VFX.addKatonStream(args)
         directionY = args.directionY,
         range = args.range,
         minDot = args.minDot,
-        durationMs = args.durationMs or 750,
-        startedAtMs = NinjaLineages.Utils.Time.realMilliseconds(),
+        durationGameMinutes = args.durationGameMinutes or (args.durationMs and (args.durationMs / 15000)) or 0.05,
+        startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
     }
 end
 
@@ -261,7 +263,7 @@ function VFX.addBringerOfDarknessCircle(args)
         y = args.y,
         z = args.z,
         radius = args.radius,
-        startedAtMs = NinjaLineages.Utils.Time.realMilliseconds(),
+        startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
     })
 end
 
@@ -272,7 +274,28 @@ function VFX.addDemonicFluteCircle(args)
         y = args.y,
         z = args.z,
         radius = args.radius,
-        startedAtMs = NinjaLineages.Utils.Time.realMilliseconds(),
+        startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
+    })
+end
+
+function VFX.addGenericPulse(args)
+    if not args then return end
+    local preset = (args.abilityId and consts.AbilityPulsePresets and consts.AbilityPulsePresets[args.abilityId]) or {}
+    local color = args.color or preset.color or { R = 0.2, G = 0.8, B = 1.0 }
+    local radius = args.radius or preset.radius or 1.5
+    local thickness = args.thickness or preset.thickness or 2.5
+    local duration = args.durationGameMinutes or preset.durationGameMinutes or 0.05
+
+    table.insert(activeGenericPulses, {
+        casterOnlineId = args.casterOnlineId,
+        x = args.x or 0,
+        y = args.y or 0,
+        z = args.z or 0,
+        radius = radius,
+        thickness = thickness,
+        duration = duration,
+        color = color,
+        startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
     })
 end
 
@@ -376,6 +399,7 @@ function VFX.addRasengan(args)
     activeRasengans[args.runtimeId] = {
         runtimeId = args.runtimeId,
         leadZombieOnlineId = args.leadZombieOnlineId,
+        leadZombie = args.leadZombie or args.leadObject,
         dirX = args.dirX or 0,
         dirY = args.dirY or 1,
         startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
@@ -411,12 +435,12 @@ end
 -- Central Render Loop (Called once per frame on OnPostRender)
 -- ============================================================================
 
-local function renderKatonStreams(nowMs)
+local function renderKatonStreams(nowGameMinutes)
     local texture = resolveKatonTexture()
     local tileScale = Core and Core.getTileScale and Core.getTileScale() or 1
 
     for streamId, stream in pairs(activeKatonStreams) do
-        local progress = (nowMs - stream.startedAtMs) / stream.durationMs
+        local progress = (nowGameMinutes - stream.startedAtGameMinutes) / stream.durationGameMinutes
         if progress >= 1 then
             activeKatonStreams[streamId] = nil
         else
@@ -439,7 +463,7 @@ local function renderKatonStreams(nowMs)
                             + perpendicularY * lateral
                         local edge = halfWidth > 0 and math.abs(lateral) / halfWidth or 0
                         local flicker = 0.85 + 0.15 * math.sin(
-                            (nowMs + distance * 190 + lateral * 130) * 0.025
+                            (nowGameMinutes * 6000 + distance * 190 + lateral * 130) * 0.025
                         )
                         local alpha = math.max(0.18, (1 - edge * 0.5) * flicker)
                         local size = (16 + distance * 5) * tileScale
@@ -454,10 +478,10 @@ local function renderKatonStreams(nowMs)
     end
 end
 
-local function renderStaticBeams(nowMs)
+local function renderStaticBeams(nowGameMinutes)
     for i = #activeLines, 1, -1 do
         local line = activeLines[i]
-        local progress = (nowMs - line.startedAt) / line.durationMs
+        local progress = (nowGameMinutes - line.startedAtGameMinutes) / line.durationGameMinutes
         if progress >= 1 then
             table.remove(activeLines, i)
         else
@@ -474,11 +498,10 @@ local function renderStaticBeams(nowMs)
     end
 end
 
-local function renderTravelingProjectiles(nowMs)
-    local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
+local function renderTravelingProjectiles(nowGameMinutes)
     for projectileId, proj in pairs(activeProjectiles) do
-        if proj.resolvedAtMs then
-            if nowMs - proj.resolvedAtMs >= 120 then
+        if proj.resolvedAtGameMinutes then
+            if nowGameMinutes - proj.resolvedAtGameMinutes >= 0.01 then
                 activeProjectiles[projectileId] = nil
             else
                 local dirX = proj.toX - proj.fromX
@@ -648,13 +671,13 @@ local function renderShinraTenseiShockwaves(nowGameMinutes)
     end
 end
 
-local function renderGenjutsuCircles(nowMs)
+local function renderGenjutsuCircles(nowGameMinutes)
     local bodConsts = consts.GenJutsu and consts.GenJutsu.BringerOfDarkness or {}
     for i = #activeBringerOfDarknessCircles, 1, -1 do
         local circle = activeBringerOfDarknessCircles[i]
-        local elapsed = nowMs - circle.startedAtMs
-        local maxDur = bodConsts.VISUAL_DURATION_MS or 1200
-        local holdDur = bodConsts.VISUAL_HOLD_MS or 600
+        local elapsed = nowGameMinutes - circle.startedAtGameMinutes
+        local maxDur = bodConsts.VISUAL_DURATION_GAME_MINUTES or 0.06
+        local holdDur = bodConsts.VISUAL_HOLD_GAME_MINUTES or 0.035
         if elapsed >= maxDur then
             table.remove(activeBringerOfDarknessCircles, i)
         elseif elapsed >= 0 then
@@ -670,9 +693,9 @@ local function renderGenjutsuCircles(nowMs)
     local dfConsts = consts.GenJutsu and consts.GenJutsu.DemonicFlute or {}
     for i = #activeDemonicFluteCircles, 1, -1 do
         local circle = activeDemonicFluteCircles[i]
-        local elapsed = nowMs - circle.startedAtMs
-        local maxDur = dfConsts.VISUAL_DURATION_MS or 1300
-        local holdDur = dfConsts.VISUAL_HOLD_MS or 650
+        local elapsed = nowGameMinutes - circle.startedAtGameMinutes
+        local maxDur = dfConsts.VISUAL_DURATION_GAME_MINUTES or 0.06
+        local holdDur = dfConsts.VISUAL_HOLD_GAME_MINUTES or 0.035
         if elapsed >= maxDur then
             table.remove(activeDemonicFluteCircles, i)
         elseif elapsed >= 0 then
@@ -684,8 +707,65 @@ local function renderGenjutsuCircles(nowMs)
             VFX.renderRing(circle.x, circle.y, circle.z, circle.radius, dfConsts.CIRCLE_SEGMENTS or 48, dfConsts.CIRCLE_THICKNESS or 2.0, color.R, color.G, color.B, alpha, 0.05)
         end
     end
+end
 
-    -- Genjutsu circles rendering finishes above
+local function renderGenericAbilityPulses(nowGameMinutes)
+    for i = #activeGenericPulses, 1, -1 do
+        local pulse = activeGenericPulses[i]
+        local progress = pulse.duration > 0 and ((nowGameMinutes - pulse.startedAtGameMinutes) / pulse.duration) or 1
+        if progress >= 1 then
+            table.remove(activeGenericPulses, i)
+        elseif progress >= 0 then
+            local caster = pulse.casterOnlineId and getPlayerByOnlineID and getPlayerByOnlineID(pulse.casterOnlineId)
+            local x = caster and caster:getX() or pulse.x
+            local y = caster and caster:getY() or pulse.y
+            local z = caster and caster:getZ() or pulse.z
+
+            local currentRadius = math.max(0.15, pulse.radius * (0.25 + 0.75 * progress))
+            local baseAlpha = 0.85 * (1.0 - progress)
+            local c = pulse.color
+
+            -- 1. Outer expanding primary chakra ring
+            renderIsoCircle(
+                x, y, z + 0.02,
+                currentRadius,
+                36,
+                pulse.thickness,
+                c.R, c.G, c.B,
+                baseAlpha
+            )
+
+            -- 2. Concentric inner echo ring (trailing at 60% radius)
+            local innerRadius = currentRadius * 0.60
+            renderIsoCircle(
+                x, y, z + 0.02,
+                innerRadius,
+                28,
+                pulse.thickness * 0.8,
+                c.R, c.G, c.B,
+                baseAlpha * 0.65
+            )
+
+            -- 3. 4 vertical rising chakra wisps
+            local wispCount = 4
+            local wispHeight = 0.28 * progress
+            local wispRadius = currentRadius * 0.85
+            for idx = 1, wispCount do
+                local angle = (idx * (math.pi * 2 / wispCount)) + (nowGameMinutes * 40.0)
+                local wx = x + math.cos(angle) * wispRadius
+                local wy = y + math.sin(angle) * wispRadius
+                local wz = z + 0.02 + (wispHeight * 0.5)
+
+                renderIsoLine(
+                    wx, wy, wz,
+                    wx, wy, wz + 0.08,
+                    pulse.thickness * 0.75,
+                    c.R, c.G, c.B,
+                    baseAlpha * 0.75
+                )
+            end
+        end
+    end
 end
 
 local function renderSummonMarkers(nowGameMinutes)
@@ -843,7 +923,8 @@ local function renderRasengans(nowGameMinutes)
     local toRemove = {}
 
     for runtimeId, rasengan in pairs(activeRasengans) do
-        local lead = NinjaLineages.Utils.Zombies.getByOnlineID(rasengan.leadZombieOnlineId)
+        local lead = (rasengan.leadZombie and not (rasengan.leadZombie.isDead and rasengan.leadZombie:isDead()) and rasengan.leadZombie)
+            or (rasengan.leadZombieOnlineId and NinjaLineages.Utils.Zombies.getByOnlineID(rasengan.leadZombieOnlineId))
         local baseAlpha = 1.0
         local scale = 1.0
 
@@ -983,14 +1064,14 @@ local function renderSageModeAuras()
 end
 
 function VFX.renderAll()
-    local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
     local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
 
-    renderStaticBeams(nowMs)
-    renderTravelingProjectiles(nowMs)
-    renderKatonStreams(nowMs)
+    renderStaticBeams(nowGameMinutes)
+    renderTravelingProjectiles(nowGameMinutes)
+    renderKatonStreams(nowGameMinutes)
     renderShinraTenseiShockwaves(nowGameMinutes)
-    renderGenjutsuCircles(nowMs)
+    renderGenjutsuCircles(nowGameMinutes)
+    renderGenericAbilityPulses(nowGameMinutes)
 
     -- Summoning & Companion Renderers (game-time driven)
     renderSummonMarkers(nowGameMinutes)
@@ -1054,6 +1135,12 @@ if Events and Events.OnServerCommand then
 
     NinjaLineages.AbilityAuthority.registerEventHandler("demonic_flute_circle", function(args)
         VFX.addDemonicFluteCircle(args)
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("generic_ability_pulse", function(args)
+        if args then
+            VFX.addGenericPulse(args)
+        end
     end)
 
     NinjaLineages.AbilityAuthority.registerEventHandler("summon_spawn", function(args)

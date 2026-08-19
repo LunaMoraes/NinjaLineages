@@ -126,6 +126,7 @@ function Rasengan.cast(player, definition, resolved, args)
         kind = "rasengan_started",
         runtimeId = runtimeId,
         leadZombieOnlineId = leadZombie:getOnlineID(),
+        leadZombie = leadZombie,
         dirX = dirX,
         dirY = dirY,
         startedAtGameMinutes = nowGameMinutes,

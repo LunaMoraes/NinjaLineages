@@ -20,15 +20,15 @@ NinjaLineages.Constants.Runtime = {
 
 NinjaLineages.Constants.GenJutsu = {
     CommonVisual = {
-        VISUAL_DURATION_MS = 1000,
-        VISUAL_HOLD_MS = 650,
+        VISUAL_DURATION_GAME_MINUTES = 0.06,
+        VISUAL_HOLD_GAME_MINUTES = 0.035,
         CIRCLE_SEGMENTS = 64,
         CIRCLE_THICKNESS = 2.0,
         CIRCLE_ALPHA = 0.85,
     },
     BringerOfDarkness = {
-        VISUAL_DURATION_MS = 1000,
-        VISUAL_HOLD_MS = 650,
+        VISUAL_DURATION_GAME_MINUTES = 0.06,
+        VISUAL_HOLD_GAME_MINUTES = 0.035,
         CIRCLE_SEGMENTS = 64,
         CIRCLE_THICKNESS = 2.0,
         CIRCLE_COLOR = {
@@ -40,8 +40,8 @@ NinjaLineages.Constants.GenJutsu = {
         BLIND_ITEM = "Base.NL_BringerOfDarknessBlind",
     },
     DemonicFlute = {
-        VISUAL_DURATION_MS = 1000,
-        VISUAL_HOLD_MS = 650,
+        VISUAL_DURATION_GAME_MINUTES = 0.06,
+        VISUAL_HOLD_GAME_MINUTES = 0.035,
         CIRCLE_SEGMENTS = 64,
         CIRCLE_THICKNESS = 2.0,
         CIRCLE_COLOR = {
@@ -77,7 +77,7 @@ NinjaLineages.Constants.Hyuga = {
 NinjaLineages.Constants.Rinnegan = {
     ShinraTensei = {
         ACTIVATION_VOICE = "NLShinraTenseiActivation",
-        VISUAL_DURATION_MS = 700,
+        VISUAL_DURATION_GAME_MINUTES = 0.045,
         PULSE_SEGMENTS = 64,
         PULSE_THICKNESS = 2.0,
         PULSE_COLOR = {
@@ -90,9 +90,66 @@ NinjaLineages.Constants.Rinnegan = {
 
 NinjaLineages.Constants.Medical = {
     ChakraNeedle = {
-        VISUAL_DURATION_MS = 400,
+        VISUAL_DURATION_GAME_MINUTES = 0.03,
         THICKNESS = 2.0,
         COLOR = { R = 0.25, G = 0.55, B = 1.0 },
+    },
+}
+
+NinjaLineages.Constants.AbilityPulsePresets = {
+    minor_healing = {
+        color = { R = 0.20, G = 0.90, B = 0.40 },
+        radius = 1.2,
+        thickness = 2.2,
+        durationGameMinutes = 0.04,
+    },
+    cell_stimulation = {
+        color = { R = 0.15, G = 0.85, B = 0.75 },
+        radius = 1.4,
+        thickness = 2.5,
+        durationGameMinutes = 0.05,
+    },
+    chakra_focus = {
+        color = { R = 0.25, G = 0.45, B = 0.95 },
+        radius = 1.5,
+        thickness = 2.5,
+        durationGameMinutes = 0.05,
+    },
+    physical_reinforcement = {
+        color = { R = 0.95, G = 0.70, B = 0.15 },
+        radius = 1.6,
+        thickness = 2.5,
+        durationGameMinutes = 0.06,
+    },
+    killing_intent = {
+        color = { R = 0.85, G = 0.08, B = 0.12 },
+        radius = 3.5,
+        thickness = 3.0,
+        durationGameMinutes = 0.06,
+    },
+    binding_roots = {
+        color = { R = 0.35, G = 0.65, B = 0.15 },
+        radius = 2.5,
+        thickness = 2.8,
+        durationGameMinutes = 0.06,
+    },
+    calorie_control = {
+        color = { R = 0.98, G = 0.45, B = 0.12 },
+        radius = 1.5,
+        thickness = 2.5,
+        durationGameMinutes = 0.05,
+    },
+    field_surgery = {
+        color = { R = 0.10, G = 0.95, B = 0.65 },
+        radius = 2.0,
+        thickness = 3.2,
+        durationGameMinutes = 0.07,
+    },
+    bleeding_suppression = {
+        color = { R = 0.85, G = 0.20, B = 0.50 },
+        radius = 1.4,
+        thickness = 2.5,
+        durationGameMinutes = 0.05,
     },
 }
 

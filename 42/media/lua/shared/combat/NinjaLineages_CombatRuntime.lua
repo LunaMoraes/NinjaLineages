@@ -107,7 +107,12 @@ function Runtime.createKatonStream(config)
     )
     if directionLength <= geometry.EPSILON then return nil end
 
-    local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
+    local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
+    local durationGameMinutes = tonumber(config.durationGameMinutes)
+        or NinjaLineages.Balance.JutsuRuntime.Katon.STREAM_DURATION_GAME_MINUTES
+        or (config.durationMs and (config.durationMs / 15000))
+        or 0.05
+
     local stream = {
         streamId = config.streamId or generateKatonId(),
         casterObject = config.casterObject,
@@ -120,12 +125,8 @@ function Runtime.createKatonStream(config)
         range = math.max(0.1, tonumber(config.range) or 0.1),
         minDot = tonumber(config.minDot)
             or NinjaLineages.Balance.TargetingTier.NARROW.minimumDot,
-        durationMs = math.max(
-            1,
-            tonumber(config.durationMs)
-                or NinjaLineages.Balance.JutsuRuntime.Katon.STREAM_DURATION_MS
-        ),
-        startedAtMs = nowMs,
+        durationGameMinutes = math.max(0.001, durationGameMinutes),
+        startedAtGameMinutes = config.startedAtGameMinutes or nowGameMinutes,
         damageRoll = config.damageRoll,
         controlTier = config.controlTier,
         collisionMask = config.collisionMask or NinjaLineages.Collision.Masks.jutsu_projectile,
@@ -136,7 +137,7 @@ function Runtime.createKatonStream(config)
     stream.tiles = collectKatonTiles(stream)
     Runtime.katonStreams[stream.streamId] = stream
     katonLog(string.format(
-        "CREATED id=%s origin=(%.2f,%.2f,%d) direction=(%.3f,%.3f) range=%.2f tiles=%d durationMs=%d",
+        "CREATED id=%s origin=(%.2f,%.2f,%d) direction=(%.3f,%.3f) range=%.2f tiles=%d durationGameMinutes=%.4f",
         stream.streamId,
         stream.originX,
         stream.originY,
@@ -145,7 +146,7 @@ function Runtime.createKatonStream(config)
         stream.directionY,
         stream.range,
         #stream.tiles,
-        stream.durationMs
+        stream.durationGameMinutes
     ))
     return stream
 end
@@ -232,10 +233,10 @@ local function activateKatonTile(stream, tile)
     end
 end
 
-local function updateKatonStreams(nowMs)
+local function updateKatonStreams(nowGameMinutes)
     local completed = {}
     for streamId, stream in pairs(Runtime.katonStreams) do
-        local progress = math.min(1, math.max(0, (nowMs - stream.startedAtMs) / stream.durationMs))
+        local progress = math.min(1, math.max(0, (nowGameMinutes - stream.startedAtGameMinutes) / stream.durationGameMinutes))
         while stream.nextTileIndex <= #stream.tiles
                 and stream.tiles[stream.nextTileIndex].activationProgress <= progress do
             activateKatonTile(stream, stream.tiles[stream.nextTileIndex])
@@ -394,7 +395,7 @@ function Runtime.update()
     if NinjaLineages.isClient() and not NinjaLineages.isServer() then return end
 
     local now = NinjaLineages.Utils.Time.gameMinutes()
-    updateKatonStreams(NinjaLineages.Utils.Time.realMilliseconds())
+    updateKatonStreams(now)
     local toRemove = {}
 
     for _, projectile in pairs(Runtime.projectiles) do

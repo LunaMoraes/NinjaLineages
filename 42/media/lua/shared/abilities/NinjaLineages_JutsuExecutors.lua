@@ -229,7 +229,22 @@ local function executeCatalogAbility(player, definition)
     if not executed then return false, executionReason end
     if not commit(player, definition, resolved, cost) then return false, "chakra" end
     NinjaLineages.transmitPlayerData(player)
-    return true
+
+    local stateResult = nil
+    if NinjaLineages.Constants.AbilityPulsePresets and NinjaLineages.Constants.AbilityPulsePresets[definition.id] then
+        stateResult = {
+            event = {
+                kind = "generic_ability_pulse",
+                abilityId = definition.id,
+                casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
+                x = player:getX(),
+                y = player:getY(),
+                z = math.floor(player:getZ()),
+            },
+        }
+    end
+
+    return true, nil, nil, stateResult
 end
 
 specializedExecutors.smoke_bomb = function(player, definition)
@@ -248,8 +263,9 @@ specializedExecutors.smoke_bomb = function(player, definition)
 
     local trap = IsoTrap.new(player, item, cell, square)
     local placed = pcall(function() trap:place() end)
-    if not placed then return false, "blocked_placement" end
-    if not commit(player, definition, resolved, cost) then return false, "chakra" end
+    if not placed then return false, "server_error" end
+    commit(player, definition, resolved, cost)
+    NinjaLineages.transmitPlayerData(player)
     return true
 end
 
@@ -279,6 +295,7 @@ specializedExecutors.bringer_of_darkness = function(player, definition)
             y = player:getY(),
             z = math.floor(player:getZ()),
             radius = resolved.radius,
+            startedAtGameMinutes = NinjaLineages.Utils.Time.gameMinutes(),
         },
     }
 end
@@ -310,6 +327,7 @@ specializedExecutors.demonic_flute = function(player, definition)
             y = player:getY(),
             z = math.floor(player:getZ()),
             radius = resolved.radius,
+            startedAtGameMinutes = NinjaLineages.Utils.Time.gameMinutes(),
         },
     }
 end
@@ -348,7 +366,17 @@ specializedExecutors.binding_roots = function(player, definition)
             + resolved.duration
     end
     commit(player, definition, resolved, cost)
-    return true
+    NinjaLineages.transmitPlayerData(player)
+    return true, nil, nil, {
+        event = {
+            kind = "generic_ability_pulse",
+            abilityId = definition.id,
+            casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
+            x = player:getX(),
+            y = player:getY(),
+            z = math.floor(player:getZ()),
+        },
+    }
 end
 
 specializedExecutors.creation_rebirth = function(player, definition)
@@ -589,7 +617,7 @@ specializedExecutors.katon = function(player, definition)
     local originX, originY = player:getX(), player:getY()
     local originZ = math.floor(player:getZ())
     local directionX, directionY = forward:getX(), forward:getY()
-    local durationMs = Balance.JutsuRuntime.Katon.STREAM_DURATION_MS
+    local durationGameMinutes = Balance.JutsuRuntime.Katon.STREAM_DURATION_GAME_MINUTES or 0.05
 
     local stream = NinjaLineages.CombatRuntime.createKatonStream({
         casterObject = player,
@@ -601,7 +629,7 @@ specializedExecutors.katon = function(player, definition)
         directionY = directionY,
         range = resolved.radius or config.range,
         minDot = config.minDot,
-        durationMs = durationMs,
+        durationGameMinutes = durationGameMinutes,
         damageRoll = function() return rollDamage(resolved) end,
         controlTier = resolved.control and resolved.control.tier or nil,
         collisionMask = NinjaLineages.Collision.Masks.jutsu_projectile,
@@ -621,7 +649,8 @@ specializedExecutors.katon = function(player, definition)
             directionY = directionY,
             range = stream.range,
             minDot = stream.minDot,
-            durationMs = durationMs,
+            durationGameMinutes = durationGameMinutes,
+            startedAtGameMinutes = stream.startedAtGameMinutes,
         },
     }
 end
@@ -768,7 +797,17 @@ specializedExecutors.calorie_control = function(player, definition)
     active[player].nextCalorieTick = now
 
     commit(player, definition, resolved, cost)
-    return true
+    NinjaLineages.transmitPlayerData(player)
+    return true, nil, nil, {
+        event = {
+            kind = "generic_ability_pulse",
+            abilityId = definition.id,
+            casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
+            x = player:getX(),
+            y = player:getY(),
+            z = math.floor(player:getZ()),
+        },
+    }
 end
 
 specializedExecutors.physical_reinforcement = function(player, definition)
@@ -790,7 +829,17 @@ specializedExecutors.physical_reinforcement = function(player, definition)
     active[player].nextPhysicalReinforcementTick = now
 
     commit(player, definition, resolved, cost)
-    return true
+    NinjaLineages.transmitPlayerData(player)
+    return true, nil, nil, {
+        event = {
+            kind = "generic_ability_pulse",
+            abilityId = definition.id,
+            casterOnlineId = player.getOnlineID and player:getOnlineID() or nil,
+            x = player:getX(),
+            y = player:getY(),
+            z = math.floor(player:getZ()),
+        },
+    }
 end
 
 function NinjaLineages.AbilityAuthority.updateLocalKamuiPhaseMovement(player)

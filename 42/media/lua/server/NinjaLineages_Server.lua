@@ -106,7 +106,7 @@ NinjaLineages.addEventOnce(
     onClientCommand
 )
 
-if NinjaLineages.isServer() then
+if NinjaLineages.isServer() or not NinjaLineages.isClient() then
     NinjaLineages.addEventOnce(
         "server.onTick.updateAbilities",
         Events.OnTick,

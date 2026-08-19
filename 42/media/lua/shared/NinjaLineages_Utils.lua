@@ -235,12 +235,13 @@ end
 
 function NinjaLineages.Utils.Zombies.getByOnlineID(onlineID)
     if onlineID == nil then return nil end
+    local numericId = tonumber(onlineID)
+    if not numericId or numericId <= 0 then return nil end
     local zombies = getCell() and getCell():getZombieList()
     if not zombies then return nil end
-    onlineID = tonumber(onlineID)
     for i = 0, zombies:size() - 1 do
         local zombie = zombies:get(i)
-        if zombie and zombie.getOnlineID and zombie:getOnlineID() == onlineID then
+        if zombie and zombie.getOnlineID and zombie:getOnlineID() == numericId then
             return zombie
         end
     end

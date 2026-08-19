@@ -242,6 +242,7 @@ NinjaLineages.Balance.JutsuRuntime = {
         PUSH_SPEED = 8.0,
     },
     Katon = {
+        STREAM_DURATION_GAME_MINUTES = 0.05,
         STREAM_DURATION_MS = 750,
         FIRE_ENERGY = 100,
         FIRE_LIFE = 500,
