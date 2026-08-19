@@ -194,24 +194,6 @@ local function executeGenericEffect(player, definition, resolved)
             )
             count = count + 1
         end
-    elseif effect.kind == "shadow_close" then
-        local target = NinjaLineages.Utils.Zombies.getFacingTarget(player, resolved.targeting)
-        if not target then return false, "no_target" end
-        local originX, originY = player:getX(), player:getY()
-        local dx, dy = target:getX() - originX, target:getY() - originY
-        local length = math.sqrt(dx * dx + dy * dy)
-        local distance = math.min(length, resolved.distance)
-        if length > 0 then
-            local x, y = originX + dx / length * distance, originY + dy / length * distance
-            local square = getCell():getGridSquare(x, y, player:getZ())
-            if not square or not player:getCurrentSquare() or square:isBlockedTo(player:getCurrentSquare()) then
-                return false, "invalid_target"
-            end
-            player:setX(x)
-            player:setY(y)
-        end
-        addSound(player, originX, originY, player:getZ(), resolved.decoyRadius, resolved.decoyRadius)
-        NinjaLineages.Utils.Combat.applyControlTier(target, resolved.control.tier)
     elseif effect.kind == "cell_stimulation" then
         local stats = player:getStats()
         stats:set(CharacterStat.FATIGUE, math.max(0, stats:get(CharacterStat.FATIGUE) - resolved.healing.fatigue))
@@ -390,6 +372,36 @@ specializedExecutors.kirigakure = function(player, definition)
     if not NinjaLineages.Kirigakure.activate(resolved.duration) then
         return false, "server_error"
     end
+    if not commit(player, definition, resolved, cost) then return false, "chakra" end
+    NinjaLineages.transmitPlayerData(player)
+    return true
+end
+
+specializedExecutors.rasengan = function(player, definition, args)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+
+    local started, startReason = NinjaLineages.Rasengan.cast(player, definition, resolved, args)
+    if not started then return false, startReason end
+
+    if not commit(player, definition, resolved, cost) then return false, "chakra" end
+    NinjaLineages.transmitPlayerData(player)
+    return true
+end
+
+specializedExecutors.summoning_jutsu = function(player, definition, args)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+
+    local spawned, spawnReason = NinjaLineages.Summoning.cast(player, definition, resolved, args)
+    if not spawned then return false, spawnReason end
+
     if not commit(player, definition, resolved, cost) then return false, "chakra" end
     NinjaLineages.transmitPlayerData(player)
     return true

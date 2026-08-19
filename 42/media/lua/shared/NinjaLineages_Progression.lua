@@ -18,6 +18,30 @@ local function getState(player)
     state.ninjaXP = state.ninjaXP or 0
     state.nodes = state.nodes or {}
     state.dailyXP = state.dailyXP or {}
+
+    -- Idempotent save migration: shadow_close -> rasengan
+    if state.nodes.shadow_close ~= nil then
+        if state.nodes.rasengan == nil then
+            state.nodes.rasengan = state.nodes.shadow_close
+        end
+        state.nodes.shadow_close = nil
+    end
+    if data.trainingProgress and data.trainingProgress.shadow_close ~= nil then
+        if data.trainingProgress.rasengan == nil then
+            data.trainingProgress.rasengan = data.trainingProgress.shadow_close
+        end
+        data.trainingProgress.shadow_close = nil
+    end
+    if data.selectedAbilityId == "shadow_close" then
+        data.selectedAbilityId = "rasengan"
+    end
+    if data.cooldowns and data.cooldowns["common.shadow_close"] ~= nil then
+        if data.cooldowns["common.rasengan"] == nil then
+            data.cooldowns["common.rasengan"] = data.cooldowns["common.shadow_close"]
+        end
+        data.cooldowns["common.shadow_close"] = nil
+    end
+
     return state
 end
 
@@ -436,15 +460,24 @@ function Progression.getOrCreateTrainingItem(player, nodeId)
     if not definition or Progression.getNodeState(player, nodeId) ~= "unlocked" then return nil end
     local inventory = player:getInventory()
     
-    -- Find existing training scroll for this node
+    -- Find existing training scroll for this node (migrating legacy shadow_close scrolls if encountered)
     local item = nil
     local items = inventory:getItemsFromType("Base.NL_TrainingScroll")
     if items then
         for i = 0, items:size() - 1 do
             local candidate = items:get(i)
-            if candidate and candidate:getModData().nodeId == nodeId then
-                item = candidate
-                break
+            if candidate then
+                local candidateNode = candidate:getModData().nodeId
+                if candidateNode == "shadow_close" then
+                    candidate:getModData().nodeId = "rasengan"
+                    local nameText = getText("UI_NL_Node_rasengan_Name")
+                    candidate:setName(nameText .. " (" .. getText("UI_NL_TrainingScroll_Name") .. ")")
+                    candidateNode = "rasengan"
+                end
+                if candidateNode == nodeId then
+                    item = candidate
+                    break
+                end
             end
         end
     end

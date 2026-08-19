@@ -265,18 +265,16 @@ Catalog.Definitions = {
         executor = "earth_wall",
     },
     {
-        id = "shadow_close",
+        id = "rasengan",
         category = "common",
         node = {
             discipline = "ninjutsu", rank = "JONIN", order = 10,
             prerequisites = { "katon", "earth_wall" },
         },
-        handSigns = { "bird", "rat", "tiger" },
         balance = {
-            cost = "MAJOR", cooldown = "VERY_LONG", targeting = "STANDARD",
-            distance = "STANDARD", decoyRadius = "STANDARD", control = "GENIN",
+            cost = "MAJOR", cooldown = "VERY_LONG",
         },
-        effect = { kind = "shadow_close" },
+        executor = "rasengan",
     },
     {
         id = "dash",
@@ -566,7 +564,6 @@ Catalog.Definitions = {
         balance = {
             cost = "MAJOR",
             cooldown = "VERY_LONG",
-            duration = "LONG",
         },
         executor = "summoning_jutsu",
     },
@@ -585,7 +582,6 @@ Catalog.genericEffects = {
     restore_focus = true,
     target_damage = true,
     cluster_damage = true,
-    shadow_close = true,
     forward_movement = true,
     heal_most_damaged = true,
     cell_stimulation = true,

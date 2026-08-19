@@ -212,20 +212,20 @@ NinjaLineages.Balance.SageMode = {
 
 NinjaLineages.Balance.Summoning = {
     COST_TIER = "MAJOR",
-    DURATION_TIER = "LONG",
+    LIFETIME_GAME_MINUTES = 180,
     Toad = {
-        ACTION_INTERVAL_MS = 2500,
+        ACTION_INTERVAL_GAME_MINUTES = 1.0,
         TARGET_RADIUS_TIER = "STANDARD",
         SPLASH_RADIUS_TIER = "SMALL",
         DAMAGE_TIER = "HEAVY",
     },
     Snake = {
-        ACTION_INTERVAL_MS = 1500,
+        ACTION_INTERVAL_GAME_MINUTES = 0.6,
         TARGET_RADIUS_TIER = "LARGE",
         DAMAGE_TIER = "HEAVY",
     },
     Snail = {
-        ACTION_INTERVAL_MS = 4000,
+        ACTION_INTERVAL_GAME_MINUTES = 1.5,
         HEALING_TIER = "HEAVY",
         RADIUS_TIER = "MEDIUM",
     },
@@ -234,6 +234,13 @@ NinjaLineages.Balance.Summoning = {
 NinjaLineages.Balance.JutsuRuntime = {
     Projectile = { DEFAULT_SPEED = 20 },
     Kamui = { STEP_DISTANCE = 0.055 },
+    Rasengan = {
+        CONTACT_RANGE_TIER = "TOUCH",
+        CATCH_RADIUS_FACTOR = 0.5,
+        TICK_INTERVAL_TIER = "RAPID_TICK",
+        TICK_DAMAGE_TIER = "LIGHT",
+        PUSH_SPEED = 8.0,
+    },
     Katon = {
         STREAM_DURATION_MS = 750,
         FIRE_ENERGY = 100,

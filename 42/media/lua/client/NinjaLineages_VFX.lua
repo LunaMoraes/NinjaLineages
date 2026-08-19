@@ -117,8 +117,13 @@ local activeKatonStreams = {}
 local activeBringerOfDarknessCircles = {}
 local activeDemonicFluteCircles = {}
 local activeShinraTenseiPulses = {}
+local activeSummonMarkers = {}
+local activeSummonPoofs = {}
 local activeToadSlams = {}
+local activeSnakeStrikes = {}
 local activeKatsuyuHealWaves = {}
+local activeRasengans = {}
+local activeRasenganWallImpacts = {}
 
 local katonFireTexture = nil
 local katonTextureProbed = false
@@ -285,23 +290,120 @@ function VFX.addShinraTenseiPulse(x, y, z, maxRadius)
     })
 end
 
-function VFX.addToadSlam(x, y, z, radius)
-    table.insert(activeToadSlams, {
-        x = x,
-        y = y,
-        z = z,
-        radius = radius or 3.5,
-        startedAtMs = NinjaLineages.Utils.Time.realMilliseconds(),
+function VFX.addSummonMarker(args)
+    if not args or not args.animalId then return end
+    activeSummonMarkers[args.animalId] = {
+        animalId = args.animalId,
+        contract = args.contract or "toad",
+        x = args.x or 0,
+        y = args.y or 0,
+        z = args.z or 0,
+        startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
+    }
+end
+
+function VFX.removeSummonMarker(args)
+    local id = type(args) == "table" and args.animalId or args
+    if id then
+        activeSummonMarkers[id] = nil
+    end
+    if type(args) == "table" and args.x and args.y and args.z then
+        VFX.addSummonPoof(args)
+    end
+end
+
+function VFX.addSummonPoof(args)
+    if not args or not args.x or not args.y or not args.z then return end
+    table.insert(activeSummonPoofs, {
+        x = args.x,
+        y = args.y,
+        z = args.z,
+        contract = args.contract,
+        startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
     })
 end
 
-function VFX.addKatsuyuHealWave(x, y, z, radius)
-    table.insert(activeKatsuyuHealWaves, {
-        x = x,
-        y = y,
-        z = z,
-        radius = radius or 6.0,
-        startedAtMs = NinjaLineages.Utils.Time.realMilliseconds(),
+function VFX.addToadSlam(args, maybeY, maybeZ, maybeRadius)
+    local x = type(args) == "table" and args.x or args
+    local y = type(args) == "table" and args.y or maybeY
+    local z = type(args) == "table" and args.z or maybeZ
+    local radius = type(args) == "table" and args.radius or maybeRadius
+    local started = type(args) == "table" and args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes()
+
+    if x and y and z then
+        table.insert(activeToadSlams, {
+            x = x,
+            y = y,
+            z = z,
+            radius = radius or 3.5,
+            startedAtGameMinutes = started,
+        })
+    end
+end
+
+function VFX.addSnakeStrike(args)
+    if not args or not args.originX or not args.targetX then return end
+    table.insert(activeSnakeStrikes, {
+        originX = args.originX,
+        originY = args.originY,
+        targetX = args.targetX,
+        targetY = args.targetY,
+        z = args.z or 0,
+        startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
+    })
+end
+
+function VFX.addKatsuyuHealWave(args, maybeY, maybeZ, maybeRadius)
+    local x = type(args) == "table" and args.x or args
+    local y = type(args) == "table" and args.y or maybeY
+    local z = type(args) == "table" and args.z or maybeZ
+    local radius = type(args) == "table" and args.radius or maybeRadius
+    local started = type(args) == "table" and args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes()
+
+    if x and y and z then
+        table.insert(activeKatsuyuHealWaves, {
+            x = x,
+            y = y,
+            z = z,
+            radius = radius or 6.0,
+            startedAtGameMinutes = started,
+        })
+    end
+end
+
+function VFX.addRasengan(args)
+    if not args or not args.runtimeId then return end
+    activeRasengans[args.runtimeId] = {
+        runtimeId = args.runtimeId,
+        leadZombieOnlineId = args.leadZombieOnlineId,
+        dirX = args.dirX or 0,
+        dirY = args.dirY or 1,
+        startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
+        fading = false,
+        fadeStartedGameMinutes = nil,
+    }
+end
+
+function VFX.removeRasengan(runtimeId)
+    local r = activeRasengans[runtimeId]
+    if r then
+        if not r.fading then
+            r.fading = true
+            r.fadeStartedGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
+        end
+    end
+end
+
+function VFX.addRasenganWallImpact(args)
+    if not args or not args.x or not args.y or not args.z then return end
+    if args.runtimeId then
+        activeRasengans[args.runtimeId] = nil
+    end
+    table.insert(activeRasenganWallImpacts, {
+        x = args.x,
+        y = args.y,
+        z = args.z,
+        startedAtGameMinutes = args.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
     })
 end
 
@@ -583,29 +685,263 @@ local function renderGenjutsuCircles(nowMs)
         end
     end
 
-    for i = #activeToadSlams, 1, -1 do
-        local slam = activeToadSlams[i]
-        local elapsed = nowMs - slam.startedAtMs
-        if elapsed >= 700 then
-            table.remove(activeToadSlams, i)
-        else
-            local progress = elapsed / 700
-            local radius = slam.radius * progress
-            local alpha = 0.8 * (1.0 - progress)
-            VFX.renderRing(slam.x, slam.y, slam.z, radius, 32, 2.5, 0.85, 0.45, 0.1, alpha, 0.05)
+    -- Genjutsu circles rendering finishes above
+end
+
+local function renderSummonMarkers(nowGameMinutes)
+    local colDef = consts.Summoning and consts.Summoning.Colors or {}
+    local vfxDef = consts.Summoning and consts.Summoning.VFX or {}
+
+    for animalId, marker in pairs(activeSummonMarkers) do
+        local host = NinjaLineages.Summoning and NinjaLineages.Summoning.getAnimal(marker.animalId)
+        local x = host and host:getX() or marker.x
+        local y = host and host:getY() or marker.y
+        local z = host and host:getZ() or marker.z
+
+        local color = colDef[marker.contract] or colDef.toad or { R = 1.0, G = 0.5, B = 0.1 }
+        local rot = (nowGameMinutes - marker.startedAtGameMinutes) * 40.0
+        local pulse = (vfxDef.MARKER_ALPHA_BASE or 0.65) + ((vfxDef.MARKER_ALPHA_PULSE or 0.25) * math.sin(nowGameMinutes * 30.0))
+
+        -- Ground contact disk
+        VFX.renderRing(x, y, z, 0.14, 20, 1.2, color.R, color.G, color.B, pulse * 0.35, 0.01)
+
+        -- Inner seal ring
+        local innerR = vfxDef.MARKER_INNER_RADIUS or 0.22
+        VFX.renderRing(x, y, z, innerR, 28, 1.8, color.R, color.G, color.B, pulse * 0.80, 0.02)
+
+        -- Outer containment ring
+        local outerR = vfxDef.MARKER_OUTER_RADIUS or 0.42
+        VFX.renderRing(x, y, z, outerR, 36, vfxDef.MARKER_THICKNESS or 2.0, color.R, color.G, color.B, pulse, 0.03)
+
+        -- 3 orbiting chakra nodes along outer ring
+        for i = 1, 3 do
+            local a = rot + (i * (math.pi * 2 / 3))
+            local nx = x + (math.cos(a) * outerR)
+            local ny = y + (math.sin(a) * outerR)
+            VFX.renderRing(nx, ny, z, 0.04, 10, 1.4, 1.0, 1.0, 1.0, pulse * 0.90, 0.04)
         end
     end
+end
+
+local function renderSummonPoofs(nowGameMinutes)
+    local vfxDef = consts.Summoning and consts.Summoning.VFX or {}
+    local dur = vfxDef.POOF_DURATION_GAME_MINUTES or 0.05
+
+    for i = #activeSummonPoofs, 1, -1 do
+        local poof = activeSummonPoofs[i]
+        local elapsed = nowGameMinutes - poof.startedAtGameMinutes
+        if elapsed >= dur then
+            table.remove(activeSummonPoofs, i)
+        elseif elapsed >= 0 then
+            local progress = elapsed / dur
+            local innerR = 0.2 + (0.8 * progress)
+            local outerR = 0.4 + (1.2 * progress)
+            local alpha = (1.0 - progress) ^ 1.5
+
+            VFX.renderRing(poof.x, poof.y, poof.z, innerR, 28, 2.0, 0.92, 0.92, 0.95, alpha * 0.7, 0.03)
+            VFX.renderRing(poof.x, poof.y, poof.z, outerR, 36, 2.5, 0.88, 0.88, 0.92, alpha * 0.9, 0.05)
+
+            for s = 1, 8 do
+                local a = s * (math.pi * 2 / 8)
+                local x1 = poof.x + (math.cos(a) * (0.2 + (0.3 * progress)))
+                local y1 = poof.y + (math.sin(a) * (0.2 + (0.3 * progress)))
+                local x2 = poof.x + (math.cos(a) * (0.4 + (1.2 * progress)))
+                local y2 = poof.y + (math.sin(a) * (0.4 + (1.2 * progress)))
+                VFX.renderLine(x1, y1, poof.z + 0.05, x2, y2, poof.z + 0.05, 2.0, 0.95, 0.95, 1.0, alpha * 0.8)
+            end
+        end
+    end
+end
+
+local function renderToadSlams(nowGameMinutes)
+    local vfxDef = consts.Summoning and consts.Summoning.VFX or {}
+    local dur = vfxDef.TOAD_SLAM_DURATION_GAME_MINUTES or 0.06
+
+    for i = #activeToadSlams, 1, -1 do
+        local slam = activeToadSlams[i]
+        local elapsed = nowGameMinutes - slam.startedAtGameMinutes
+        if elapsed >= dur then
+            table.remove(activeToadSlams, i)
+        elseif elapsed >= 0 then
+            local progress = elapsed / dur
+            local maxR = slam.radius or (vfxDef.TOAD_SLAM_MAX_RADIUS or 3.5)
+
+            local r1 = maxR * progress
+            local r2 = maxR * math.max(0, progress - 0.15)
+            local r3 = maxR * math.max(0, progress - 0.30)
+            local a1 = (1.0 - progress) * 0.9
+            local a2 = (1.0 - progress) * 0.7
+            local a3 = (1.0 - progress) * 0.5
+
+            VFX.renderRing(slam.x, slam.y, slam.z, r1, 36, 3.0, 1.0, 0.50, 0.08, a1, 0.03)
+            if r2 > 0 then VFX.renderRing(slam.x, slam.y, slam.z, r2, 32, 2.2, 1.0, 0.65, 0.15, a2, 0.02) end
+            if r3 > 0 then VFX.renderRing(slam.x, slam.y, slam.z, r3, 28, 1.8, 1.0, 0.80, 0.25, a3, 0.01) end
+
+            for c = 1, 6 do
+                local a = (c * (math.pi * 2 / 6)) + 0.25
+                local lx = slam.x + (math.cos(a) * (maxR * 0.8 * progress))
+                local ly = slam.y + (math.sin(a) * (maxR * 0.8 * progress))
+                VFX.renderLine(slam.x, slam.y, slam.z + 0.02, lx, ly, slam.z + 0.02, 2.5, 1.0, 0.45, 0.05, a1 * 0.85)
+            end
+        end
+    end
+end
+
+local function renderSnakeStrikes(nowGameMinutes)
+    local vfxDef = consts.Summoning and consts.Summoning.VFX or {}
+    local dur = vfxDef.SNAKE_STRIKE_DURATION_GAME_MINUTES or 0.03
+
+    for i = #activeSnakeStrikes, 1, -1 do
+        local strike = activeSnakeStrikes[i]
+        local elapsed = nowGameMinutes - strike.startedAtGameMinutes
+        if elapsed >= dur then
+            table.remove(activeSnakeStrikes, i)
+        elseif elapsed >= 0 then
+            local progress = elapsed / dur
+            local alpha = 1.0 - progress
+
+            -- Double-tracer purple beam
+            VFX.renderLine(strike.originX, strike.originY, strike.z + 0.15, strike.targetX, strike.targetY, strike.z + 0.15, vfxDef.SNAKE_STRIKE_THICKNESS or 4.0, 0.68, 0.15, 0.90, alpha * 0.85)
+            VFX.renderLine(strike.originX, strike.originY, strike.z + 0.15, strike.targetX, strike.targetY, strike.z + 0.15, 1.8, 0.92, 0.80, 1.0, alpha)
+
+            -- Puncture cross flare
+            local crossSize = 0.35 * (1.0 - progress)
+            local fa = alpha * 0.9
+            VFX.renderLine(strike.targetX - crossSize, strike.targetY, strike.z + 0.15, strike.targetX + crossSize, strike.targetY, strike.z + 0.15, 2.5, 0.85, 0.3, 1.0, fa)
+            VFX.renderLine(strike.targetX, strike.targetY - crossSize, strike.z + 0.15, strike.targetX, strike.targetY + crossSize, strike.z + 0.15, 2.5, 0.85, 0.3, 1.0, fa)
+        end
+    end
+end
+
+local function renderKatsuyuHealWaves(nowGameMinutes)
+    local vfxDef = consts.Summoning and consts.Summoning.VFX or {}
+    local dur = vfxDef.KATSUYU_WAVE_DURATION_GAME_MINUTES or 0.08
 
     for i = #activeKatsuyuHealWaves, 1, -1 do
         local wave = activeKatsuyuHealWaves[i]
-        local elapsed = nowMs - wave.startedAtMs
-        if elapsed >= 1000 then
+        local elapsed = nowGameMinutes - wave.startedAtGameMinutes
+        if elapsed >= dur then
             table.remove(activeKatsuyuHealWaves, i)
-        else
-            local progress = elapsed / 1000
-            local radius = wave.radius * progress
-            local alpha = 0.85 * (1.0 - progress)
-            VFX.renderRing(wave.x, wave.y, wave.z, radius, 36, 2.0, 0.2, 0.9, 0.7, alpha, 0.1)
+        elseif elapsed >= 0 then
+            local progress = elapsed / dur
+            local maxR = wave.radius or (vfxDef.KATSUYU_WAVE_MAX_RADIUS or 6.0)
+            local alpha = (1.0 - progress) ^ 1.2
+
+            local r1 = maxR * progress
+            local r2 = maxR * math.max(0, progress - 0.20)
+
+            VFX.renderRing(wave.x, wave.y, wave.z, r1, 48, 2.5, 0.15, 0.90, 0.95, alpha * 0.90, 0.05)
+            if r2 > 0 then
+                VFX.renderRing(wave.x, wave.y, wave.z, r2, 36, 2.0, 0.35, 0.75, 1.0, alpha * 0.70, 0.03)
+            end
+        end
+    end
+end
+
+local function renderRasengans(nowGameMinutes)
+    local rConsts = consts.Rasengan or {}
+    local toRemove = {}
+
+    for runtimeId, rasengan in pairs(activeRasengans) do
+        local lead = NinjaLineages.Utils.Zombies.getByOnlineID(rasengan.leadZombieOnlineId)
+        local baseAlpha = 1.0
+        local scale = 1.0
+
+        if rasengan.fading then
+            local fadeDur = rConsts.RASENGAN_FADEOUT_DURATION_GAME_MINUTES or 0.04
+            local fadeProg = (nowGameMinutes - (rasengan.fadeStartedGameMinutes or nowGameMinutes)) / fadeDur
+            if fadeProg >= 1.0 then
+                table.insert(toRemove, runtimeId)
+            else
+                baseAlpha = 1.0 - fadeProg
+                scale = 1.0 - (fadeProg * 0.6)
+            end
+        elseif not lead or (lead.isDead and lead:isDead()) then
+            table.insert(toRemove, runtimeId)
+        end
+
+        if baseAlpha > 0.01 and lead then
+            local lx = lead:getX()
+            local ly = lead:getY()
+            local lz = lead:getZ()
+            local sx = lx + (rasengan.dirX * 0.40)
+            local sy = ly + (rasengan.dirY * 0.40)
+            local sz = lz + VFX.ANCHOR_CHEST
+
+            -- Concentric dense luminous white-blue core micro-rings
+            local coreColor = rConsts.CoreColor or { R = 0.90, G = 0.96, B = 1.0 }
+            VFX.renderRing(sx, sy, sz, 0.08 * scale, 16, 2.0, coreColor.R, coreColor.G, coreColor.B, baseAlpha * 0.95, 0)
+            VFX.renderRing(sx, sy, sz, 0.16 * scale, 24, 2.0, coreColor.R, coreColor.G, coreColor.B, baseAlpha * 0.85, 0)
+            VFX.renderRing(sx, sy, sz, (rConsts.CORE_RADIUS or 0.25) * scale, 32, 2.2, coreColor.R, coreColor.G, coreColor.B, baseAlpha * 0.75, 0)
+
+            -- Glowing blue containment shell
+            local shellColor = rConsts.Color or { R = 0.15, G = 0.70, B = 1.0 }
+            local shellR = (rConsts.SHELL_RADIUS or 0.40) * scale
+            VFX.renderRing(sx, sy, sz, shellR, 40, 2.5, shellColor.R, shellColor.G, shellColor.B, baseAlpha * 0.85, 0)
+
+            -- 4 rotating orbital swirl arcs
+            local rot = (nowGameMinutes - rasengan.startedAtGameMinutes) * (rConsts.ROTATION_SPEED_RAD_PER_GAME_MINUTE or 50.0)
+            local swirlR = (rConsts.SWIRL_RADIUS or 0.45) * scale
+            local swirlThick = rConsts.SWIRL_THICKNESS or 2.0
+
+            for i = 1, 4 do
+                local aStart = rot + (i * (math.pi / 2))
+                local aEnd = aStart + (math.pi * 0.45)
+                local p1x = sx + (math.cos(aStart) * swirlR)
+                local p1y = sy + (math.sin(aStart) * swirlR)
+                local p2x = sx + (math.cos(aEnd) * (swirlR * 0.85))
+                local p2y = sy + (math.sin(aEnd) * (swirlR * 0.85))
+                VFX.renderLine(p1x, p1y, sz, p2x, p2y, sz, swirlThick, 0.40, 0.85, 1.0, baseAlpha * 0.85)
+            end
+
+            -- Grinding push stream connecting to lead torso
+            if not rasengan.fading then
+                VFX.renderLine(sx, sy, sz, lx, ly, sz, 2.0, 0.20, 0.75, 1.0, 0.50)
+            end
+        end
+    end
+
+    for _, id in ipairs(toRemove) do
+        activeRasengans[id] = nil
+    end
+end
+
+local function renderRasenganWallImpacts(nowGameMinutes)
+    local rConsts = consts.Rasengan or {}
+    local dur = rConsts.WALL_BURST_DURATION_GAME_MINUTES or 0.05
+    local maxR = rConsts.WALL_BURST_MAX_RADIUS or 3.0
+
+    for i = #activeRasenganWallImpacts, 1, -1 do
+        local impact = activeRasenganWallImpacts[i]
+        local elapsed = nowGameMinutes - impact.startedAtGameMinutes
+        if elapsed >= dur then
+            table.remove(activeRasenganWallImpacts, i)
+        elseif elapsed >= 0 then
+            local progress = elapsed / dur
+
+            -- 4 expanding cyan-white shockwave rings
+            for rIdx = 1, 4 do
+                local offset = (rIdx - 1) * 0.12
+                local ringProg = math.max(0, math.min(1.0, (progress - offset) / (1.0 - offset)))
+                if ringProg > 0 then
+                    local r = 0.2 + (maxR * ringProg)
+                    local a = ((1.0 - ringProg) ^ 2.0) * 0.95
+                    VFX.renderRing(impact.x, impact.y, impact.z, r, 40, 3.0, 0.25, 0.80, 1.0, a, 0.05)
+                end
+            end
+
+            -- 12 radial explosive fracture shard lines
+            for s = 1, 12 do
+                local a = s * (math.pi * 2 / 12)
+                local d1 = 0.2 + (maxR * 0.3 * progress)
+                local d2 = 0.4 + (maxR * progress)
+                local x1 = impact.x + (math.cos(a) * d1)
+                local y1 = impact.y + (math.sin(a) * d1)
+                local x2 = impact.x + (math.cos(a) * d2)
+                local y2 = impact.y + (math.sin(a) * d2)
+                local sa = (1.0 - progress) * 0.90
+                VFX.renderLine(x1, y1, impact.z + 0.1, x2, y2, impact.z + 0.1, 2.5, 0.90, 0.96, 1.0, sa)
+            end
         end
     end
 end
@@ -649,11 +985,24 @@ end
 function VFX.renderAll()
     local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
     local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
+
     renderStaticBeams(nowMs)
     renderTravelingProjectiles(nowMs)
     renderKatonStreams(nowMs)
     renderShinraTenseiShockwaves(nowGameMinutes)
     renderGenjutsuCircles(nowMs)
+
+    -- Summoning & Companion Renderers (game-time driven)
+    renderSummonMarkers(nowGameMinutes)
+    renderSummonPoofs(nowGameMinutes)
+    renderToadSlams(nowGameMinutes)
+    renderSnakeStrikes(nowGameMinutes)
+    renderKatsuyuHealWaves(nowGameMinutes)
+
+    -- Rasengan Renderers (game-time driven)
+    renderRasengans(nowGameMinutes)
+    renderRasenganWallImpacts(nowGameMinutes)
+
     renderSageModeAuras()
 end
 
@@ -707,15 +1056,52 @@ if Events and Events.OnServerCommand then
         VFX.addDemonicFluteCircle(args)
     end)
 
+    NinjaLineages.AbilityAuthority.registerEventHandler("summon_spawn", function(args)
+        if args and args.animalId then
+            VFX.addSummonMarker(args)
+            VFX.addSummonPoof(args)
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("summon_poof", function(args)
+        if args then
+            VFX.removeSummonMarker(args)
+        end
+    end)
+
     NinjaLineages.AbilityAuthority.registerEventHandler("toad_slam", function(args)
-        if args and args.x and args.y and args.z then
-            VFX.addToadSlam(args.x, args.y, args.z, args.radius)
+        if args then
+            VFX.addToadSlam(args)
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("snake_strike", function(args)
+        if args then
+            VFX.addSnakeStrike(args)
         end
     end)
 
     NinjaLineages.AbilityAuthority.registerEventHandler("katsuyu_heal_wave", function(args)
-        if args and args.x and args.y and args.z then
-            VFX.addKatsuyuHealWave(args.x, args.y, args.z, args.radius)
+        if args then
+            VFX.addKatsuyuHealWave(args)
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("rasengan_started", function(args)
+        if args then
+            VFX.addRasengan(args)
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("rasengan_ended", function(args)
+        if args and args.runtimeId then
+            VFX.removeRasengan(args.runtimeId)
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("rasengan_wall_impact", function(args)
+        if args then
+            VFX.addRasenganWallImpact(args)
         end
     end)
 end
