@@ -846,18 +846,6 @@ local function renderSummonMarkers(nowGameMinutes)
         -- Inner seal ring
         local innerR = vfxDef.MARKER_INNER_RADIUS or 0.22
         VFX.renderRing(x, y, z, innerR, 28, 1.8, color.R, color.G, color.B, pulse * 0.80, 0.02)
-
-        -- Outer containment ring
-        local outerR = vfxDef.MARKER_OUTER_RADIUS or 0.42
-        VFX.renderRing(x, y, z, outerR, 36, vfxDef.MARKER_THICKNESS or 2.0, color.R, color.G, color.B, pulse, 0.03)
-
-        -- 3 orbiting chakra nodes along outer ring
-        for i = 1, 3 do
-            local a = rot + (i * (math.pi * 2 / 3))
-            local nx = x + (math.cos(a) * outerR)
-            local ny = y + (math.sin(a) * outerR)
-            VFX.renderRing(nx, ny, z, 0.04, 10, 1.4, 1.0, 1.0, 1.0, pulse * 0.90, 0.04)
-        end
     end
 end
 
