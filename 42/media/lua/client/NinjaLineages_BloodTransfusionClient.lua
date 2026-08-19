@@ -41,7 +41,7 @@ function NLBloodTransfusionAction:isValid()
     if not self.character or self.character:isDead() then return false end
     if not self.patient or self.patient:isDead() then return false end
     if self.character ~= self.patient and self.character:DistTo(self.patient) > patientRange then return false end
-    if not self.item or not self.character:getInventory():contains(self.item) then return false end
+    if not self.item or not self.character:getInventory():contains(self.item, true) then return false end
     if self.item.isRotten and self.item:isRotten() then return false end
     return true
 end

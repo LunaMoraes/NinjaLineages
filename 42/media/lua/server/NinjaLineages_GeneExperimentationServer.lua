@@ -68,13 +68,53 @@ local function handleZombieDashRequest(player, args)
     end
 end
 
+local recentZombieNinjaDeaths = {}
+
+local function getDeathKey(x, y, z)
+    return tostring(math.floor(x or 0)) .. ":" .. tostring(math.floor(y or 0)) .. ":" .. tostring(math.floor(z or 0))
+end
+
+local function rememberZombieNinjaDeath(zombie)
+    if not zombie then return end
+    local modData = zombie:getModData()
+    if not modData or modData.isZombieNinja ~= true then return end
+    recentZombieNinjaDeaths[getDeathKey(zombie:getX(), zombie:getY(), zombie:getZ())] = NinjaLineages.Utils.Time.gameMinutes()
+end
+
+local function markSpawnedZombieNinjaCorpse(body)
+    if not body or not instanceof(body, "IsoDeadBody") then return end
+    local key = getDeathKey(body:getX(), body:getY(), body:getZ())
+    local deathAt = recentZombieNinjaDeaths[key]
+    if not deathAt then return end
+    if NinjaLineages.Utils.Time.gameMinutes() - deathAt
+            > consts.Extraction.CORPSE_FRESHNESS_WINDOW_MINUTES then
+        recentZombieNinjaDeaths[key] = nil
+        return
+    end
+
+    local modData = body:getModData()
+    modData.zombieNinjaRolled = true
+    modData.isZombieNinja = true
+    recentZombieNinjaDeaths[key] = nil
+end
+
+Events.OnZombieDead.Add(rememberZombieNinjaDeath)
+
 -- Server completion logic for corpse experiments (called from singleplayer or server command handler)
 function ServerLogic.completeExperiment(player, corpse, actionId)
     if not player or not corpse then return false end
+    markSpawnedZombieNinjaCorpse(corpse)
     local modData = corpse:getModData()
     if modData.experimented then return false end
     
     local isZombieNinja = modData.isZombieNinja == true
+    if not isZombieNinja then
+        local key = getDeathKey(corpse:getX(), corpse:getY(), corpse:getZ())
+        if recentZombieNinjaDeaths[key] then
+            modData.isZombieNinja = true
+            isZombieNinja = true
+        end
+    end
     if not isZombieNinja then return false end
     
     local data = NinjaLineages.getNLData(player)
@@ -100,7 +140,9 @@ function ServerLogic.completeExperiment(player, corpse, actionId)
         
         modData.experimented = true
         local item = instanceItem("Base.NL_BloodSample")
-        if item then player:getInventory():AddItem(item) end
+        if item then
+            NinjaLineages.Utils.Inventory.addItemToPlayer(player, item)
+        end
         
     elseif actionId == "Extract Ocular Tissue" then
         if not NinjaLineages.Progression.isCompleted(player, "ocular_extraction") then return false end
@@ -114,7 +156,7 @@ function ServerLogic.completeExperiment(player, corpse, actionId)
             MedicineUtils.applyItemFreshness(item, freshness)
             local typeName = eyeType == "sharingan" and getText("UI_NL_Ability_Sharingan_Name") or getText("UI_NL_Ability_Byakugan_Name")
             item:setName(getText("UI_item_NL_OcularTissueSample") .. " (" .. typeName .. ")")
-            player:getInventory():AddItem(item)
+            NinjaLineages.Utils.Inventory.addItemToPlayer(player, item)
         end
         
     elseif actionId == "Extract Gene Sample" then
@@ -125,7 +167,7 @@ function ServerLogic.completeExperiment(player, corpse, actionId)
         if item then
             local freshness = MedicineUtils.rollSampleFreshness()
             MedicineUtils.applyItemFreshness(item, freshness)
-            player:getInventory():AddItem(item)
+            NinjaLineages.Utils.Inventory.addItemToPlayer(player, item)
         end
     else
         return false

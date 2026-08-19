@@ -138,6 +138,25 @@ function NinjaLineages.Utils.Inventory.moveItemBetweenContainers(item, srcContai
     return true
 end
 
+function NinjaLineages.Utils.Inventory.addItemToPlayer(player, item)
+    if not player or not item then return nil end
+    local inv = player:getInventory()
+    if not inv then return nil end
+    local addedItem = inv:AddItem(item)
+    local actualItem = addedItem or item
+    if NinjaLineages.isServer() then
+        pcall(function() sendAddItemToContainer(inv, actualItem) end)
+        if actualItem and actualItem.sendItemModData then
+            pcall(function() actualItem:sendItemModData() end)
+        end
+        if sendItemStats then
+            pcall(function() sendItemStats(actualItem) end)
+        end
+    end
+    pcall(function() inv:setDrawDirty(true) end)
+    return actualItem
+end
+
 
 -- 2. Time Helpers
 NinjaLineages.Utils.Time = NinjaLineages.Utils.Time or {}

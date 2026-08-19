@@ -37,10 +37,7 @@ function SurgeryServer.removeEye(doctor, patient, eyeSlot)
             local typeName = eyeType == "sharingan" and getText("UI_NL_Ability_Sharingan_Name")
                 or (eyeType == "byakugan" and getText("UI_NL_Ability_Byakugan_Name") or getText("UI_NL_Eye_Rinnegan"))
             item:setName(getText("UI_item_NL_OcularTissueSample") .. " (" .. typeName .. ")")
-            doctor:getInventory():AddItem(item)
-            if NinjaLineages.isServer() then
-                pcall(function() sendAddItemToContainer(doctor:getInventory(), item) end)
-            end
+            NinjaLineages.Utils.Inventory.addItemToPlayer(doctor, item)
         end
     end
 

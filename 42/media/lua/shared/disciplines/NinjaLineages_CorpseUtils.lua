@@ -32,18 +32,23 @@ function CorpseUtils.getCorpseFromIdentifier(args)
         if zombies then
             for i = 0, zombies:size() - 1 do
                 local z = zombies:get(i)
-                if z and z:getOnlineID() == args.zombieId then
+                if z and z.getOnlineID and z:getOnlineID() == args.zombieId then
                     return z
                 end
             end
         end
-        return nil
     end
-    local sq = getCell():getGridSquare(args.x, args.y, args.z)
+    local x = math.floor(args.x or 0)
+    local y = math.floor(args.y or 0)
+    local z = math.floor(args.z or 0)
+    local sq = getCell() and getCell():getGridSquare(x, y, z)
     if not sq then return nil end
     local deadBodies = sq:getDeadBodys()
-    if deadBodies and args.index >= 0 and args.index < deadBodies:size() then
-        return deadBodies:get(args.index)
+    if deadBodies and deadBodies:size() > 0 then
+        if args.index and args.index >= 0 and args.index < deadBodies:size() then
+            return deadBodies:get(args.index)
+        end
+        return deadBodies:get(0)
     end
     return nil
 end
