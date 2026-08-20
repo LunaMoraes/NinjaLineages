@@ -338,6 +338,11 @@ function Runtime.createProjectile(config)
         speed = speed,
         damagePayload = config.damagePayload or {},
         collisionMask = config.collisionMask or NinjaLineages.Collision.Masks.jutsu_projectile,
+        spatialCollision = config.spatialCollision == true,
+        playerCollision = config.playerCollision == true,
+        hitRadius = config.hitRadius or 0.65,
+        isHostileNPC = config.isHostileNPC == true,
+        meta = config.meta or {},
         createdAtGameMinutes = now,
         lastTickGameMinutes = now,
         expiresAtGameMinutes = now + (maximumTravelDistance / speed),
@@ -363,6 +368,93 @@ end
 
 function Runtime.removeProjectile(projectileId)
     Runtime.projectiles[projectileId] = nil
+end
+
+function Runtime.removeProjectilesByMeta(key, value)
+    if not key or value == nil then return end
+    for id, p in pairs(Runtime.projectiles) do
+        if p.meta and p.meta[key] == value then
+            Runtime.projectiles[id] = nil
+        end
+    end
+end
+
+local function forEachCandidatePlayer(callback)
+    if getOnlinePlayers then
+        local players = getOnlinePlayers()
+        if players then
+            for i = 0, players:size() - 1 do
+                local player = players:get(i)
+                if player then callback(player) end
+            end
+            return
+        end
+    end
+    if getNumActivePlayers and getSpecificPlayer then
+        for i = 0, getNumActivePlayers() - 1 do
+            local player = getSpecificPlayer(i)
+            if player then callback(player) end
+        end
+    end
+end
+
+local function findSpatialPlayerCollision(x1, y1, z1, x2, y2, z2, hitRadius, caster)
+    local segDx = x2 - x1
+    local segDy = y2 - y1
+    local segLenSq = segDx * segDx + segDy * segDy
+    local hitRad = hitRadius or 0.65
+    local bestPlayer = nil
+    local bestT = 1.01
+    local bestDistAlong = nil
+    local bestHitX, bestHitY = nil, nil
+
+    forEachCandidatePlayer(function(player)
+        if player and not (player.isDead and player:isDead()) then
+            if not (player.isGhostMode and player:isGhostMode()) then
+                if player ~= caster then
+                    local pZ = player:getZ()
+                    if math.abs(pZ - z1) < 1.0 then
+                        local px = player:getX()
+                        local py = player:getY()
+
+                        local t = 0
+                        if segLenSq > 0.0001 then
+                            t = ((px - x1) * segDx + (py - y1) * segDy) / segLenSq
+                            t = math.max(0, math.min(1, t))
+                        end
+
+                        local closestX = x1 + t * segDx
+                        local closestY = y1 + t * segDy
+                        local offX = px - closestX
+                        local offY = py - closestY
+                        local distSq = offX * offX + offY * offY
+
+                        if distSq <= (hitRad * hitRad) then
+                            if t < bestT then
+                                bestT = t
+                                bestPlayer = player
+                                bestDistAlong = math.sqrt(segLenSq) * t
+                                bestHitX = closestX
+                                bestHitY = closestY
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    if bestPlayer then
+        return {
+            player = bestPlayer,
+            t = bestT,
+            distance = bestDistAlong,
+            x = bestHitX,
+            y = bestHitY,
+            z = z1,
+        }
+    end
+    return nil
 end
 
 local function handleCollision(projectile, collision, caster)
@@ -460,7 +552,45 @@ function Runtime.update()
                     projectile.currentZ,
                     projectile.collisionMask
                 )
+
+                local wallDistance = nil
                 if collision then
+                    local wdx = collision.x - projectile.currentX
+                    local wdy = collision.y - projectile.currentY
+                    wallDistance = math.sqrt(wdx * wdx + wdy * wdy)
+                end
+
+                local playerHit = nil
+                if projectile.spatialCollision or projectile.playerCollision then
+                    playerHit = findSpatialPlayerCollision(
+                        projectile.currentX,
+                        projectile.currentY,
+                        projectile.currentZ,
+                        nextX,
+                        nextY,
+                        projectile.currentZ,
+                        projectile.hitRadius,
+                        resolveCaster(projectile)
+                    )
+                end
+
+                if playerHit and (not wallDistance or playerHit.distance < wallDistance) then
+                    local hitPlayer = playerHit.player
+                    local payload = projectile.damagePayload or {}
+                    if projectile.isHostileNPC or payload.isHostileNPC then
+                        NinjaLineages.Damage.applyHostileDamage(resolveCaster(projectile), hitPlayer, payload)
+                    else
+                        NinjaLineages.Damage.applyPlayerDamage(resolveCaster(projectile), hitPlayer, payload)
+                    end
+                    finish(
+                        projectile,
+                        "hit_player",
+                        playerHit.x,
+                        playerHit.y,
+                        playerHit.z,
+                        toRemove
+                    )
+                elseif collision then
                     handleCollision(projectile, collision, resolveCaster(projectile))
                     finish(
                         projectile,
@@ -474,7 +604,16 @@ function Runtime.update()
                     projectile.currentX = projectile.targetX
                     projectile.currentY = projectile.targetY
 
-                    if targetObject and not targetObject:isDead() then
+                    if projectile.spatialCollision or projectile.playerCollision then
+                        finish(
+                            projectile,
+                            "expired",
+                            projectile.currentX,
+                            projectile.currentY,
+                            projectile.currentZ,
+                            toRemove
+                        )
+                    elseif targetObject and not targetObject:isDead() then
                         local healthBefore = readHealth(targetObject)
                         NinjaLineages.Damage.applyTargetDamageAndControl(
                             resolveCaster(projectile),

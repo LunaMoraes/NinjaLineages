@@ -222,6 +222,11 @@ function Server.resetRegistryDebug(force)
         return false, "not_debug"
     end
 
+    if NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.hasActiveBosses and NinjaLineages.BijuuBossServer.hasActiveBosses() then
+        log("debug reset rejected: active bijuu boss runtimes exist")
+        return false, "active_boss_exists"
+    end
+
     Server.ensureState()
     for _, id in ipairs(Definitions.Order) do
         state.bijuu[id] = {

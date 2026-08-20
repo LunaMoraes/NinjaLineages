@@ -10,9 +10,14 @@ local Renderer = NinjaLineages.BijuuRenderer
 local Boss = NinjaLineages.BijuuBoss
 
 local activeShells = {}
+local activeTelegraphs = {}
 
 function Renderer.getActiveShells()
     return activeShells
+end
+
+function Renderer.getActiveTelegraphs()
+    return activeTelegraphs
 end
 
 function Renderer.addShell(payload)
@@ -38,8 +43,31 @@ function Renderer.removeShell(payload)
     end
 end
 
+function Renderer.addTelegraph(payload)
+    if not payload or not payload.volleyId or not payload.trajectories then return end
+
+    local color = Boss.getThemeColor(payload.bijuuId)
+    activeTelegraphs[payload.volleyId] = {
+        volleyId = payload.volleyId,
+        bijuuId = payload.bijuuId,
+        runtimeId = payload.runtimeId,
+        startedAtGameMinutes = payload.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
+        endsAtGameMinutes = payload.endsAtGameMinutes or (NinjaLineages.Utils.Time.gameMinutes() + 0.05),
+        trajectories = payload.trajectories,
+        color = color,
+    }
+end
+
+function Renderer.removeTelegraph(payload)
+    if not payload or not payload.volleyId then return end
+    if activeTelegraphs[payload.volleyId] then
+        activeTelegraphs[payload.volleyId] = nil
+    end
+end
+
 function Renderer.clearAllShells()
     activeShells = {}
+    activeTelegraphs = {}
 end
 
 local function renderIsoCircleSafe(x, y, z, radius, segments, thickness, r, g, b, alpha)
@@ -168,10 +196,52 @@ function Renderer.renderShell(shell, nowGameMinutes)
     end
 end
 
+function Renderer.renderTelegraph(telegraph, nowGameMinutes)
+    if not telegraph or not telegraph.trajectories then return end
+
+    local color = telegraph.color or { r = 1.0, g = 0.2, b = 0.1 }
+    local r, g, b = color.r, color.g, color.b
+
+    -- Pulsing danger alpha
+    local pulse = 0.65 + 0.35 * math.sin(nowGameMinutes * 90.0)
+    local alpha = math.max(0.2, math.min(1.0, 0.75 * pulse))
+
+    for _, traj in ipairs(telegraph.trajectories) do
+        local oX = traj.originX
+        local oY = traj.originY
+        local oZ = (traj.originZ or 0) + 0.05
+        local dX = traj.destinationX
+        local dY = traj.destinationY
+        local dZ = (traj.destinationZ or 0) + 0.05
+
+        -- Draw telegraphed fixed-path lane
+        renderIsoLineSafe(oX, oY, oZ, dX, dY, dZ, 3.5, r, g, b, alpha)
+        -- Draw endpoint warning circle
+        renderIsoCircleSafe(dX, dY, dZ, 0.6, 16, 2.0, r, g, b, alpha * 0.8)
+    end
+end
+
 function Renderer.renderAll(nowGameMinutes)
-    if not activeShells then return end
-    for runtimeId, shell in pairs(activeShells) do
-        Renderer.renderShell(shell, nowGameMinutes)
+    -- 1. Render all active Bijū giant shells
+    if activeShells then
+        for _, shell in pairs(activeShells) do
+            Renderer.renderShell(shell, nowGameMinutes)
+        end
+    end
+
+    -- 2. Render all active telegraph threat lanes
+    if activeTelegraphs then
+        local expiredTelegraphs = {}
+        for volleyId, telegraph in pairs(activeTelegraphs) do
+            if nowGameMinutes >= telegraph.endsAtGameMinutes then
+                table.insert(expiredTelegraphs, volleyId)
+            else
+                Renderer.renderTelegraph(telegraph, nowGameMinutes)
+            end
+        end
+        for _, vId in ipairs(expiredTelegraphs) do
+            activeTelegraphs[vId] = nil
+        end
     end
 end
 
@@ -186,6 +256,10 @@ local function onServerCommand(module, command, args)
         Renderer.addShell(args)
     elseif command == "bijuuShellRemoved" then
         Renderer.removeShell(args)
+    elseif command == "bijuuTelegraphStarted" then
+        Renderer.addTelegraph(args)
+    elseif command == "bijuuTelegraphEnded" then
+        Renderer.removeTelegraph(args)
     elseif command == "bijuuActiveShellsSync" then
         Renderer.clearAllShells()
         if type(args) == "table" then

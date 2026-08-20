@@ -656,7 +656,47 @@ NinjaLineages.Balance.Jinchuuriki.BossShell = {
     -- Debug spawn configuration
     SPAWN_DISTANCE = 4.0,      -- Distance in front of player for debug spawn
 
-    -- Multi-proxy fallback offsets (if native setWidth probe proves insufficient)
-    MULTI_PROXY_RADIUS = 1.6,  -- Offset radius for secondary hit proxies
+    -- Multi-proxy satellite grid offsets (360-degree perimeter reach)
+    SATELLITE_RADIUS_CARDINAL = 1.2,
+    SATELLITE_RADIUS_DIAGONAL = 0.9,
 }
+
+NinjaLineages.Balance.Jinchuuriki.BossCombat = {
+    -- Health scaling
+    HEALTH_1_TAIL = 500.0,
+    HEALTH_9_TAIL = 2000.0,
+
+    -- Encounter & aggro ranges
+    ACQUISITION_RADIUS = 20.0, -- Max radius to acquire or maintain target (world tiles)
+    ATTACK_RANGE = 14.0,       -- Max range to initiate volley attack (world tiles)
+    PREFERRED_DISTANCE = 5.0,  -- Ideal pursuit distance (world tiles)
+
+    -- Projectile flight & hitbox
+    PROJECTILE_RANGE = 18.0,   -- Travel distance before expiring (world tiles)
+    PROJECTILE_SPEED = 28.0,   -- Travel speed in tiles per game minute
+    PROJECTILE_HIT_RADIUS = 0.65, -- Point-to-segment collision radius (world tiles)
+
+    -- Damage scaling
+    DAMAGE_1_TAIL = 18.0,      -- Base per-projectile damage at 1-tail
+    DAMAGE_9_TAIL = 35.0,      -- Base per-projectile damage at 9-tails
+
+    -- Volley trajectory fan configuration
+    FAN_STEP_RADIANS = math.rad(9.0), -- 9 degrees angular spread per trajectory lane
+
+    -- Telegraph duration (game minutes)
+    TELEGRAPH_1_TAIL_MINUTES = 0.08, -- ~3.2s real time
+    TELEGRAPH_9_TAIL_MINUTES = 0.04, -- ~1.6s real time
+
+    -- Sequential volley inter-shot interval (game minutes)
+    SHOT_INTERVAL_1_TAIL_MINUTES = 0.02,
+    SHOT_INTERVAL_9_TAIL_MINUTES = 0.006,
+
+    -- Attack cooldown (game minutes)
+    COOLDOWN_1_TAIL_MINUTES = 0.12,
+    COOLDOWN_9_TAIL_MINUTES = 0.06,
+
+    -- Pathfinding repath throttle (game minutes)
+    REPATH_INTERVAL_MINUTES = 0.02,
+}
+
 

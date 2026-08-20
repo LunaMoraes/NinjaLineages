@@ -50,6 +50,48 @@ function NinjaLineages.Damage.applyZombieDamage(caster, zombie, damage)
     end
 end
 
+local function mutatePlayerBodyDamage(caster, targetPlayer, damage)
+    local bodyDamage = targetPlayer:getBodyDamage()
+    local parts = bodyDamage and bodyDamage:getBodyParts()
+    if damage <= 0 or not parts or parts:size() <= 0 then
+        return false, { reason = "invalid_damage" }
+    end
+
+    local partIndex = ZombRand(parts:size())
+    local bodyPart = parts:get(partIndex)
+    local healthBefore = safeRead(function() return bodyPart:getHealth() end, nil)
+    local applied = pcall(function() bodyPart:AddDamage(damage) end)
+    if not applied then return false, { reason = "body_part_damage_failed" } end
+
+    pcall(function() targetPlayer:setAttackedBy(caster) end)
+    pcall(function() bodyDamage:calculateOverallHealth() end)
+    local syncMask = BodyPartSyncPacket and BodyPartSyncPacket.BD_Health or 0x1
+    local synced = syncPart(bodyPart, syncMask)
+    local healthAfter = safeRead(function() return bodyPart:getHealth() end, nil)
+    notifyDamagePresentation(caster, targetPlayer, damage)
+
+    local result = {
+        bodyPartIndex = partIndex,
+        bodyPartType = safeRead(function() return tostring(bodyPart:getType()) end, "unknown"),
+        damage = damage,
+        healthBefore = healthBefore,
+        healthAfter = healthAfter,
+        synced = synced,
+    }
+    debugLog(string.format(
+        "APPLIED caster=%s target=%s part=%s index=%d damage=%.3f before=%s after=%s synced=%s",
+        tostring(safeRead(function() return caster and caster.getUsername and caster:getUsername() or caster end, "unknown")),
+        tostring(safeRead(function() return targetPlayer:getUsername() end, "unknown")),
+        tostring(result.bodyPartType),
+        partIndex,
+        damage,
+        tostring(healthBefore),
+        tostring(healthAfter),
+        tostring(synced)
+    ))
+    return true, result
+end
+
 function NinjaLineages.Damage.applyPlayerDamage(caster, targetPlayer, payload)
     if NinjaLineages.isClient() and not NinjaLineages.isServer() then
         return false, { reason = "client_not_authoritative" }
@@ -82,9 +124,7 @@ function NinjaLineages.Damage.applyPlayerDamage(caster, targetPlayer, payload)
     end
 
     local damage = math.max(0, tonumber(payload and payload.damage) or 0)
-    local bodyDamage = targetPlayer:getBodyDamage()
-    local parts = bodyDamage and bodyDamage:getBodyParts()
-    if damage <= 0 or not parts or parts:size() <= 0 then
+    if damage <= 0 then
         return false, { reason = "invalid_damage" }
     end
 
@@ -95,39 +135,28 @@ function NinjaLineages.Damage.applyPlayerDamage(caster, targetPlayer, payload)
         return false, { reason = reason }
     end
 
-    local partIndex = ZombRand(parts:size())
-    local bodyPart = parts:get(partIndex)
-    local healthBefore = safeRead(function() return bodyPart:getHealth() end, nil)
-    local applied = pcall(function() bodyPart:AddDamage(damage) end)
-    if not applied then return false, { reason = "body_part_damage_failed" } end
+    return mutatePlayerBodyDamage(caster, targetPlayer, damage)
+end
 
-    pcall(function() targetPlayer:setAttackedBy(caster) end)
-    pcall(function() bodyDamage:calculateOverallHealth() end)
-    local syncMask = BodyPartSyncPacket and BodyPartSyncPacket.BD_Health or 0x1
-    local synced = syncPart(bodyPart, syncMask)
-    local healthAfter = safeRead(function() return bodyPart:getHealth() end, nil)
-    notifyDamagePresentation(caster, targetPlayer, damage)
+function NinjaLineages.Damage.applyHostileDamage(caster, targetPlayer, payload)
+    if NinjaLineages.isClient() and not NinjaLineages.isServer() then
+        return false, { reason = "client_not_authoritative" }
+    end
 
-    local result = {
-        bodyPartIndex = partIndex,
-        bodyPartType = safeRead(function() return tostring(bodyPart:getType()) end, "unknown"),
-        damage = damage,
-        healthBefore = healthBefore,
-        healthAfter = healthAfter,
-        synced = synced,
-    }
-    debugLog(string.format(
-        "APPLIED caster=%s target=%s part=%s index=%d damage=%.3f before=%s after=%s synced=%s",
-        tostring(safeRead(function() return caster:getUsername() end, "unknown")),
-        tostring(safeRead(function() return targetPlayer:getUsername() end, "unknown")),
-        tostring(result.bodyPartType),
-        partIndex,
-        damage,
-        tostring(healthBefore),
-        tostring(healthAfter),
-        tostring(synced)
-    ))
-    return true, result
+    if not targetPlayer or (targetPlayer.isDead and targetPlayer:isDead()) then
+        return false, { reason = "target_dead" }
+    end
+
+    if targetPlayer.isGhostMode and targetPlayer:isGhostMode() then
+        return false, { reason = "ghost_mode" }
+    end
+
+    local damage = math.max(0, tonumber(payload and payload.damage) or 0)
+    if damage <= 0 then
+        return false, { reason = "invalid_damage" }
+    end
+
+    return mutatePlayerBodyDamage(caster, targetPlayer, damage)
 end
 
 function NinjaLineages.Damage.applyBarrierDamage(caster, barrier, payload)
@@ -143,7 +172,7 @@ function NinjaLineages.Damage.applyControlToTarget(caster, target, controlTier)
 
     if target.kind == "zombie" then
         NinjaLineages.Utils.Combat.applyControlTier(target.object, controlTier)
-    elseif target.kind == "player" then
+    elseif target.kind == "player" or target.kind == "hostile_player" then
     end
 end
 
@@ -155,6 +184,8 @@ function NinjaLineages.Damage.applyTargetDamage(caster, target, payload)
         if target.object:isDead() then return false end
         NinjaLineages.Damage.applyZombieDamage(caster, target.object, payload.damage or 0)
         return true
+    elseif target.kind == "hostile_player" or (payload and payload.isHostileNPC) then
+        return NinjaLineages.Damage.applyHostileDamage(caster, target.object, payload)
     elseif target.kind == "player" then
         return NinjaLineages.Damage.applyPlayerDamage(caster, target.object, payload)
     elseif target.kind == "barrier" then
