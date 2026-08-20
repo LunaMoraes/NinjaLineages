@@ -569,5 +569,18 @@
     "UI_NL_Zombie_Dash_Speech": "..dAaaSh..",
     "UI_NL_Zombie_KillingIntent_Speech": "..kILlInG iNtEnT..",
     "UI_NL_Zombie_Substitution_Speech": "..sUbStItUtIoN..",
-    "UI_NL_Zombie_Snare_Speech": "..sNaRe.."
+    "UI_NL_Zombie_Snare_Speech": "..sNaRe..",
+    "UI_NL_Bijuu_Shukaku": "Shukaku",
+    "UI_NL_Bijuu_Matatabi": "Matatabi",
+    "UI_NL_Bijuu_Isobu": "Isobu",
+    "UI_NL_Bijuu_SonGoku": "Son Gokū",
+    "UI_NL_Bijuu_Kokuo": "Kokuō",
+    "UI_NL_Bijuu_Saiken": "Saiken",
+    "UI_NL_Bijuu_Chomei": "Chōmei",
+    "UI_NL_Bijuu_Gyuki": "Gyūki",
+    "UI_NL_Bijuu_Kurama": "Kurama",
+    "UI_NL_Debug_DumpBijuu": "Debug: Dump Bijū Registry",
+    "UI_NL_Debug_ResetBijuu": "Debug: Reset Bijū Registry",
+    "UI_NL_Debug_BijuuDumped": "Bijū registry dumped to console.",
+    "UI_NL_Debug_BijuuReset": "Bijū registry reset to initial canonical state."
 }

@@ -21,6 +21,7 @@ require "NinjaLineages_JutsuTreeUI"
 require "NinjaLineages_GeneExperimentationClient"
 require "NinjaLineages_BloodTransfusionClient"
 require "NinjaLineages_ZombieNinjaClient"
+require "disciplines/jinchuuriki/NinjaLineages_BijuuState"
 require "NinjaLineages_VFX"
 
 -- Load modular lineages (dynamic registries)
@@ -247,6 +248,26 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         debugSubMenu:addOption("Debug: Spawn Bingo Book & Wanted", player, function(p)
             NinjaLineages.Social.request(p, "socialDebugWanted", {})
         end)
+
+        -- 8. Dump Bijū Registry
+        debugSubMenu:addOption(getText("UI_NL_Debug_DumpBijuu"), player, function(p)
+            if NinjaLineages.BijuuState and NinjaLineages.BijuuState.requestDebugDump then
+                local requested = NinjaLineages.BijuuState.requestDebugDump(p)
+                if requested and not NinjaLineages.isClient() then
+                    p:Say(getText("UI_NL_Debug_BijuuDumped"))
+                end
+            end
+        end)
+
+        -- 9. Reset Bijū Registry
+        debugSubMenu:addOption(getText("UI_NL_Debug_ResetBijuu"), player, function(p)
+            if NinjaLineages.BijuuState and NinjaLineages.BijuuState.requestDebugReset then
+                local requested = NinjaLineages.BijuuState.requestDebugReset(p)
+                if requested and not NinjaLineages.isClient() then
+                    p:Say(getText("UI_NL_Debug_BijuuReset"))
+                end
+            end
+        end)
     end
 end
 
@@ -297,6 +318,10 @@ local function onDebugServerCommand(module, command, args)
                 ui:refreshDisciplineState()
             end
         end
+    elseif args.action == "bijuuDump" then
+        player:Say(getText("UI_NL_Debug_BijuuDumped"))
+    elseif args.action == "bijuuReset" then
+        player:Say(getText("UI_NL_Debug_BijuuReset"))
     end
 end
 

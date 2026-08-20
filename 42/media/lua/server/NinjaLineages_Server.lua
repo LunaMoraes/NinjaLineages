@@ -9,6 +9,7 @@ require "NinjaLineages_ZombieNinjaServer"
 require "NinjaLineages_ExperimentalSurgeryServer"
 require "NinjaLineages_SocialServer"
 require "NinjaLineages_MissionServer"
+require "jinchuuriki/NinjaLineages_BijuuRegistryServer"
 require "lineages/NinjaLineages_UchihaPassives"
 
 local function handleAbilityRequest(player, args)
