@@ -32,10 +32,10 @@ local function getWildConfig()
     }
 end
 
-function SpawnServer.isValidFootprint(x, y, z)
-    if (tonumber(z) or 0) ~= 0 then return false end
+function SpawnServer.checkFootprintState(x, y, z)
+    if (tonumber(z) or 0) ~= 0 then return "INVALID" end
     local cell = getCell()
-    if not cell then return true end
+    if not cell then return "UNLOADED" end
 
     local cfg = getWildConfig()
     local radius = cfg.FOOTPRINT_RADIUS or 2.5
@@ -52,70 +52,135 @@ function SpawnServer.isValidFootprint(x, y, z)
         { x = radius * 0.7, y = radius * 0.7 },
     }
 
+    local hasUnloaded = false
     for _, off in ipairs(sampleOffsets) do
         local checkX = math.floor(x + off.x)
         local checkY = math.floor(y + off.y)
         local sq = cell:getGridSquare(checkX, checkY, 0)
-        if sq then
-            if sq.getRoom and sq:getRoom() ~= nil then return false end
-            if sq.getBuilding and sq:getBuilding() ~= nil then return false end
-            if sq.isSolid and sq:isSolid() then return false end
-            if sq.isSolidTrans and sq:isSolidTrans() then return false end
-            if sq.getProperties and sq:getProperties():Is(IsoFlagType.water) then return false end
-            if sq.testCollideSpecialObjects and sq:testCollideSpecialObjects(nil) then return false end
+        if not sq then
+            hasUnloaded = true
+        else
+            if sq.getRoom and sq:getRoom() ~= nil then return "INVALID" end
+            if sq.getBuilding and sq:getBuilding() ~= nil then return "INVALID" end
+            if sq.isSolid and sq:isSolid() then return "INVALID" end
+            if sq.isSolidTrans and sq:isSolidTrans() then return "INVALID" end
+            if sq.getProperties and sq:getProperties():Is(IsoFlagType.water) then return "INVALID" end
+            if sq.testCollideSpecialObjects and sq:testCollideSpecialObjects(nil) then return "INVALID" end
         end
     end
 
-    return true
+    if hasUnloaded then
+        return "UNLOADED"
+    end
+
+    return "VALID"
+end
+
+function SpawnServer.isValidFootprint(x, y, z)
+    return SpawnServer.checkFootprintState(x, y, z) == "VALID"
+end
+
+function SpawnServer.findValidWildLocation(bijuuId, options)
+    options = options or {}
+    local minDistance = options.minDistance or 0
+    local previousPos = options.previousPos
+    local cfg = getWildConfig()
+
+    local primaryRegionId = cfg.BIJUU_REGION_MAP and cfg.BIJUU_REGION_MAP[bijuuId]
+    local regionList = {}
+
+    if primaryRegionId and cfg.REGIONS and cfg.REGIONS[primaryRegionId] then
+        table.insert(regionList, cfg.REGIONS[primaryRegionId])
+    end
+
+    if options.allowOtherRegions and cfg.REGIONS then
+        for rId, reg in pairs(cfg.REGIONS) do
+            if rId ~= primaryRegionId then
+                table.insert(regionList, reg)
+            end
+        end
+    end
+
+    if #regionList == 0 then
+        return nil, "no_regions_available"
+    end
+
+    local fallbackCandidate = nil
+
+    for _, region in ipairs(regionList) do
+        local startX = region.defaultX or math.floor((region.minX + region.maxX) / 2)
+        local startY = region.defaultY or math.floor((region.minY + region.maxY) / 2)
+
+        -- Search candidate points with jitter steps
+        for step = 0, 40, 5 do
+            for dx = -step, step, 5 do
+                for dy = -step, step, 5 do
+                    local candX = startX + dx
+                    local candY = startY + dy
+                    if candX >= region.minX and candX <= region.maxX and candY >= region.minY and candY <= region.maxY then
+                        local distOk = true
+                        if previousPos and minDistance > 0 then
+                            local dX = candX - previousPos.x
+                            local dY = candY - previousPos.y
+                            if math.sqrt(dX * dX + dY * dY) < minDistance then
+                                distOk = false
+                            end
+                        end
+
+                        if distOk then
+                            local st = SpawnServer.checkFootprintState(candX, candY, 0)
+                            if st == "VALID" then
+                                return {
+                                    x = candX,
+                                    y = candY,
+                                    z = 0,
+                                    regionId = region.id or "wilderness_unknown",
+                                    verified = true,
+                                }, "ok"
+                            elseif st == "UNLOADED" and not fallbackCandidate then
+                                fallbackCandidate = {
+                                    x = candX,
+                                    y = candY,
+                                    z = 0,
+                                    regionId = region.id or "wilderness_unknown",
+                                    verified = false,
+                                }
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if fallbackCandidate then
+        return fallbackCandidate, "unloaded_region_candidate"
+    end
+
+    return nil, "no_valid_location_found"
 end
 
 function SpawnServer.assignMissingWildLocations()
     local wildIds = Registry.getWildBijuuIds()
-    local cfg = getWildConfig()
     local assignedCount = 0
 
     for _, bijuuId in ipairs(wildIds) do
         local record = Registry.getRecord(bijuuId)
         if record and record.state == BijuuState.WILD_DORMANT and not record.world then
-            local regionId = cfg.BIJUU_REGION_MAP and cfg.BIJUU_REGION_MAP[bijuuId]
-            local region = regionId and cfg.REGIONS and cfg.REGIONS[regionId]
+            local loc, rsn = SpawnServer.findValidWildLocation(bijuuId)
+            if loc then
+                local okPatch, patchRsn = Registry.patch(bijuuId, BijuuState.WILD_DORMANT, {
+                    world = loc,
+                }, "initial_wild_placement")
 
-            local posX = region and region.defaultX or 10000
-            local posY = region and region.defaultY or 10000
-
-            if not SpawnServer.isValidFootprint(posX, posY, 0) and region then
-                -- Bounded jitter search for a clear exterior square
-                local found = false
-                for dx = -20, 20, 5 do
-                    for dy = -20, 20, 5 do
-                        local candX = posX + dx
-                        local candY = posY + dy
-                        if candX >= region.minX and candX <= region.maxX and candY >= region.minY and candY <= region.maxY then
-                            if SpawnServer.isValidFootprint(candX, candY, 0) then
-                                posX, posY = candX, candY
-                                found = true
-                                break
-                            end
-                        end
-                    end
-                    if found then break end
+                if okPatch then
+                    assignedCount = assignedCount + 1
+                    log("assigned wild location for " .. tostring(bijuuId) .. " at (" .. tostring(loc.x) .. "," .. tostring(loc.y) .. ",0) in " .. tostring(loc.regionId) .. " verified=" .. tostring(loc.verified))
+                else
+                    log("failed to patch wild location for " .. tostring(bijuuId) .. ": " .. tostring(patchRsn))
                 end
-            end
-
-            local okPatch, rsn = Registry.patch(bijuuId, BijuuState.WILD_DORMANT, {
-                world = {
-                    x = posX,
-                    y = posY,
-                    z = 0,
-                    regionId = regionId or "wilderness_unknown",
-                }
-            }, "initial_wild_placement")
-
-            if okPatch then
-                assignedCount = assignedCount + 1
-                log("assigned wild location for " .. tostring(bijuuId) .. " at (" .. tostring(posX) .. "," .. tostring(posY) .. ",0) in " .. tostring(regionId))
             else
-                log("failed to assign wild location for " .. tostring(bijuuId) .. ": " .. tostring(rsn))
+                log("failed to find wild location candidate for " .. tostring(bijuuId) .. ": " .. tostring(rsn))
             end
         end
     end
@@ -140,9 +205,39 @@ function SpawnServer.tryMaterializeWildBijuu(bijuuId)
     local wy = record.world.y
     local wz = record.world.z or 0
 
-    if not SpawnServer.isValidFootprint(wx, wy, wz) then
-        log("rejected wild materialize: invalid footprint at (" .. tostring(wx) .. "," .. tostring(wy) .. "," .. tostring(wz) .. ")")
-        return false, "invalid_footprint"
+    local fpState = SpawnServer.checkFootprintState(wx, wy, wz)
+    if fpState == "UNLOADED" then
+        return false, "chunk_not_loaded"
+    end
+
+    if fpState == "INVALID" then
+        -- Attempt local jitter search in loaded cell (+-10 tiles, step 2) for an adjacent clear square
+        local resolved = false
+        for dx = -10, 10, 2 do
+            for dy = -10, 10, 2 do
+                if SpawnServer.checkFootprintState(wx + dx, wy + dy, 0) == "VALID" then
+                    wx = wx + dx
+                    wy = wy + dy
+                    resolved = true
+                    Registry.patch(bijuuId, BijuuState.WILD_DORMANT, {
+                        world = {
+                            x = wx,
+                            y = wy,
+                            z = 0,
+                            regionId = record.world.regionId,
+                            verified = true,
+                        }
+                    }, "relocated_to_valid_loaded_footprint")
+                    break
+                end
+            end
+            if resolved then break end
+        end
+
+        if not resolved then
+            log("rejected wild materialize for " .. tostring(bijuuId) .. ": invalid loaded footprint at (" .. tostring(wx) .. "," .. tostring(wy) .. ")")
+            return false, "invalid_footprint"
+        end
     end
 
     -- 1. Atomically transition WILD_DORMANT -> WILD_ACTIVE

@@ -754,4 +754,11 @@ NinjaLineages.Balance.Jinchuuriki.WildSpawn = {
     },
 }
 
+NinjaLineages.Balance.Jinchuuriki.Release = {
+    ZOMBIE_NINJA_REVEAL_CHANCE = 0.01,       -- 1% base reveal chance on Zombie Ninja death
+    RESPAWN_MIN_DISTANCE_FROM_DEATH = 350.0, -- Minimum tile separation for wild beast respawn (world tiles)
+    CORPSE_SUPPRESSION_TIMEOUT_MINUTES = 0.5, -- Window to match and suppress corpse after reveal
+    MELEE_SWING_MIN_INTERVAL_GAME_MINUTES = 0.005, -- Throttling to deduplicate melee swing hits (~360ms)
+}
+
 

@@ -242,6 +242,18 @@ function Server.getWildBijuuIds()
     return result
 end
 
+function Server.getHostPoolBijuuIds()
+    Server.ensureState()
+    local result = {}
+    for _, id in ipairs(Definitions.Order) do
+        local rec = getRecordInternal(id)
+        if rec and rec.state == BijuuState.HOST_POOL then
+            table.insert(result, id)
+        end
+    end
+    return result
+end
+
 function Server.dumpRegistry()
     local current = getState()
     log("--- BIJUU REGISTRY DUMP (schema=" .. tostring(current.schemaVersion) .. ") ---")

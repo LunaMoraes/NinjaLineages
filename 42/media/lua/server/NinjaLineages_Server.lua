@@ -12,6 +12,7 @@ require "NinjaLineages_MissionServer"
 require "jinchuuriki/NinjaLineages_BijuuRegistryServer"
 require "jinchuuriki/NinjaLineages_BijuuBossServer"
 require "jinchuuriki/NinjaLineages_BijuuSpawnServer"
+require "jinchuuriki/NinjaLineages_BijuuLifecycleServer"
 require "lineages/NinjaLineages_UchihaPassives"
 
 local function handleAbilityRequest(player, args)

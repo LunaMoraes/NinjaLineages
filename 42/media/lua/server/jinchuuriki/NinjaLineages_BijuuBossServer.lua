@@ -396,10 +396,20 @@ function Server.update()
             local curHp = rootProxy.getHealth and rootProxy:getHealth() or 0
 
             if isDead or curHp <= 0 then
-                if runtime.combat and runtime.combat.phase ~= "defeated" then
-                    runtime.combat.phase = "defeated"
-                    runtime.combat.volley = nil
+                if not runtime.defeatHandled then
+                    runtime.defeatHandled = true
+                    if runtime.combat then
+                        runtime.combat.phase = "defeated"
+                        runtime.combat.volley = nil
+                    end
                     log("boss defeated bijuu=" .. tostring(bijuuId) .. " runtime=" .. tostring(runtime.runtimeId))
+                    if NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.handleBossDefeated then
+                        NinjaLineages.BijuuLifecycleServer.handleBossDefeated(bijuuId, runtime.runtimeId, {
+                            x = runtime.x or rootProxy:getX(),
+                            y = runtime.y or rootProxy:getY(),
+                            z = runtime.z or rootProxy:getZ(),
+                        })
+                    end
                 end
             else
                 local rx = rootProxy:getX()
@@ -420,8 +430,19 @@ function Server.update()
 
                 -- Combat State Machine
                 if curHp <= 0 then
-                    runtime.combat.phase = "defeated"
-                    runtime.combat.volley = nil
+                    if not runtime.defeatHandled then
+                        runtime.defeatHandled = true
+                        runtime.combat.phase = "defeated"
+                        runtime.combat.volley = nil
+                        log("boss defeated bijuu=" .. tostring(bijuuId) .. " runtime=" .. tostring(runtime.runtimeId))
+                        if NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.handleBossDefeated then
+                            NinjaLineages.BijuuLifecycleServer.handleBossDefeated(bijuuId, runtime.runtimeId, {
+                                x = rx,
+                                y = ry,
+                                z = rz,
+                            })
+                        end
+                    end
                 else
                     local tails = runtime.tails or 1
                     local targetPlayer, targetDist = selectBossTarget(runtime, rootProxy, combatCfg)
@@ -706,8 +727,15 @@ local function onClientCommand(module, command, player, args)
     if module ~= "NinjaLineages" then return end
 
     if command == "bijuuMeleeSwing" then
-        -- Perimeter Reach Compensation Hit Command
+        -- Perimeter Reach Compensation Hit Command (Authoritative & Deduplicated)
         if not player or (player.isDead and player:isDead()) then return end
+        if player.isGhostMode and player:isGhostMode() then return end
+
+        local weapon = player:getPrimaryHandItem()
+        if weapon and weapon.isRanged and weapon:isRanged() then
+            return -- reject ranged weapons
+        end
+
         local bijuuId = args and args.bijuuId
         local runtimeId = args and args.runtimeId
         local runtime = activeBosses[bijuuId]
@@ -716,18 +744,48 @@ local function onClientCommand(module, command, player, args)
         local rootProxy = runtime.proxy
         if not rootProxy or (rootProxy.isDead and rootProxy:isDead()) then return end
 
-        -- Server proximity & LOS validation
+        local now = NinjaLineages.Utils.Time.gameMinutes()
+        local minInterval = NinjaLineages.Balance and NinjaLineages.Balance.Jinchuuriki and NinjaLineages.Balance.Jinchuuriki.Release and NinjaLineages.Balance.Jinchuuriki.Release.MELEE_SWING_MIN_INTERVAL_GAME_MINUTES or 0.005
+        local pData = player:getModData()
+        local lastHitAt = pData.lastBijuuMeleeHitAt or 0
+        if (now - lastHitAt) < minInterval then
+            return -- throttled / duplicate swing
+        end
+
+        local swingId = args and args.swingId
+        if swingId and pData.lastProcessedSwingId == swingId then
+            return -- duplicate swing ID
+        end
+
+        -- Server proximity & facing validation
         local px, py, pz = player:getX(), player:getY(), player:getZ()
         local rx, ry, rz = rootProxy:getX(), rootProxy:getY(), rootProxy:getZ()
-        local dist = math.sqrt((px - rx)^2 + (py - ry)^2)
-        local weapon = player:getPrimaryHandItem()
-        local maxRange = (weapon and weapon.getMaxRange and weapon:getMaxRange(player)) or 1.5
-        local allowedReach = 1.2 + maxRange + 1.0
+        local dx = rx - px
+        local dy = ry - py
+        local dist = math.sqrt(dx * dx + dy * dy)
+
+        if dist > 0.001 then
+            local forward = player.getForwardDirection and player:getForwardDirection()
+            local fx = forward and forward:getX() or 0
+            local fy = forward and forward:getY() or 0
+            local ux = dx / dist
+            local uy = dy / dist
+            local dot = (fx * ux) + (fy * uy)
+            if dot < 0.42 then
+                return -- facing away from boss
+            end
+        end
+
+        local maxRange = (weapon and weapon.getMaxRange and weapon:getMaxRange(player)) or 1.25
+        local allowedReach = 1.2 + maxRange + 0.35
 
         if dist <= allowedReach and math.abs(pz - rz) < 1.5 then
             -- Verify LOS
             local hit = NinjaLineages.Collision.traceSegment(px, py, pz, rx, ry, rz)
             if hit == nil then
+                pData.lastBijuuMeleeHitAt = now
+                if swingId then pData.lastProcessedSwingId = swingId end
+
                 -- Invoke native engine Hit method on root zombie proxy!
                 if weapon and instanceof(weapon, "HandWeapon") then
                     pcall(function() rootProxy:Hit(weapon, player, 1.0, false, 1.0) end)

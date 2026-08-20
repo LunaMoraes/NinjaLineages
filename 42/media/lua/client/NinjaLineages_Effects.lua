@@ -352,6 +352,55 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
                 NinjaLineages.BijuuSpawnServer.debugForceReconciliation(p)
             end
         end)
+
+        -- 8.9 Force Next Zombie Ninja Reveal
+        bijuuSubMenu:addOption(getText("UI_NL_Debug_ForceZombieNinjaReveal"), player, function(p)
+            if NinjaLineages.isClient and NinjaLineages.isClient() then
+                sendClientCommand(p, "NinjaLineages", "debugForceNextZombieNinjaReveal", {})
+            elseif NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.debugForceNextZombieNinjaReveal then
+                NinjaLineages.BijuuLifecycleServer.debugForceNextZombieNinjaReveal(p)
+                p:Say("Enabled forced Zombie Ninja Bijū reveal on next death.")
+            end
+        end)
+
+        -- 8.10 Force Defeat Active Bijū
+        local defeatOption = bijuuSubMenu:addOption(getText("UI_NL_Debug_ForceDefeatBijuu"))
+        local defeatSubMenu = ISContextMenu:getNew(bijuuSubMenu)
+        bijuuSubMenu:addSubMenu(defeatOption, defeatSubMenu)
+
+        local allOrder = { "shukaku", "matatabi", "isobu", "son_goku", "kokuo", "saiken", "chomei", "gyuki", "kurama" }
+        for _, id in ipairs(allOrder) do
+            local def = NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.get(id)
+            local name = def and getText(def.nameKey) or id
+            local label = tostring(def and def.tails or "?") .. "-Tail: " .. name
+            defeatSubMenu:addOption(label, player, function(p)
+                if NinjaLineages.isClient and NinjaLineages.isClient() then
+                    sendClientCommand(p, "NinjaLineages", "debugForceDefeatActiveBoss", { bijuuId = id })
+                elseif NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.debugForceDefeatActiveBoss then
+                    local ok, reason = NinjaLineages.BijuuLifecycleServer.debugForceDefeatActiveBoss(p, id)
+                    p:Say(ok and ("Defeated active boss: " .. tostring(id)) or ("Defeat failed: " .. tostring(reason)))
+                end
+            end)
+        end
+
+        -- 8.11 Reroll Wild Bijū Location
+        local rerollOption = bijuuSubMenu:addOption(getText("UI_NL_Debug_RerollWildLocation"))
+        local rerollSubMenu = ISContextMenu:getNew(bijuuSubMenu)
+        bijuuSubMenu:addSubMenu(rerollOption, rerollSubMenu)
+
+        for _, id in ipairs(wildOrder) do
+            local def = NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.get(id)
+            local name = def and getText(def.nameKey) or id
+            local label = tostring(def and def.tails or "?") .. "-Tail: " .. name
+            rerollSubMenu:addOption(label, player, function(p)
+                if NinjaLineages.isClient and NinjaLineages.isClient() then
+                    sendClientCommand(p, "NinjaLineages", "debugRerollWildLocation", { bijuuId = id })
+                elseif NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.debugRerollWildLocation then
+                    local ok, reason, loc = NinjaLineages.BijuuLifecycleServer.debugRerollWildLocation(p, id)
+                    p:Say(ok and ("Rerolled location for " .. tostring(id)) or ("Reroll failed: " .. tostring(reason)))
+                end
+            end)
+        end
     end
 end
 

@@ -311,9 +311,11 @@ local function onWeaponSwing(player, weapon)
                 if dot >= 0.42 then
                     local hit = NinjaLineages.Collision and NinjaLineages.Collision.traceSegment(px, py, pz, bx, by, pz)
                     if hit == nil then
+                        local swingId = tostring(NinjaLineages.Utils.Time.gameMinutes()) .. "_" .. tostring(player.getOnlineID and player:getOnlineID() or 0)
                         sendClientCommand(player, "NinjaLineages", "bijuuMeleeSwing", {
                             bijuuId = shell.bijuuId,
                             runtimeId = runtimeId,
+                            swingId = swingId,
                         })
                     end
                 end
