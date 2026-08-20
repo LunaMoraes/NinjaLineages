@@ -175,7 +175,15 @@ function SpawnServer.tryMaterializeWildBijuu(bijuuId)
     return true, "ok", runtime
 end
 
+local function isServerAuthority()
+    if isClient and isClient() and not (isServer and isServer()) then
+        return false
+    end
+    return true
+end
+
 function SpawnServer.reconcileOnStartup()
+    if not isServerAuthority() then return end
     SpawnServer.assignMissingWildLocations()
 
     local wildIds = Registry.getWildBijuuIds()
@@ -200,6 +208,7 @@ function SpawnServer.reconcileOnStartup()
 end
 
 function SpawnServer.onLoadChunk(chunk)
+    if not isServerAuthority() then return end
     if not chunk then return end
     local chunkWx = chunk.wx
     local chunkWy = chunk.wy
@@ -224,6 +233,7 @@ function SpawnServer.onLoadChunk(chunk)
 end
 
 function SpawnServer.update()
+    if not isServerAuthority() then return end
     local now = NinjaLineages.Utils.Time.gameMinutes()
     local cfg = getWildConfig()
     local persistInterval = cfg.POSITION_PERSIST_INTERVAL_GAME_MINUTES or 0.5

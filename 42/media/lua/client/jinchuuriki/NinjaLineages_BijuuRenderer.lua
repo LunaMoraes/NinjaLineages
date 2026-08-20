@@ -221,7 +221,16 @@ function Renderer.renderTelegraph(telegraph, nowGameMinutes)
     end
 end
 
+local function isWorldReady()
+    if not getCell or not getCell() then return false end
+    if not getSpecificPlayer or not getSpecificPlayer(0) then return false end
+    if not IsoCamera or not IsoCamera.CamCharacter then return false end
+    return true
+end
+
 function Renderer.renderAll(nowGameMinutes)
+    if not isWorldReady() then return end
+
     -- 1. Render all active Bijū giant shells
     if activeShells then
         for _, shell in pairs(activeShells) do

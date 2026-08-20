@@ -1110,7 +1110,17 @@ local function renderSageModeAuras()
     end
 end
 
+local function isWorldReady()
+    if not getCell or not getCell() then return false end
+    if not getSpecificPlayer or not getSpecificPlayer(0) then return false end
+    if not IsoCamera or not IsoCamera.CamCharacter then return false end
+    if not GameTime or not GameTime.getInstance or not GameTime.getInstance() then return false end
+    return true
+end
+
 function VFX.renderAll()
+    if not isWorldReady() then return end
+
     local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
 
     renderStaticBeams(nowGameMinutes)
