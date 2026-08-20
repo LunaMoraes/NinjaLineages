@@ -28,6 +28,8 @@ local function copyShellPayload(payload)
         lastKnownZ = tonumber(payload.z) or 0,
         facingX = tonumber(payload.facingX) or 0,
         facingY = tonumber(payload.facingY) or 1,
+        currentHealth = tonumber(payload.currentHealth),
+        maxHealth = tonumber(payload.maxHealth),
         config = Boss.getShellConfig(payload.bijuuId),
     }
 end
@@ -41,6 +43,17 @@ function Renderer.removeShell(payload)
     if payload and payload.runtimeId then activeShells[payload.runtimeId] = nil end
 end
 
+function Renderer.updateShellHealth(payload)
+    if not payload or not payload.runtimeId then return end
+    local shell = activeShells[payload.runtimeId]
+    if not shell or (payload.bijuuId and payload.bijuuId ~= shell.bijuuId) then return end
+
+    local currentHealth = tonumber(payload.currentHealth)
+    local maxHealth = tonumber(payload.maxHealth)
+    if currentHealth then shell.currentHealth = currentHealth end
+    if maxHealth and maxHealth > 0 then shell.maxHealth = maxHealth end
+end
+
 function Renderer.addTelegraph(payload)
     if not payload or not payload.volleyId or type(payload.trajectories) ~= "table" then return end
     activeTelegraphs[payload.volleyId] = {
@@ -48,7 +61,9 @@ function Renderer.addTelegraph(payload)
         runtimeId = payload.runtimeId,
         bijuuId = payload.bijuuId,
         trajectories = payload.trajectories,
+        startedAtGameMinutes = tonumber(payload.startedAtGameMinutes) or nowGameMinutes(),
         endsAtGameMinutes = tonumber(payload.endsAtGameMinutes) or (nowGameMinutes() + 0.05),
+        projectileHitRadius = math.max(0.05, tonumber(payload.projectileHitRadius) or 0.65),
         color = Boss.getThemeColor(payload.bijuuId),
     }
 end
@@ -142,6 +157,37 @@ local function updateShellAnchor(shell)
     return proxy
 end
 
+function Renderer.getNearestActiveShell(player, maximumDistance)
+    if not player or (player.isDead and player:isDead()) then return nil end
+    local px, py, pz = player:getX(), player:getY(), player:getZ()
+    local limit = tonumber(maximumDistance) or math.huge
+    local nearest, nearestDistance = nil, limit
+
+    for _, shell in pairs(activeShells) do
+        local dx = shell.lastKnownX - px
+        local dy = shell.lastKnownY - py
+        local distance = math.sqrt(dx * dx + dy * dy)
+        if math.abs((shell.lastKnownZ or 0) - pz) < 1.5 and distance <= nearestDistance then
+            nearest = shell
+            nearestDistance = distance
+        end
+    end
+
+    if not nearest then return nil end
+    return {
+        bijuuId = nearest.bijuuId,
+        runtimeId = nearest.runtimeId,
+        x = nearest.lastKnownX,
+        y = nearest.lastKnownY,
+        z = nearest.lastKnownZ,
+        distance = nearestDistance,
+        currentHealth = nearest.currentHealth,
+        maxHealth = nearest.maxHealth,
+        nameKey = nearest.config and nearest.config.nameKey,
+        color = nearest.config and nearest.config.color,
+    }
+end
+
 local function normalizedFacing(shell)
     local fx = tonumber(shell.facingX) or 0
     local fy = tonumber(shell.facingY) or 1
@@ -165,23 +211,69 @@ local function ring(x, y, z, radius, segments, thickness, r, g, b, alpha)
     end
 end
 
-local function ellipse(cx, cy, cz, forwardX, forwardY, sideX, sideY, halfLength, halfWidth, segments, thickness, r, g, b, alpha)
-    local previousX, previousY = nil, nil
-    for step = 0, segments do
-        local angle = (step / segments) * math.pi * 2
-        local along = math.cos(angle) * halfLength
-        local across = math.sin(angle) * halfWidth
-        local x = cx + forwardX * along + sideX * across
-        local y = cy + forwardY * along + sideY * across
-        if previousX then line(previousX, previousY, cz, x, y, cz, thickness, r, g, b, alpha) end
-        previousX, previousY = x, y
+local function nearestLocalPlayerDistance(x, y, z)
+    local nearest = math.huge
+    local count = getNumActivePlayers and getNumActivePlayers() or 1
+    for playerNum = 0, count - 1 do
+        local player = getSpecificPlayer and getSpecificPlayer(playerNum)
+        if player and not (player.isDead and player:isDead())
+                and math.abs(player:getZ() - z) < 1.5 then
+            local dx = player:getX() - x
+            local dy = player:getY() - y
+            nearest = math.min(nearest, math.sqrt(dx * dx + dy * dy))
+        end
     end
+    return nearest
 end
 
-local function limb(baseX, baseY, baseZ, kneeX, kneeY, kneeZ, pawX, pawY, groundZ, r, g, b, alpha)
-    line(baseX, baseY, baseZ, kneeX, kneeY, kneeZ, 4.2, r, g, b, alpha)
-    line(kneeX, kneeY, kneeZ, pawX, pawY, groundZ + 0.08, 4.0, r, g, b, alpha)
-    ring(pawX, pawY, groundZ + 0.06, 0.25, 12, 3.0, r, g, b, alpha)
+local function sweepNode(x, y, z, width, height)
+    return { x = x, y = y, z = z, width = width, height = height }
+end
+
+-- Dense adjacent cross-sections form one closed chakra skin. This deliberately
+-- uses the same overlapping-line technique as Shinra Tensei: no centre stroke,
+-- wire cage, mesh, texture, or model sits underneath the visible surface.
+local function renderDenseSweep(nodes, quality, color, alpha)
+    if not nodes or #nodes < 2 then return end
+    local spacing = quality == "near" and 0.075 or 0.14
+    local sides = quality == "near" and 16 or 11
+    local thickness = quality == "near" and 5.5 or 6.4
+
+    for nodeIndex = 1, #nodes - 1 do
+        local first, second = nodes[nodeIndex], nodes[nodeIndex + 1]
+        local dx, dy, dz = second.x - first.x, second.y - first.y, second.z - first.z
+        local horizontalLength = math.sqrt(dx * dx + dy * dy)
+        local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+        if distance > 0.001 then
+            local sideX, sideY = 1, 0
+            if horizontalLength > 0.001 then sideX, sideY = -dy / horizontalLength, dx / horizontalLength end
+            local samples = math.max(1, math.ceil(distance / spacing))
+            for sample = 0, samples do
+                local amount = sample / samples
+                local cx = first.x + dx * amount
+                local cy = first.y + dy * amount
+                local cz = first.z + dz * amount
+                local width = first.width + (second.width - first.width) * amount
+                local height = first.height + (second.height - first.height) * amount
+                local previousX, previousY, previousZ = nil, nil, nil
+                for side = 0, sides do
+                    local angle = (side / sides) * math.pi * 2
+                    local lateral = math.cos(angle)
+                    local vertical = math.sin(angle)
+                    local px = cx + sideX * width * lateral
+                    local py = cy + sideY * width * lateral
+                    local pz = cz + height * vertical
+                    if previousX then
+                        local light = 0.70 + math.max(0, vertical) * 0.34 + math.max(0, lateral) * 0.08
+                        line(previousX, previousY, previousZ, px, py, pz, thickness,
+                            math.min(1, color.r * light), math.min(1, color.g * light),
+                            math.min(1, color.b * light), alpha)
+                    end
+                    previousX, previousY, previousZ = px, py, pz
+                end
+            end
+        end
+    end
 end
 
 local function drawBeast(shell, time)
@@ -190,43 +282,32 @@ local function drawBeast(shell, time)
     local x, y, z = shell.lastKnownX, shell.lastKnownY, shell.lastKnownZ
     local cfg = shell.config
     local color = cfg.color or { r = 1.0, g = 0.5, b = 0.1 }
-    local r, g, b = color.r, color.g, color.b
     local fx, fy, sx, sy = normalizedFacing(shell)
-    local pulse = 0.88 + math.sin(time * 72.0) * 0.08
-    local alpha = 0.88 * pulse
+    local pulse = 0.94 + math.sin(time * 72.0) * 0.04
+    local alpha = 0.72 * pulse
+    local quality = nearestLocalPlayerDistance(x, y, z) <= 26.0 and "near" or "far"
+    local breathe = math.sin(time * 42.0) * 0.035
 
-    local bodyLength = math.max(1.7, (cfg.visualRadius or 2.4) * 0.92)
-    local bodyWidth = bodyLength * 0.55
-    local bodyHeight = math.max(1.05, (cfg.visualHeight or 2.2) * 0.62)
+    local bodyLength = math.max(1.55, (cfg.visualRadius or 2.4) * 0.72)
+    local bodyWidth = bodyLength * 0.58
+    local bodyHeight = math.max(1.0, (cfg.visualHeight or 2.2) * 0.62)
     local chestX = x + fx * bodyLength * 0.34
     local chestY = y + fy * bodyLength * 0.34
     local rumpX = x - fx * bodyLength * 0.34
     local rumpY = y - fy * bodyLength * 0.34
+    local bodyCentreZ = z + bodyHeight * 0.72 + breathe
 
-    for layer = 0, 4 do
-        local t = layer / 4
-        local widthScale = 1.0 - math.abs(t - 0.45) * 0.45
-        ellipse(x, y, z + 0.38 + t * bodyHeight, fx, fy, sx, sy,
-            bodyLength, bodyWidth * widthScale, 28, 3.3, r, g, b, alpha * (0.82 + t * 0.12))
-    end
-
-    ellipse(chestX, chestY, z + bodyHeight * 0.72, fx, fy, sx, sy,
-        bodyLength * 0.48, bodyWidth * 0.84, 22, 3.6, r, g, b, alpha)
-    ellipse(rumpX, rumpY, z + bodyHeight * 0.66, fx, fy, sx, sy,
-        bodyLength * 0.48, bodyWidth * 0.90, 22, 3.6, r, g, b, alpha)
-    line(rumpX - fx * 0.35, rumpY - fy * 0.35, z + bodyHeight * 0.95,
-        chestX + fx * 0.45, chestY + fy * 0.45, z + bodyHeight * 1.12,
-        4.2, r, g, b, alpha)
-    for ribIndex = -2, 2 do
-        local along = ribIndex * bodyLength * 0.27
-        local ribX = x + fx * along
-        local ribY = y + fy * along
-        line(ribX + sx * bodyWidth * 0.82, ribY + sy * bodyWidth * 0.82, z + bodyHeight * 0.55,
-            ribX, ribY, z + bodyHeight * 1.03, 2.6, r, g, b, alpha * 0.72)
-        line(ribX, ribY, z + bodyHeight * 1.03,
-            ribX - sx * bodyWidth * 0.82, ribY - sy * bodyWidth * 0.82, z + bodyHeight * 0.55,
-            2.6, r, g, b, alpha * 0.72)
-    end
+    renderDenseSweep({
+        sweepNode(rumpX - fx * bodyLength * 0.34, rumpY - fy * bodyLength * 0.34,
+            bodyCentreZ - bodyHeight * 0.08, bodyWidth * 0.58, bodyHeight * 0.46),
+        sweepNode(rumpX, rumpY, bodyCentreZ, bodyWidth, bodyHeight * 0.61),
+        sweepNode(x - fx * bodyLength * 0.06, y - fy * bodyLength * 0.06,
+            bodyCentreZ + bodyHeight * 0.02, bodyWidth * 0.90, bodyHeight * 0.62),
+        sweepNode(chestX, chestY, bodyCentreZ + bodyHeight * 0.08,
+            bodyWidth * 0.96, bodyHeight * 0.67),
+        sweepNode(chestX + fx * bodyLength * 0.34, chestY + fy * bodyLength * 0.34,
+            bodyCentreZ + bodyHeight * 0.12, bodyWidth * 0.66, bodyHeight * 0.55),
+    }, quality, color, alpha)
 
     local frontAlong = bodyLength * 0.55
     local rearAlong = -bodyLength * 0.48
@@ -241,35 +322,73 @@ local function drawBeast(shell, time)
         local kneeY = baseY + fy * 0.18 + sy * sideSign * 0.16
         local pawX = kneeX + fx * 0.28
         local pawY = kneeY + fy * 0.28
-        limb(baseX, baseY, z + bodyHeight * 0.58,
-            kneeX, kneeY, z + bodyHeight * 0.24,
-            pawX, pawY, z, r, g, b, alpha)
+        renderDenseSweep({
+            sweepNode(baseX, baseY, z + bodyHeight * 0.72, bodyWidth * 0.29, bodyWidth * 0.28),
+            sweepNode(kneeX, kneeY, z + bodyHeight * 0.34, bodyWidth * 0.22, bodyWidth * 0.24),
+            sweepNode(pawX, pawY, z + 0.15, bodyWidth * 0.17, bodyWidth * 0.17),
+            sweepNode(pawX + fx * bodyLength * 0.22, pawY + fy * bodyLength * 0.22,
+                z + 0.12, bodyWidth * 0.23, bodyWidth * 0.10),
+            sweepNode(pawX + fx * bodyLength * 0.34, pawY + fy * bodyLength * 0.34,
+                z + 0.11, bodyWidth * 0.05, bodyWidth * 0.04),
+        }, quality, color, alpha * 0.96)
     end
 
     local neckX = x + fx * bodyLength * 0.78
     local neckY = y + fy * bodyLength * 0.78
     local headX = x + fx * bodyLength * 1.12
     local headY = y + fy * bodyLength * 1.12
-    local headZ = z + bodyHeight * 1.05
-    line(chestX, chestY, z + bodyHeight * 0.92, neckX, neckY, headZ, 4.5, r, g, b, alpha)
-    ellipse(headX, headY, headZ, fx, fy, sx, sy, bodyLength * 0.38, bodyWidth * 0.58,
-        22, 3.8, r, g, b, alpha)
-    local muzzleX = headX + fx * bodyLength * 0.40
-    local muzzleY = headY + fy * bodyLength * 0.40
-    ellipse(muzzleX, muzzleY, headZ - 0.08, fx, fy, sx, sy, bodyLength * 0.28,
-        bodyWidth * 0.34, 16, 3.3, r, g, b, alpha)
-    line(headX + sx * bodyWidth * 0.42, headY + sy * bodyWidth * 0.42, headZ + 0.05,
-        headX + sx * bodyWidth * 0.72 - fx * 0.15, headY + sy * bodyWidth * 0.72 - fy * 0.15,
-        headZ + 0.48, 3.5, r, g, b, alpha)
-    line(headX - sx * bodyWidth * 0.42, headY - sy * bodyWidth * 0.42, headZ + 0.05,
-        headX - sx * bodyWidth * 0.72 - fx * 0.15, headY - sy * bodyWidth * 0.72 - fy * 0.15,
-        headZ + 0.48, 3.5, r, g, b, alpha)
-    local eyeForward = bodyLength * 0.18
-    for _, eyeSide in ipairs({ -1, 1 }) do
-        ring(headX + fx * eyeForward + sx * bodyWidth * 0.29 * eyeSide,
-            headY + fy * eyeForward + sy * bodyWidth * 0.29 * eyeSide,
-            headZ + 0.04, 0.08, 10, 2.5, 1.0, 0.95, 0.72, 1.0)
+    local headZ = z + bodyHeight * 1.12
+    local browX = headX + fx * bodyLength * 0.24
+    local browY = headY + fy * bodyLength * 0.24
+    local muzzleX = headX + fx * bodyLength * 0.55
+    local muzzleY = headY + fy * bodyLength * 0.55
+    renderDenseSweep({
+        sweepNode(chestX, chestY, z + bodyHeight * 1.00, bodyWidth * 0.49, bodyHeight * 0.42),
+        sweepNode(neckX, neckY, headZ - bodyHeight * 0.06, bodyWidth * 0.38, bodyHeight * 0.42),
+        sweepNode(headX, headY, headZ, bodyWidth * 0.62, bodyHeight * 0.46),
+        sweepNode(browX, browY, headZ - bodyHeight * 0.02, bodyWidth * 0.56, bodyHeight * 0.37),
+        sweepNode(muzzleX, muzzleY, headZ - bodyHeight * 0.16, bodyWidth * 0.37, bodyHeight * 0.24),
+        sweepNode(muzzleX + fx * bodyLength * 0.20, muzzleY + fy * bodyLength * 0.20,
+            headZ - bodyHeight * 0.18, bodyWidth * 0.23, bodyHeight * 0.16),
+    }, quality, color, alpha)
+    renderDenseSweep({
+        sweepNode(headX + fx * bodyLength * 0.15, headY + fy * bodyLength * 0.15,
+            headZ - bodyHeight * 0.23, bodyWidth * 0.42, bodyHeight * 0.14),
+        sweepNode(muzzleX + fx * bodyLength * 0.13, muzzleY + fy * bodyLength * 0.13,
+            headZ - bodyHeight * 0.31, bodyWidth * 0.20, bodyHeight * 0.08),
+    }, quality, color, alpha * 0.92)
+
+    for _, earSide in ipairs({ -1, 1 }) do
+        local baseX = headX - fx * bodyLength * 0.05 + sx * bodyWidth * 0.43 * earSide
+        local baseY = headY - fy * bodyLength * 0.05 + sy * bodyWidth * 0.43 * earSide
+        renderDenseSweep({
+            sweepNode(baseX, baseY, headZ + bodyHeight * 0.20, bodyWidth * 0.20, bodyWidth * 0.16),
+            sweepNode(baseX - fx * bodyLength * 0.12 + sx * bodyWidth * 0.25 * earSide,
+                baseY - fy * bodyLength * 0.12 + sy * bodyWidth * 0.25 * earSide,
+                headZ + bodyHeight * 0.55, bodyWidth * 0.11, bodyWidth * 0.10),
+            sweepNode(baseX - fx * bodyLength * 0.18 + sx * bodyWidth * 0.33 * earSide,
+                baseY - fy * bodyLength * 0.18 + sy * bodyWidth * 0.33 * earSide,
+                headZ + bodyHeight * 0.72, 0.025, 0.025),
+        }, quality, color, alpha)
     end
+
+    local eyeForward = bodyLength * 0.28
+    for _, eyeSide in ipairs({ -1, 1 }) do
+        local eyeX = headX + fx * eyeForward + sx * bodyWidth * 0.34 * eyeSide
+        local eyeY = headY + fy * eyeForward + sy * bodyWidth * 0.34 * eyeSide
+        line(eyeX - fx * 0.07 - sx * eyeSide * 0.06, eyeY - fy * 0.07 - sy * eyeSide * 0.06,
+            headZ + bodyHeight * 0.08,
+            eyeX + fx * 0.08 + sx * eyeSide * 0.05, eyeY + fy * 0.08 + sy * eyeSide * 0.05,
+            headZ + bodyHeight * 0.04, 4.0,
+            math.min(1, color.r + 0.28), math.min(1, color.g + 0.24),
+            math.min(1, color.b + 0.18), 1.0)
+    end
+    line(muzzleX + sx * bodyWidth * 0.17, muzzleY + sy * bodyWidth * 0.17,
+        headZ - bodyHeight * 0.25,
+        muzzleX - sx * bodyWidth * 0.17, muzzleY - sy * bodyWidth * 0.17,
+        headZ - bodyHeight * 0.25, 3.0,
+        math.max(0.08, color.r * 0.24), math.max(0.04, color.g * 0.18),
+        math.max(0.03, color.b * 0.14), 0.92)
 
     local tails = math.max(1, math.min(9, tonumber(cfg.tails) or 1))
     local rearAngle = (math.atan2 or math.atan)(-fy, -fx)
@@ -281,32 +400,25 @@ local function drawBeast(shell, time)
         local currentX = rumpX + math.cos(baseAngle) * bodyWidth * 0.55
         local currentY = rumpY + math.sin(baseAngle) * bodyWidth * 0.55
         local currentZ = z + bodyHeight * 0.78
-        local segments = 6
+        local segments = quality == "near" and 7 or 6
+        local tailNodes = {
+            sweepNode(currentX, currentY, currentZ, bodyWidth * 0.34, bodyWidth * 0.31),
+        }
         for segment = 1, segments do
             local progress = segment / segments
             local angle = baseAngle + wave * (0.12 + progress * 0.25)
                 + math.sin(time * 53.0 + tailIndex + segment * 0.7) * 0.07
-            local length = bodyLength * (0.24 + progress * 0.035)
+            local length = bodyLength * (0.28 + progress * 0.035)
             local nextX = currentX + math.cos(angle) * length
             local nextY = currentY + math.sin(angle) * length
             local nextZ = currentZ + 0.10 + math.sin(progress * math.pi) * 0.20
                 + wave * progress * 0.05
-            line(currentX, currentY, currentZ, nextX, nextY, nextZ,
-                5.0 - progress * 2.2, r, g, b, alpha * (1.0 - progress * 0.16))
+            local endWidth = bodyWidth * math.max(0.055, 0.31 - progress * 0.24)
+            if segment == segments then endWidth = 0.025 end
+            table.insert(tailNodes, sweepNode(nextX, nextY, nextZ, endWidth, endWidth * 0.92))
             currentX, currentY, currentZ = nextX, nextY, nextZ
         end
-        ring(currentX, currentY, currentZ, 0.12, 10, 2.2, r, g, b, alpha)
-    end
-
-    for wisp = 1, 7 do
-        local angle = time * 35.0 + wisp * (math.pi * 2 / 7)
-        local distance = bodyWidth * (0.65 + (wisp % 3) * 0.12)
-        local wx = x + math.cos(angle) * distance
-        local wy = y + math.sin(angle) * distance
-        local phase = (time * 18.0 + wisp * 0.13) % 1
-        line(wx, wy, z + 0.12 + phase * bodyHeight,
-            wx, wy, z + 0.28 + phase * bodyHeight, 2.2, r, g, b,
-            alpha * math.sin(phase * math.pi) * 0.65)
+        renderDenseSweep(tailNodes, quality, color, alpha * 0.92)
     end
 
     local debugEnabled = (isDebugEnabled and isDebugEnabled())
@@ -316,21 +428,74 @@ local function drawBeast(shell, time)
     end
 end
 
+local function drawGroundCapsule(trajectory, radius, color, fillAlpha, edgeAlpha)
+    local originX = tonumber(trajectory.originX) or 0
+    local originY = tonumber(trajectory.originY) or 0
+    local destinationX = tonumber(trajectory.destinationX) or originX
+    local destinationY = tonumber(trajectory.destinationY) or originY
+    local originZ = tonumber(trajectory.originZ) or 0
+    local destinationZ = tonumber(trajectory.destinationZ) or tonumber(trajectory.originZ) or 0
+    local dx, dy = destinationX - originX, destinationY - originY
+    local distance = math.sqrt(dx * dx + dy * dy)
+    if distance < 0.001 then return end
+
+    local forwardX, forwardY = dx / distance, dy / distance
+    local sideX, sideY = -forwardY, forwardX
+    local laneCount = math.max(4, math.ceil(radius / 0.05))
+    local fillR = math.min(1, color.r + 0.10)
+    local fillG = math.min(1, color.g + 0.10)
+    local fillB = math.min(1, color.b + 0.10)
+
+    for lane = -laneCount, laneCount do
+        local sideFraction = lane / laneCount
+        local offset = sideFraction * radius
+        local capExtension = math.sqrt(math.max(0, radius * radius - offset * offset))
+        line(originX + sideX * offset - forwardX * capExtension,
+            originY + sideY * offset - forwardY * capExtension, originZ,
+            destinationX + sideX * offset + forwardX * capExtension,
+            destinationY + sideY * offset + forwardY * capExtension, destinationZ,
+            5.5, fillR, fillG, fillB, fillAlpha)
+    end
+
+    line(originX + sideX * radius, originY + sideY * radius, originZ,
+        destinationX + sideX * radius, destinationY + sideY * radius, destinationZ,
+        3.1, color.r, color.g, color.b, edgeAlpha)
+    line(originX - sideX * radius, originY - sideY * radius, originZ,
+        destinationX - sideX * radius, destinationY - sideY * radius, destinationZ,
+        3.1, color.r, color.g, color.b, edgeAlpha)
+    local capRadius = radius
+    while capRadius > 0.025 do
+        ring(originX, originY, originZ, capRadius, 24, 5.5,
+            fillR, fillG, fillB, fillAlpha)
+        ring(destinationX, destinationY, destinationZ, capRadius, 24, 5.5,
+            fillR, fillG, fillB, fillAlpha)
+        capRadius = capRadius - 0.05
+    end
+    ring(originX, originY, originZ, radius, 24, 3.1,
+        color.r, color.g, color.b, edgeAlpha * 0.82)
+    ring(destinationX, destinationY, destinationZ, radius, 24, 3.1,
+        color.r, color.g, color.b, edgeAlpha)
+end
+
 local function drawTelegraph(telegraph, time)
     local color = telegraph.color or { r = 1.0, g = 0.25, b = 0.1 }
-    local alpha = 0.58 + math.sin(time * 95.0) * 0.25
+    local duration = math.max(0.0001, telegraph.endsAtGameMinutes - telegraph.startedAtGameMinutes)
+    local progress = math.max(0, math.min(1,
+        (time - telegraph.startedAtGameMinutes) / duration))
+    local trajectoryCount = math.max(1, #telegraph.trajectories)
+    local overlapScale = 1 / (1 + (trajectoryCount - 1) * 0.08)
+    local pulse = 0.82 + math.sin(time * 95.0) * 0.18
+    local fillAlpha = (0.10 + progress * 0.12) * overlapScale * pulse
+    local edgeAlpha = (0.48 + progress * 0.42) * pulse
+
     for _, trajectory in ipairs(telegraph.trajectories) do
-        line(trajectory.originX, trajectory.originY, (trajectory.originZ or 0) + 0.10,
-            trajectory.destinationX, trajectory.destinationY, (trajectory.destinationZ or 0) + 0.10,
-            3.5, color.r, color.g, color.b, alpha)
-        ring(trajectory.destinationX, trajectory.destinationY, (trajectory.destinationZ or 0) + 0.05,
-            0.60, 18, 2.4, color.r, color.g, color.b, alpha * 0.82)
+        drawGroundCapsule(trajectory, telegraph.projectileHitRadius,
+            color, fillAlpha, edgeAlpha)
     end
 end
 
 function Renderer.renderAll(time)
     if not getCell or not getCell() then return end
-    for _, shell in pairs(activeShells) do drawBeast(shell, time) end
     for volleyId, telegraph in pairs(activeTelegraphs) do
         if time >= telegraph.endsAtGameMinutes then
             activeTelegraphs[volleyId] = nil
@@ -338,6 +503,7 @@ function Renderer.renderAll(time)
             drawTelegraph(telegraph, time)
         end
     end
+    for _, shell in pairs(activeShells) do drawBeast(shell, time) end
 end
 
 local function nextSwingId(player)
@@ -407,6 +573,7 @@ end
 
 Authority.registerEventHandler("bijuu_shell_spawned", Renderer.addShell)
 Authority.registerEventHandler("bijuu_shell_removed", Renderer.removeShell)
+Authority.registerEventHandler("bijuu_shell_health", Renderer.updateShellHealth)
 Authority.registerEventHandler("bijuu_telegraph_started", Renderer.addTelegraph)
 Authority.registerEventHandler("bijuu_telegraph_ended", Renderer.removeTelegraph)
 Authority.registerEventHandler("bijuu_active_shells", Renderer.replaceShells)

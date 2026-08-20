@@ -1,0 +1,119 @@
+require "NinjaLineages_Balance"
+require "NinjaLineages_Utils"
+require "jinchuuriki/NinjaLineages_BijuuRenderer"
+
+NinjaLineages = NinjaLineages or {}
+
+local BAR_HEIGHT = 22
+local TOP_MARGIN = 42
+local MIN_WIDTH = 300
+local MAX_WIDTH = 720
+local VIEWPORT_WIDTH_FACTOR = 0.58
+local TRAIL_DRAIN_PER_SECOND = 0.28
+local playerStates = {}
+
+local function clamp01(value)
+    return math.max(0, math.min(1, tonumber(value) or 0))
+end
+
+local function nearestBoss(player)
+    if not player or (player.isDead and player:isDead()) then return nil end
+    local combat = NinjaLineages.Balance.Jinchuuriki
+        and NinjaLineages.Balance.Jinchuuriki.BossCombat or {}
+    return NinjaLineages.BijuuRenderer.getNearestActiveShell(
+        player,
+        combat.ACQUISITION_RADIUS or 20.0
+    )
+end
+
+local function updateState(playerNum, shell)
+    local now = NinjaLineages.Utils.Time.realMilliseconds()
+    local state = playerStates[playerNum]
+    if not state then
+        state = { runtimeId = nil, healthRatio = 0, trailRatio = 0, lastRealMilliseconds = now }
+        playerStates[playerNum] = state
+    end
+
+    local maximum = tonumber(shell.maxHealth)
+    local current = tonumber(shell.currentHealth)
+    if not maximum or maximum <= 0 or not current then
+        state.runtimeId = nil
+        return nil
+    end
+
+    local ratio = clamp01(current / maximum)
+    local deltaSeconds = math.max(0, math.min(0.1, (now - state.lastRealMilliseconds) / 1000))
+    state.lastRealMilliseconds = now
+    if state.runtimeId ~= shell.runtimeId then
+        state.runtimeId = shell.runtimeId
+        state.healthRatio = ratio
+        state.trailRatio = ratio
+    else
+        if ratio > state.healthRatio then state.trailRatio = ratio end
+        state.healthRatio = ratio
+        state.trailRatio = math.max(ratio, state.trailRatio - TRAIL_DRAIN_PER_SECOND * deltaSeconds)
+    end
+    return state
+end
+
+local function rect(renderer, x, y, width, height, r, g, b, alpha)
+    if width > 0 and height > 0 then
+        renderer:renderRect(math.floor(x), math.floor(y), math.floor(width), math.floor(height), r, g, b, alpha)
+    end
+end
+
+local function drawBarForPlayer(renderer, textManager, playerNum, player)
+    local shell = nearestBoss(player)
+    if not shell then
+        if playerStates[playerNum] then playerStates[playerNum].runtimeId = nil end
+        return
+    end
+    local state = updateState(playerNum, shell)
+    if not state then return end
+
+    local screenLeft = getPlayerScreenLeft(playerNum)
+    local screenTop = getPlayerScreenTop(playerNum)
+    local screenWidth = getPlayerScreenWidth(playerNum)
+    local width = math.floor(math.min(MAX_WIDTH, math.max(MIN_WIDTH, screenWidth * VIEWPORT_WIDTH_FACTOR)))
+    local x = math.floor(screenLeft + (screenWidth - width) * 0.5)
+    local y = math.floor(screenTop + TOP_MARGIN)
+    local innerX, innerY = x + 4, y + 4
+    local innerWidth, innerHeight = width - 8, BAR_HEIGHT - 8
+    local color = shell.color or { r = 1.0, g = 0.45, b = 0.05 }
+
+    rect(renderer, x - 2, y - 2, width + 4, BAR_HEIGHT + 4, 0.01, 0.01, 0.015, 0.88)
+    rect(renderer, x, y, width, BAR_HEIGHT, 0.07, 0.055, 0.06, 0.98)
+    rect(renderer, innerX, innerY, innerWidth * state.trailRatio, innerHeight, 0.82, 0.68, 0.38, 0.88)
+    rect(renderer, innerX, innerY, innerWidth * state.healthRatio, innerHeight,
+        color.r * 0.72, color.g * 0.72, color.b * 0.72, 0.98)
+    rect(renderer, innerX, innerY, innerWidth * state.healthRatio, 2,
+        math.min(1, color.r + 0.25), math.min(1, color.g + 0.25), math.min(1, color.b + 0.25), 1.0)
+
+    local name = shell.nameKey and getText(shell.nameKey) or tostring(shell.bijuuId)
+    local current = math.max(0, math.floor(shell.currentHealth + 0.5))
+    local maximum = math.max(1, math.floor(shell.maxHealth + 0.5))
+    textManager:DrawStringCentre(UIFont.Medium, x + width * 0.5, y - 22,
+        name, 0.96, 0.93, 0.88, 1.0)
+    textManager:DrawStringCentre(UIFont.Small, x + width * 0.5, y + 3,
+        tostring(current) .. " / " .. tostring(maximum), 1.0, 1.0, 1.0, 1.0)
+end
+
+local function drawBossHealthBars()
+    local renderer = getRenderer and getRenderer()
+    local textManager = getTextManager and getTextManager()
+    if not renderer or not textManager then return end
+
+    local count = getNumActivePlayers and getNumActivePlayers() or 1
+    for playerNum = 0, count - 1 do
+        local player = getSpecificPlayer and getSpecificPlayer(playerNum)
+        if player then drawBarForPlayer(renderer, textManager, playerNum, player) end
+    end
+end
+
+if Events and Events.OnPostUIDraw then
+    NinjaLineages.addEventOnce(
+        "client.bijuuBossHealthBar.onPostUIDraw",
+        Events.OnPostUIDraw,
+        drawBossHealthBars
+    )
+end

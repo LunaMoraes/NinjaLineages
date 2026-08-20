@@ -47,6 +47,10 @@ end
 
 local function shellPayload(runtime)
     local facingX, facingY = facingPayload(runtime.proxy)
+    local currentHealth = runtime.maxHealth
+    if runtime.proxy and runtime.proxy.getHealth then
+        currentHealth = runtime.proxy:getHealth()
+    end
     return {
         bijuuId = runtime.bijuuId,
         runtimeId = runtime.runtimeId,
@@ -56,6 +60,8 @@ local function shellPayload(runtime)
         z = runtime.z,
         facingX = facingX,
         facingY = facingY,
+        currentHealth = currentHealth,
+        maxHealth = runtime.maxHealth,
     }
 end
 
@@ -209,6 +215,7 @@ function Server.materialize(bijuuId, x, y, z, options)
         debug = options and options.debug == true,
         debugOriginalState = options and options.debugOriginalState or nil,
         defeatHandled = false,
+        lastBroadcastHealth = maximumHealth,
         meleeByPlayer = {},
         combat = {
             phase = "idle",
@@ -367,6 +374,7 @@ local function startTelegraph(runtime, target, now, config)
         runtimeId = runtime.runtimeId,
         startedAtGameMinutes = now,
         endsAtGameMinutes = now + duration,
+        projectileHitRadius = config.PROJECTILE_HIT_RADIUS or 0.65,
         trajectories = trajectories,
     })
     log("telegraph started bijuu=" .. tostring(runtime.bijuuId)
@@ -393,6 +401,7 @@ local function fireProjectile(runtime, trajectory, volleyId, now, config)
         suppressDebugLog = true,
         damagePayload = {
             damage = BijuuCombat.getProjectileDamage(runtime.tails),
+            woundType = "burn",
             isHostileNPC = true,
             bijuuId = runtime.bijuuId,
             runtimeId = runtime.runtimeId,
@@ -516,6 +525,15 @@ function Server.update()
         local proxy = runtime.proxy
         if proxy then
             local currentHealth = proxy.getHealth and proxy:getHealth() or 0
+            if currentHealth ~= runtime.lastBroadcastHealth then
+                runtime.lastBroadcastHealth = currentHealth
+                Support.emit("bijuu_shell_health", {
+                    bijuuId = runtime.bijuuId,
+                    runtimeId = runtime.runtimeId,
+                    currentHealth = currentHealth,
+                    maxHealth = runtime.maxHealth,
+                })
+            end
             if (proxy.isDead and proxy:isDead()) or currentHealth <= 0 then
                 handleDefeat(runtime)
             else

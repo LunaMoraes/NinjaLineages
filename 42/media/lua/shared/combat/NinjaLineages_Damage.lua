@@ -50,7 +50,7 @@ function NinjaLineages.Damage.applyZombieDamage(caster, zombie, damage)
     end
 end
 
-local function mutatePlayerBodyDamage(caster, targetPlayer, damage)
+local function mutatePlayerBodyDamage(caster, targetPlayer, damage, payload)
     local bodyDamage = targetPlayer:getBodyDamage()
     local parts = bodyDamage and bodyDamage:getBodyParts()
     if damage <= 0 or not parts or parts:size() <= 0 then
@@ -63,9 +63,23 @@ local function mutatePlayerBodyDamage(caster, targetPlayer, damage)
     local applied = pcall(function() bodyPart:AddDamage(damage) end)
     if not applied then return false, { reason = "body_part_damage_failed" } end
 
+    local woundApplied = false
+    if payload and payload.woundType == "burn" then
+        local currentBurnTime = safeRead(function() return bodyPart:getBurnTime() end, 0) or 0
+        local burnTime = math.max(
+            currentBurnTime,
+            math.max(1, tonumber(payload.woundSeverity) or damage * 0.35)
+        )
+        woundApplied = pcall(function()
+            bodyPart:setBurnTime(burnTime)
+            bodyPart:setNeedBurnWash(true)
+        end)
+    end
+
     pcall(function() targetPlayer:setAttackedBy(caster) end)
     pcall(function() bodyDamage:calculateOverallHealth() end)
-    local syncMask = BodyPartSyncPacket and BodyPartSyncPacket.BD_Health or 0x1
+    local syncMask = woundApplied and 0xFFFFFFFFFFF
+        or (BodyPartSyncPacket and BodyPartSyncPacket.BD_Health or 0x1)
     local synced = syncPart(bodyPart, syncMask)
     local healthAfter = safeRead(function() return bodyPart:getHealth() end, nil)
     notifyDamagePresentation(caster, targetPlayer, damage)
@@ -74,6 +88,7 @@ local function mutatePlayerBodyDamage(caster, targetPlayer, damage)
         bodyPartIndex = partIndex,
         bodyPartType = safeRead(function() return tostring(bodyPart:getType()) end, "unknown"),
         damage = damage,
+        woundType = woundApplied and payload.woundType or nil,
         healthBefore = healthBefore,
         healthAfter = healthAfter,
         synced = synced,
@@ -135,7 +150,7 @@ function NinjaLineages.Damage.applyPlayerDamage(caster, targetPlayer, payload)
         return false, { reason = reason }
     end
 
-    return mutatePlayerBodyDamage(caster, targetPlayer, damage)
+    return mutatePlayerBodyDamage(caster, targetPlayer, damage, payload)
 end
 
 function NinjaLineages.Damage.applyHostileDamage(caster, targetPlayer, payload)
@@ -156,7 +171,7 @@ function NinjaLineages.Damage.applyHostileDamage(caster, targetPlayer, payload)
         return false, { reason = "invalid_damage" }
     end
 
-    return mutatePlayerBodyDamage(caster, targetPlayer, damage)
+    return mutatePlayerBodyDamage(caster, targetPlayer, damage, payload)
 end
 
 function NinjaLineages.Damage.applyBarrierDamage(caster, barrier, payload)

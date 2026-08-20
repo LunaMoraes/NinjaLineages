@@ -3,6 +3,7 @@ require "NinjaLineages_Utils"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Balance"
 require "jinchuuriki/NinjaLineages_BijuuRenderer"
+require "jinchuuriki/NinjaLineages_BijuuBossHealthBar"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.VFX = NinjaLineages.VFX or {}
