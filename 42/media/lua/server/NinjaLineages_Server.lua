@@ -11,6 +11,7 @@ require "NinjaLineages_SocialServer"
 require "NinjaLineages_MissionServer"
 require "jinchuuriki/NinjaLineages_BijuuRegistryServer"
 require "jinchuuriki/NinjaLineages_BijuuBossServer"
+require "jinchuuriki/NinjaLineages_BijuuSpawnServer"
 require "lineages/NinjaLineages_UchihaPassives"
 
 local function handleAbilityRequest(player, args)
@@ -76,6 +77,9 @@ local function updateAbilities()
     end
     if NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.update then
         NinjaLineages.BijuuBossServer.update()
+    end
+    if NinjaLineages.BijuuSpawnServer and NinjaLineages.BijuuSpawnServer.update then
+        NinjaLineages.BijuuSpawnServer.update()
     end
     NinjaLineages.AbilityAuthority.updateWorld()
 

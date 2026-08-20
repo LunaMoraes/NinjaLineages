@@ -270,8 +270,59 @@ local function onServerCommand(module, command, args)
     end
 end
 
+local function onWeaponSwing(player, weapon)
+    if not player or not player.isLocalPlayer or not player:isLocalPlayer() or (player.isDead and player:isDead()) then return end
+    if weapon and weapon.isRanged and weapon:isRanged() then return end
+
+    local px = player:getX()
+    local py = player:getY()
+    local pz = player:getZ()
+    local forward = player:getForwardDirection()
+    local fx = forward and forward:getX() or 0
+    local fy = forward and forward:getY() or 1
+    local fLen = math.sqrt(fx * fx + fy * fy)
+    if fLen > 0.001 then fx, fy = fx / fLen, fy / fLen else fx, fy = 0, 1 end
+
+    local maxRange = (weapon and weapon.getMaxRange and weapon:getMaxRange(player)) or 1.5
+    local bossRadius = 1.2
+    local allowedReach = bossRadius + maxRange + 0.35
+
+    for runtimeId, shell in pairs(activeShells) do
+        local bx = shell.lastKnownX
+        local by = shell.lastKnownY
+        local bz = shell.lastKnownZ
+        if math.abs(pz - bz) < 1.5 then
+            local dx = bx - px
+            local dy = by - py
+            local dist = math.sqrt(dx * dx + dy * dy)
+            if dist <= allowedReach and dist > (maxRange * 0.8) then
+                local dirX = dx / (dist > 0.0001 and dist or 1)
+                local dirY = dy / (dist > 0.0001 and dist or 1)
+                local dot = (dirX * fx) + (dirY * fy)
+                if dot >= 0.42 then
+                    local hit = NinjaLineages.Collision and NinjaLineages.Collision.traceSegment(px, py, pz, bx, by, pz)
+                    if hit == nil then
+                        sendClientCommand(player, "NinjaLineages", "bijuuMeleeSwing", {
+                            bijuuId = shell.bijuuId,
+                            runtimeId = runtimeId,
+                        })
+                    end
+                end
+            end
+        end
+    end
+end
+
 NinjaLineages.addEventOnce(
     "client.bijuuRenderer.onServerCommand",
     Events.OnServerCommand,
     onServerCommand
 )
+
+if Events and Events.OnWeaponSwing then
+    NinjaLineages.addEventOnce(
+        "client.bijuuRenderer.onWeaponSwing",
+        Events.OnWeaponSwing,
+        onWeaponSwing
+    )
+end

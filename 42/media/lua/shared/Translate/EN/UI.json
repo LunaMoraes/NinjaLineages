@@ -587,7 +587,10 @@
     "UI_NL_Debug_SpawnBijuu": "Spawn Bijū Shell",
     "UI_NL_Debug_DespawnBijuu": "Despawn Active Bijū Shells",
     "UI_NL_Debug_NudgeBijuu": "Nudge Active Shell (+1 Tile X)",
-    "UI_NL_Debug_BijuuSpawned": "Spawned Bijū shell: %1",
-    "UI_NL_Debug_BijuuDespawned": "Despawned all active Bijū shells (%1).",
-    "UI_NL_Debug_BijuuNudged": "Nudged active Bijū shells."
+    "UI_NL_Debug_BijuuSpawned": "Spawned Biju shell: %1",
+    "UI_NL_Debug_BijuuDespawned": "Despawned all active Biju shells (%1).",
+    "UI_NL_Debug_BijuuNudged": "Nudged active Biju shells.",
+    "UI_NL_Debug_AssignWildBijuu": "Assign Missing Wild Locations",
+    "UI_NL_Debug_TeleportWildBijuu": "Teleport to Wild Bijū Location",
+    "UI_NL_Debug_ReconcileWildBijuu": "Force Wild World Reconciliation"
 }

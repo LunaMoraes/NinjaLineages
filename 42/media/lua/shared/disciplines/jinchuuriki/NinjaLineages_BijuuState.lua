@@ -34,6 +34,10 @@ function BijuuState.isValidState(state)
     return BijuuState.ValidStates[state] == true
 end
 
+function BijuuState.isMaterializedBossState(state)
+    return state == BijuuState.WILD_ACTIVE or state == BijuuState.BOSS_ACTIVE
+end
+
 function BijuuState.isValidBijuuId(id)
     return Definitions.isValidId(id)
 end

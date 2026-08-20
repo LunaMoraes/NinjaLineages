@@ -120,8 +120,8 @@ function Server.materialize(bijuuId, x, y, z, opts)
     end
 
     local regState = Registry.getBijuuState(bijuuId)
-    if regState ~= BijuuState.BOSS_ACTIVE then
-        log("rejected materialize: bijuu=" .. tostring(bijuuId) .. " registry state is " .. tostring(regState) .. ", expected BOSS_ACTIVE")
+    if not BijuuState.isMaterializedBossState(regState) then
+        log("rejected materialize: bijuu=" .. tostring(bijuuId) .. " registry state is " .. tostring(regState) .. ", expected WILD_ACTIVE or BOSS_ACTIVE")
         return nil, "invalid_registry_state"
     end
 
@@ -168,7 +168,7 @@ function Server.materialize(bijuuId, x, y, z, opts)
     end
     log("proxy width default=" .. tostring(defaultWidth) .. " requested=" .. tostring(targetWidth) .. " actual=" .. tostring(actualWidth))
 
-    -- 3. Configure root proxy attributes
+    -- 3. Configure root proxy attributes (Shootable for Ballistics / Firearms, Collidable for Movement)
     pcall(function()
         if rootProxy.setShootable then rootProxy:setShootable(true) end
         if rootProxy.setCollidable then rootProxy:setCollidable(true) end
@@ -180,48 +180,6 @@ function Server.materialize(bijuuId, x, y, z, opts)
         local okId, idVal = pcall(function() return rootProxy:getOnlineID() end)
         if okId and idVal and idVal >= 0 then
             onlineId = idVal
-        end
-    end
-
-    -- 4. Spawn Multi-Proxy Satellite Hit Grid (8 perimeter satellites for 360-deg melee reach)
-    local rCard = shellConfig and shellConfig.SATELLITE_RADIUS_CARDINAL or 1.2
-    local rDiag = shellConfig and shellConfig.SATELLITE_RADIUS_DIAGONAL or 0.9
-    local satelliteOffsets = {
-        { x = 0, y = -rCard, surface = "north" },
-        { x = 0, y = rCard, surface = "south" },
-        { x = -rCard, y = 0, surface = "west" },
-        { x = rCard, y = 0, surface = "east" },
-        { x = -rDiag, y = -rDiag, surface = "nw" },
-        { x = rDiag, y = -rDiag, surface = "ne" },
-        { x = -rDiag, y = rDiag, surface = "sw" },
-        { x = rDiag, y = rDiag, surface = "se" },
-    }
-
-    local secondaryProxies = {}
-    for _, off in ipairs(satelliteOffsets) do
-        local secProxy = spawnZombieProxy(x + off.x, y + off.y, z)
-        if secProxy then
-            local sModData = secProxy:getModData()
-            sModData[Boss.KEY_HIT_PROXY] = true
-            sModData[Boss.KEY_BIJUU_ID] = bijuuId
-            sModData[Boss.KEY_RUNTIME_ID] = runtimeId
-            sModData.hitProxySurface = off.surface
-            sModData.zombieNinjaRolled = true
-            sModData.isZombieNinja = false
-
-            pcall(function()
-                if secProxy.setShootable then secProxy:setShootable(true) end
-                if secProxy.setCollidable then secProxy:setCollidable(true) end
-                if secProxy.setHealth then secProxy:setHealth(5000.0) end
-            end)
-
-            table.insert(secondaryProxies, {
-                proxy = secProxy,
-                offX = off.x,
-                offY = off.y,
-                surface = off.surface,
-                lastHealth = 5000.0,
-            })
         end
     end
 
@@ -238,7 +196,6 @@ function Server.materialize(bijuuId, x, y, z, opts)
         tails = tails,
         debug = opts and opts.debug == true,
         debugOriginalState = opts and opts.debugOriginalState,
-        secondaryProxies = secondaryProxies,
         combat = {
             phase = "idle",
             maxHealth = maxHp,
@@ -252,9 +209,9 @@ function Server.materialize(bijuuId, x, y, z, opts)
     }
 
     activeBosses[bijuuId] = runtime
-    log("materialized bijuu=" .. tostring(bijuuId) .. " tails=" .. tostring(tails) .. " hp=" .. tostring(maxHp) .. " runtime=" .. tostring(runtimeId) .. " satellites=" .. tostring(#secondaryProxies))
+    log("materialized bijuu=" .. tostring(bijuuId) .. " tails=" .. tostring(tails) .. " hp=" .. tostring(maxHp) .. " runtime=" .. tostring(runtimeId) .. " (1 root proxy)")
 
-    -- 5. Broadcast client shell presentation event
+    -- 4. Broadcast client shell presentation event
     local eventPayload = {
         bijuuId = bijuuId,
         runtimeId = runtimeId,
@@ -282,18 +239,7 @@ function Server.dematerialize(bijuuId, runtimeId, reason)
         return false, "mismatched_runtime"
     end
 
-    -- 1. Remove secondary proxies safely without calling proxy:remove()
-    for _, secEntry in ipairs(runtime.secondaryProxies or {}) do
-        local secProxy = secEntry.proxy
-        if secProxy then
-            pcall(function()
-                if secProxy.removeFromWorld then secProxy:removeFromWorld() end
-                if secProxy.removeFromSquare then secProxy:removeFromSquare() end
-            end)
-        end
-    end
-
-    -- 2. Remove root proxy safely
+    -- 1. Remove single root proxy safely without calling proxy:remove()
     local rootProxy = runtime.proxy
     if rootProxy then
         pcall(function()
@@ -302,12 +248,12 @@ function Server.dematerialize(bijuuId, runtimeId, reason)
         end)
     end
 
-    -- 3. Clean up active projectiles owned by this boss runtime
+    -- 2. Clean up active projectiles owned by this boss runtime
     if NinjaLineages.CombatRuntime and NinjaLineages.CombatRuntime.removeProjectilesByMeta then
         NinjaLineages.CombatRuntime.removeProjectilesByMeta("runtimeId", runtime.runtimeId)
     end
 
-    -- 4. Clean up active telegraph if any
+    -- 3. Clean up active telegraph if any
     if runtime.combat and runtime.combat.volley then
         local telPayload = {
             volleyId = runtime.combat.volley.volleyId,
@@ -324,7 +270,7 @@ function Server.dematerialize(bijuuId, runtimeId, reason)
     activeBosses[bijuuId] = nil
     log("dematerialized bijuu=" .. tostring(bijuuId) .. " runtime=" .. tostring(runtime.runtimeId) .. " reason=" .. tostring(reason or "none"))
 
-    -- 5. Broadcast removal event to clients
+    -- 4. Broadcast removal event to clients
     local removePayload = {
         bijuuId = bijuuId,
         runtimeId = runtime.runtimeId,
@@ -352,17 +298,6 @@ function Server.resolveBossFromEntity(entity)
                 runtimeId = runtime.runtimeId,
                 rootProxy = runtime.proxy,
                 surface = "root",
-            }
-        end
-    elseif modData[Boss.KEY_HIT_PROXY] == true then
-        local bijuuId = modData[Boss.KEY_BIJUU_ID]
-        local runtime = activeBosses[bijuuId]
-        if runtime and runtime.runtimeId == modData[Boss.KEY_RUNTIME_ID] then
-            return {
-                bijuuId = bijuuId,
-                runtimeId = runtime.runtimeId,
-                rootProxy = runtime.proxy,
-                surface = modData.hitProxySurface or "secondary",
             }
         end
     end
@@ -394,8 +329,9 @@ local function selectBossTarget(runtime, rootProxy, combatCfg)
     local ry = rootProxy:getY()
     local rz = rootProxy:getZ()
     local acqRadius = combatCfg and combatCfg.ACQUISITION_RADIUS or 20.0
+    local attackRange = combatCfg and combatCfg.ATTACK_RANGE or 14.0
 
-    -- 1. Check last attacker
+    -- 1. Check last attacker strictly within ATTACK_RANGE (Slice 3 correction)
     if runtime.combat.lastAttackerOnlineId then
         local attacker = nil
         if getPlayerByOnlineID then
@@ -416,7 +352,7 @@ local function selectBossTarget(runtime, rootProxy, combatCfg)
                 local az = attacker:getZ()
                 if math.abs(az - rz) < 2.0 then
                     local dist = math.sqrt((ax - rx)^2 + (ay - ry)^2)
-                    if dist <= acqRadius then
+                    if dist <= attackRange then
                         return attacker, dist
                     end
                 end
@@ -472,37 +408,17 @@ function Server.update()
                 runtime.x = rx
                 runtime.y = ry
                 runtime.z = rz
-                -- 2. Synchronize Satellite Hit Proxies & Route Damage
-                for _, secEntry in ipairs(runtime.secondaryProxies or {}) do
-                    local secProxy = secEntry.proxy
-                    if secProxy and not (secProxy.isDead and secProxy:isDead()) then
-                        NinjaLineages.Utils.Movement.placeEntity(secProxy, rx + secEntry.offX, ry + secEntry.offY, rz)
-                        local secHp = secProxy.getHealth and secProxy:getHealth() or secEntry.lastHealth
-                        if secHp < secEntry.lastHealth then
-                            local dmgTaken = secEntry.lastHealth - secHp
-                            local newRootHp = math.max(0, (rootProxy:getHealth() or curHp) - dmgTaken)
-                            pcall(function() rootProxy:setHealth(newRootHp) end)
-                            pcall(function() secProxy:setHealth(secEntry.lastHealth) end)
-                            curHp = newRootHp
 
-                            local attacker = secProxy.getAttackedBy and secProxy:getAttackedBy()
-                            if attacker and instanceof(attacker, "IsoPlayer") and not (attacker.isDead and attacker:isDead()) then
-                                runtime.combat.lastAttackerOnlineId = attacker.getOnlineID and attacker:getOnlineID()
-                            end
-                        end
-                    end
-                end
-
-                -- 3. Check Direct Damage & Aggro on Root Proxy
+                -- Direct Damage & Aggro Tracking on Root Proxy
                 if curHp < runtime.combat.lastObservedHealth then
                     local attacker = rootProxy.getAttackedBy and rootProxy:getAttackedBy()
-                    if attacker and instanceof(attacker, "IsoPlayer") and not (attacker.isDead and attacker:isDead()) then
+                    if attacker and (type(attacker) == "table" or type(attacker) == "userdata") and instanceof(attacker, "IsoPlayer") and not (attacker.isDead and attacker:isDead()) then
                         runtime.combat.lastAttackerOnlineId = attacker.getOnlineID and attacker:getOnlineID()
                     end
                     runtime.combat.lastObservedHealth = curHp
                 end
 
-                -- 4. Combat State Machine
+                -- Combat State Machine
                 if curHp <= 0 then
                     runtime.combat.phase = "defeated"
                     runtime.combat.volley = nil
@@ -789,7 +705,39 @@ end
 local function onClientCommand(module, command, player, args)
     if module ~= "NinjaLineages" then return end
 
-    if command == "debugBijuuSpawnShell" then
+    if command == "bijuuMeleeSwing" then
+        -- Perimeter Reach Compensation Hit Command
+        if not player or (player.isDead and player:isDead()) then return end
+        local bijuuId = args and args.bijuuId
+        local runtimeId = args and args.runtimeId
+        local runtime = activeBosses[bijuuId]
+        if not runtime or runtime.runtimeId ~= runtimeId then return end
+
+        local rootProxy = runtime.proxy
+        if not rootProxy or (rootProxy.isDead and rootProxy:isDead()) then return end
+
+        -- Server proximity & LOS validation
+        local px, py, pz = player:getX(), player:getY(), player:getZ()
+        local rx, ry, rz = rootProxy:getX(), rootProxy:getY(), rootProxy:getZ()
+        local dist = math.sqrt((px - rx)^2 + (py - ry)^2)
+        local weapon = player:getPrimaryHandItem()
+        local maxRange = (weapon and weapon.getMaxRange and weapon:getMaxRange(player)) or 1.5
+        local allowedReach = 1.2 + maxRange + 1.0
+
+        if dist <= allowedReach and math.abs(pz - rz) < 1.5 then
+            -- Verify LOS
+            local hit = NinjaLineages.Collision.traceSegment(px, py, pz, rx, ry, rz)
+            if hit == nil then
+                -- Invoke native engine Hit method on root zombie proxy!
+                if weapon and instanceof(weapon, "HandWeapon") then
+                    pcall(function() rootProxy:Hit(weapon, player, 1.0, false, 1.0) end)
+                else
+                    pcall(function() rootProxy:Hit(nil, player, 1.0, false, 1.0) end)
+                end
+                runtime.combat.lastAttackerOnlineId = player.getOnlineID and player:getOnlineID()
+            end
+        end
+    elseif command == "debugBijuuSpawnShell" then
         if not canUseDebugCommands(player) then return end
         local bijuuId = args and args.bijuuId
         local ok, reason = Server.debugSpawnNearPlayer(player, bijuuId)

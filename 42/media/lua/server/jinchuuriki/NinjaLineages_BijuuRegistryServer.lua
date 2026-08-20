@@ -190,6 +190,58 @@ function Server.transition(bijuuId, expectedState, newState, patch, reason)
     return true, "ok"
 end
 
+function Server.patch(bijuuId, expectedState, patch, reason)
+    if not Definitions.isValidId(bijuuId) then
+        log("rejected patch: invalid bijuu ID=" .. tostring(bijuuId))
+        return false, "invalid_bijuu_id"
+    end
+
+    if not BijuuState.isValidState(expectedState) then
+        log("rejected patch " .. tostring(bijuuId) .. ": invalid expected state=" .. tostring(expectedState))
+        return false, "invalid_expected_state"
+    end
+
+    Server.ensureState()
+    local record = getRecordInternal(bijuuId)
+    if not record then
+        log("rejected patch " .. tostring(bijuuId) .. ": record not found")
+        return false, "record_not_found"
+    end
+
+    if record.state ~= expectedState then
+        log("rejected patch " .. tostring(bijuuId) .. ": expected=" .. tostring(expectedState) .. " actual=" .. tostring(record.state) .. " reason=" .. tostring(reason or "none"))
+        return false, "state_mismatch"
+    end
+
+    if type(patch) == "table" then
+        for key, value in pairs(patch) do
+            if key ~= "state" then
+                if value == false or value == nil then
+                    record[key] = nil
+                elseif type(value) == "table" then
+                    record[key] = BijuuState.deepCopy(value)
+                else
+                    record[key] = value
+                end
+            end
+        end
+    end
+
+    log(tostring(bijuuId) .. " patched (state=" .. tostring(record.state) .. ") reason=" .. tostring(reason or "none"))
+    return true, "ok"
+end
+
+function Server.getWildBijuuIds()
+    local result = {}
+    for _, id in ipairs(Definitions.Order) do
+        local def = Definitions.get(id)
+        if def and def.nativeSpawnType == "wild" then
+            table.insert(result, id)
+        end
+    end
+    return result
+end
+
 function Server.dumpRegistry()
     local current = getState()
     log("--- BIJUU REGISTRY DUMP (schema=" .. tostring(current.schemaVersion) .. ") ---")

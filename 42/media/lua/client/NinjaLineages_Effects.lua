@@ -315,6 +315,43 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
                 p:Say(getText("UI_NL_Debug_BijuuNudged"))
             end
         end)
+
+        -- 8.6 Assign Missing Wild Locations
+        bijuuSubMenu:addOption(getText("UI_NL_Debug_AssignWildBijuu"), player, function(p)
+            if NinjaLineages.isClient and NinjaLineages.isClient() then
+                sendClientCommand(p, "NinjaLineages", "debugBijuuAssignWild", {})
+            elseif NinjaLineages.BijuuSpawnServer and NinjaLineages.BijuuSpawnServer.debugAssignMissingLocations then
+                NinjaLineages.BijuuSpawnServer.debugAssignMissingLocations(p)
+            end
+        end)
+
+        -- 8.7 Teleport to Wild Bijū Location
+        local tpOption = bijuuSubMenu:addOption(getText("UI_NL_Debug_TeleportWildBijuu"))
+        local tpSubMenu = ISContextMenu:getNew(bijuuSubMenu)
+        bijuuSubMenu:addSubMenu(tpOption, tpSubMenu)
+
+        local wildOrder = { "son_goku", "kokuo", "saiken", "chomei", "gyuki", "kurama" }
+        for _, id in ipairs(wildOrder) do
+            local def = NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.get(id)
+            local name = def and getText(def.nameKey) or id
+            local label = tostring(def and def.tails or "?") .. "-Tail: " .. name
+            tpSubMenu:addOption(label, player, function(p)
+                if NinjaLineages.isClient and NinjaLineages.isClient() then
+                    sendClientCommand(p, "NinjaLineages", "debugBijuuTeleportWild", { bijuuId = id })
+                elseif NinjaLineages.BijuuSpawnServer and NinjaLineages.BijuuSpawnServer.debugTeleportToWild then
+                    NinjaLineages.BijuuSpawnServer.debugTeleportToWild(p, id)
+                end
+            end)
+        end
+
+        -- 8.8 Force Wild World Reconciliation
+        bijuuSubMenu:addOption(getText("UI_NL_Debug_ReconcileWildBijuu"), player, function(p)
+            if NinjaLineages.isClient and NinjaLineages.isClient() then
+                sendClientCommand(p, "NinjaLineages", "debugBijuuReconcileWild", {})
+            elseif NinjaLineages.BijuuSpawnServer and NinjaLineages.BijuuSpawnServer.debugForceReconciliation then
+                NinjaLineages.BijuuSpawnServer.debugForceReconciliation(p)
+            end
+        end)
     end
 end
 

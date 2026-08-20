@@ -649,16 +649,13 @@ NinjaLineages.Balance.Jinchuuriki.BossShell = {
     VISUAL_HEIGHT = 2.2,       -- Height elevation in world units
     RINGS_COUNT = 4,           -- Elevation contour rings
 
-    -- Hitbox & Engine Proxy tuning
+    -- Hitbox & Engine Proxy tuning (Strictly 1 single root zombie proxy)
     PROXY_WIDTH = 2.4,         -- Target width for setWidth() probe (default zombie is ~0.3)
+    PERIMETER_HITBOX_RADIUS = 1.2, -- Body radius for perimeter melee reach compensation
     DEBUG_HEALTH = 1000.0,     -- Temporary survivability health for collision/weapon testing
 
     -- Debug spawn configuration
     SPAWN_DISTANCE = 4.0,      -- Distance in front of player for debug spawn
-
-    -- Multi-proxy satellite grid offsets (360-degree perimeter reach)
-    SATELLITE_RADIUS_CARDINAL = 1.2,
-    SATELLITE_RADIUS_DIAGONAL = 0.9,
 }
 
 NinjaLineages.Balance.Jinchuuriki.BossCombat = {
@@ -668,7 +665,7 @@ NinjaLineages.Balance.Jinchuuriki.BossCombat = {
 
     -- Encounter & aggro ranges
     ACQUISITION_RADIUS = 20.0, -- Max radius to acquire or maintain target (world tiles)
-    ATTACK_RANGE = 14.0,       -- Max range to initiate volley attack (world tiles)
+    ATTACK_RANGE = 14.0,       -- Max range to initiate volley attack / last attacker aggro (world tiles)
     PREFERRED_DISTANCE = 5.0,  -- Ideal pursuit distance (world tiles)
 
     -- Projectile flight & hitbox
@@ -683,20 +680,78 @@ NinjaLineages.Balance.Jinchuuriki.BossCombat = {
     -- Volley trajectory fan configuration
     FAN_STEP_RADIANS = math.rad(9.0), -- 9 degrees angular spread per trajectory lane
 
-    -- Telegraph duration (game minutes)
-    TELEGRAPH_1_TAIL_MINUTES = 0.08, -- ~3.2s real time
-    TELEGRAPH_9_TAIL_MINUTES = 0.04, -- ~1.6s real time
+    -- Telegraph duration (in-game minutes: worldAgeHours * 60)
+    TELEGRAPH_1_TAIL_MINUTES = 0.08,
+    TELEGRAPH_9_TAIL_MINUTES = 0.04,
 
-    -- Sequential volley inter-shot interval (game minutes)
+    -- Sequential volley inter-shot interval (in-game minutes)
     SHOT_INTERVAL_1_TAIL_MINUTES = 0.02,
     SHOT_INTERVAL_9_TAIL_MINUTES = 0.006,
 
-    -- Attack cooldown (game minutes)
+    -- Attack cooldown (in-game minutes)
     COOLDOWN_1_TAIL_MINUTES = 0.12,
     COOLDOWN_9_TAIL_MINUTES = 0.06,
 
-    -- Pathfinding repath throttle (game minutes)
+    -- Pathfinding repath throttle (in-game minutes)
     REPATH_INTERVAL_MINUTES = 0.02,
+}
+
+NinjaLineages.Balance.Jinchuuriki.WildSpawn = {
+    FOOTPRINT_RADIUS = 2.5,                        -- Validation radius for open space around spawn
+    POSITION_PERSIST_INTERVAL_GAME_MINUTES = 0.5,  -- Periodic save interval while moved (in-game minutes)
+    POSITION_PERSIST_MIN_DISTANCE = 2.0,           -- Minimum movement distance to trigger write (tiles)
+    REGIONS = {
+        wilderness_muldraugh_east = {
+            id = "wilderness_muldraugh_east",
+            name = "Muldraugh East Forest Clearing",
+            minX = 11650, maxX = 11850,
+            minY = 9850, maxY = 10050,
+            defaultX = 11750, defaultY = 9950,
+        },
+        wilderness_central_plateau = {
+            id = "wilderness_central_plateau",
+            name = "Central Woods Plateau",
+            minX = 8900, maxX = 9150,
+            minY = 9100, maxY = 9350,
+            defaultX = 9025, defaultY = 9225,
+        },
+        wilderness_rosewood_south = {
+            id = "wilderness_rosewood_south",
+            name = "Southern Wilderness Marshes",
+            minX = 8900, maxX = 9150,
+            minY = 13300, maxY = 13550,
+            defaultX = 9025, defaultY = 13425,
+        },
+        wilderness_west_farmlands = {
+            id = "wilderness_west_farmlands",
+            name = "Western Farmland Wilderness",
+            minX = 5300, maxX = 5550,
+            minY = 7300, maxY = 7550,
+            defaultX = 5425, defaultY = 7425,
+        },
+        wilderness_fallas_lake = {
+            id = "wilderness_fallas_lake",
+            name = "Fallas Lake Wetlands",
+            minX = 6500, maxX = 6750,
+            minY = 8600, maxY = 8850,
+            defaultX = 6625, defaultY = 8725,
+        },
+        wilderness_northeast_forest = {
+            id = "wilderness_northeast_forest",
+            name = "Northeast Deep Woods",
+            minX = 13300, maxX = 13550,
+            minY = 6900, maxY = 7150,
+            defaultX = 13425, defaultY = 7025,
+        },
+    },
+    BIJUU_REGION_MAP = {
+        son_goku = "wilderness_muldraugh_east",
+        kokuo    = "wilderness_central_plateau",
+        saiken   = "wilderness_rosewood_south",
+        chomei   = "wilderness_west_farmlands",
+        gyuki    = "wilderness_fallas_lake",
+        kurama   = "wilderness_northeast_forest",
+    },
 }
 
 
