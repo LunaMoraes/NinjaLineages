@@ -1,339 +1,430 @@
 require "NinjaLineages_Utils"
-require "NinjaLineages_Balance"
-require "disciplines/jinchuuriki/NinjaLineages_BijuuDefinitions"
+require "NinjaLineages_AbilityAuthority"
 require "disciplines/jinchuuriki/NinjaLineages_BijuuBoss"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.BijuuRenderer = NinjaLineages.BijuuRenderer or {}
 
 local Renderer = NinjaLineages.BijuuRenderer
+local Authority = NinjaLineages.AbilityAuthority
 local Boss = NinjaLineages.BijuuBoss
 
 local activeShells = {}
 local activeTelegraphs = {}
+local swingCounter = 0
 
-function Renderer.getActiveShells()
-    return activeShells
+local function nowGameMinutes()
+    return NinjaLineages.Utils.Time.gameMinutes()
 end
 
-function Renderer.getActiveTelegraphs()
-    return activeTelegraphs
-end
-
-function Renderer.addShell(payload)
-    if not payload or not payload.runtimeId or not payload.bijuuId then return end
-
-    local config = Boss.getShellConfig(payload.bijuuId)
-    activeShells[payload.runtimeId] = {
-        runtimeId = payload.runtimeId,
+local function copyShellPayload(payload)
+    if not payload or not payload.runtimeId or not payload.bijuuId then return nil end
+    return {
         bijuuId = payload.bijuuId,
-        proxyOnlineId = payload.proxyOnlineId,
-        lastKnownX = payload.x or 0,
-        lastKnownY = payload.y or 0,
-        lastKnownZ = payload.z or 0,
-        config = config,
+        runtimeId = payload.runtimeId,
+        proxyOnlineId = tonumber(payload.proxyOnlineId),
+        lastKnownX = tonumber(payload.x) or 0,
+        lastKnownY = tonumber(payload.y) or 0,
+        lastKnownZ = tonumber(payload.z) or 0,
+        facingX = tonumber(payload.facingX) or 0,
+        facingY = tonumber(payload.facingY) or 1,
+        config = Boss.getShellConfig(payload.bijuuId),
     }
 end
 
-function Renderer.removeShell(payload)
-    if not payload or not payload.runtimeId then return end
+function Renderer.addShell(payload)
+    local shell = copyShellPayload(payload)
+    if shell then activeShells[shell.runtimeId] = shell end
+end
 
-    if activeShells[payload.runtimeId] then
-        activeShells[payload.runtimeId] = nil
-    end
+function Renderer.removeShell(payload)
+    if payload and payload.runtimeId then activeShells[payload.runtimeId] = nil end
 end
 
 function Renderer.addTelegraph(payload)
-    if not payload or not payload.volleyId or not payload.trajectories then return end
-
-    local color = Boss.getThemeColor(payload.bijuuId)
+    if not payload or not payload.volleyId or type(payload.trajectories) ~= "table" then return end
     activeTelegraphs[payload.volleyId] = {
         volleyId = payload.volleyId,
-        bijuuId = payload.bijuuId,
         runtimeId = payload.runtimeId,
-        startedAtGameMinutes = payload.startedAtGameMinutes or NinjaLineages.Utils.Time.gameMinutes(),
-        endsAtGameMinutes = payload.endsAtGameMinutes or (NinjaLineages.Utils.Time.gameMinutes() + 0.05),
+        bijuuId = payload.bijuuId,
         trajectories = payload.trajectories,
-        color = color,
+        endsAtGameMinutes = tonumber(payload.endsAtGameMinutes) or (nowGameMinutes() + 0.05),
+        color = Boss.getThemeColor(payload.bijuuId),
     }
 end
 
 function Renderer.removeTelegraph(payload)
-    if not payload or not payload.volleyId then return end
-    if activeTelegraphs[payload.volleyId] then
-        activeTelegraphs[payload.volleyId] = nil
-    end
+    if payload and payload.volleyId then activeTelegraphs[payload.volleyId] = nil end
 end
 
-function Renderer.clearAllShells()
+function Renderer.replaceShells(payload)
     activeShells = {}
     activeTelegraphs = {}
+    local shells = payload and payload.shells or payload
+    if type(shells) ~= "table" then return end
+    for _, shell in ipairs(shells) do Renderer.addShell(shell) end
 end
 
-local function renderIsoCircleSafe(x, y, z, radius, segments, thickness, r, g, b, alpha)
-    if renderIsoCircle then
-        renderIsoCircle(
-            x, y, z,
-            math.max(0.05, radius or 1.0),
-            segments or 32,
-            thickness or 2.0,
-            r or 1.0, g or 1.0, b or 1.0,
-            alpha or 1.0
-        )
+local function matchesShell(proxy, shell)
+    if not proxy or not proxy.getModData or (proxy.isDead and proxy:isDead()) then return false end
+    if shell.proxyOnlineId and shell.proxyOnlineId >= 0 and proxy.getOnlineID then
+        local ok, onlineId = pcall(function() return proxy:getOnlineID() end)
+        if ok and onlineId == shell.proxyOnlineId then return true end
     end
+    return Boss.isBossProxy(proxy)
+        and Boss.getBijuuId(proxy) == shell.bijuuId
+        and Boss.getRuntimeId(proxy) == shell.runtimeId
 end
 
-local function renderIsoLineSafe(x1, y1, z1, x2, y2, z2, thickness, r, g, b, alpha)
-    if renderIsoLine then
-        renderIsoLine(
-            x1, y1, z1,
-            x2, y2, z2,
-            thickness or 2.0,
-            r or 1.0, g or 1.0, b or 1.0,
-            alpha or 1.0
-        )
-    end
-end
+local function findTaggedProxyNear(shell)
+    local cell = getCell and getCell()
+    if not cell then return nil end
 
-function Renderer.renderShell(shell, nowGameMinutes)
-    if not shell or not shell.config then return end
-
-    -- 1. Try resolving live proxy entity by online ID
-    local proxy = nil
-    if shell.proxyOnlineId and NinjaLineages.Utils.Zombies.getByOnlineID then
-        proxy = NinjaLineages.Utils.Zombies.getByOnlineID(shell.proxyOnlineId)
-    end
-
-    if proxy and not (proxy.isDead and proxy:isDead()) then
-        shell.lastKnownX = proxy:getX()
-        shell.lastKnownY = proxy:getY()
-        shell.lastKnownZ = proxy:getZ()
-    end
-
-    local x = shell.lastKnownX
-    local y = shell.lastKnownY
-    local z = shell.lastKnownZ
-
-    local cfg = shell.config
-    local baseColor = cfg.color or { r = 1.0, g = 0.6, b = 0.2 }
-    local r, g, b = baseColor.r, baseColor.g, baseColor.b
-
-    -- Game-time driven subtle breathing pulse
-    local pulse = 0.85 + 0.15 * math.sin(nowGameMinutes * 70.0)
-    local mainAlpha = 0.80 * pulse
-
-    local radius = cfg.visualRadius or 2.4
-    local height = cfg.visualHeight or 2.2
-    local rings = cfg.ringsCount or 4
-
-    -- 2. Base ground circle
-    renderIsoCircleSafe(x, y, z, radius, 36, 3.0, r, g, b, mainAlpha)
-
-    -- 3. Stacked elevation contour rings (dome / body shell)
-    for i = 1, rings do
-        local progress = i / rings
-        local elevation = progress * height
-        local ringRadius = radius * math.cos(progress * (math.pi / 2.2))
-        local ringAlpha = mainAlpha * (1.0 - (progress * 0.35))
-        renderIsoCircleSafe(x, y, z + elevation, ringRadius, 28, 2.0, r, g, b, ringAlpha)
-    end
-
-    -- 4. Meridian ribs (vertical lines shaping the body cage)
-    local ribCount = 8
-    for rib = 1, ribCount do
-        local angle = (rib - 1) * (math.pi * 2 / ribCount)
-        local cosA = math.cos(angle)
-        local sinA = math.sin(angle)
-
-        local prevX = x + (cosA * radius)
-        local prevY = y + (sinA * radius)
-        local prevZ = z
-
-        for step = 1, rings do
-            local progress = step / rings
-            local elevation = progress * height
-            local stepRadius = radius * math.cos(progress * (math.pi / 2.2))
-            local nextX = x + (cosA * stepRadius)
-            local nextY = y + (sinA * stepRadius)
-            local nextZ = z + elevation
-
-            renderIsoLineSafe(prevX, prevY, prevZ, nextX, nextY, nextZ, 1.8, r, g, b, mainAlpha * 0.7)
-            prevX, prevY, prevZ = nextX, nextY, nextZ
-        end
-    end
-
-    -- 5. Forward-facing head indicator
-    local forward = nil
-    if proxy and proxy.getForwardDirection then
-        forward = proxy:getForwardDirection()
-    end
-    local fx = forward and forward:getX() or 0
-    local fy = forward and forward:getY() or 1
-    local fLen = math.sqrt(fx * fx + fy * fy)
-    if fLen > 0.001 then
-        fx, fy = fx / fLen, fy / fLen
-    else
-        fx, fy = 0, 1
-    end
-
-    local headDist = radius * 0.65
-    local headX = x + (fx * headDist)
-    local headY = y + (fy * headDist)
-    local headZ = z + (height * 0.6)
-    local headRadius = cfg.headRadius or 1.2
-    renderIsoCircleSafe(headX, headY, headZ, headRadius, 24, 2.5, r, g, b, mainAlpha * 0.9)
-    renderIsoLineSafe(x, y, headZ, headX, headY, headZ, 2.0, r, g, b, mainAlpha * 0.8)
-
-    -- 6. Core underlying proxy marker
-    renderIsoCircleSafe(x, y, z, 0.4, 16, 1.5, 1.0, 1.0, 1.0, 0.4)
-
-    -- 7. Debug Hitbox Overlay (contrasting white/gold boundary at target width)
-    local isDebug = (isDebugEnabled and isDebugEnabled())
-        or (SandboxVars and SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.DebugMode == true)
-    if isDebug then
-        local hitboxRadius = (cfg.proxyWidth or 2.4) / 2
-        renderIsoCircleSafe(x, y, z + 0.05, hitboxRadius, 32, 2.0, 1.0, 0.95, 0.3, 0.75 * pulse)
-    end
-end
-
-function Renderer.renderTelegraph(telegraph, nowGameMinutes)
-    if not telegraph or not telegraph.trajectories then return end
-
-    local color = telegraph.color or { r = 1.0, g = 0.2, b = 0.1 }
-    local r, g, b = color.r, color.g, color.b
-
-    -- Pulsing danger alpha
-    local pulse = 0.65 + 0.35 * math.sin(nowGameMinutes * 90.0)
-    local alpha = math.max(0.2, math.min(1.0, 0.75 * pulse))
-
-    for _, traj in ipairs(telegraph.trajectories) do
-        local oX = traj.originX
-        local oY = traj.originY
-        local oZ = (traj.originZ or 0) + 0.05
-        local dX = traj.destinationX
-        local dY = traj.destinationY
-        local dZ = (traj.destinationZ or 0) + 0.05
-
-        -- Draw telegraphed fixed-path lane
-        renderIsoLineSafe(oX, oY, oZ, dX, dY, dZ, 3.5, r, g, b, alpha)
-        -- Draw endpoint warning circle
-        renderIsoCircleSafe(dX, dY, dZ, 0.6, 16, 2.0, r, g, b, alpha * 0.8)
-    end
-end
-
-local function isWorldReady()
-    if not getCell or not getCell() then return false end
-    if not getSpecificPlayer or not getSpecificPlayer(0) then return false end
-    if not IsoCamera or not IsoCamera.CamCharacter then return false end
-    return true
-end
-
-function Renderer.renderAll(nowGameMinutes)
-    if not isWorldReady() then return end
-
-    -- 1. Render all active Bijū giant shells
-    if activeShells then
-        for _, shell in pairs(activeShells) do
-            Renderer.renderShell(shell, nowGameMinutes)
-        end
-    end
-
-    -- 2. Render all active telegraph threat lanes
-    if activeTelegraphs then
-        local expiredTelegraphs = {}
-        for volleyId, telegraph in pairs(activeTelegraphs) do
-            if nowGameMinutes >= telegraph.endsAtGameMinutes then
-                table.insert(expiredTelegraphs, volleyId)
-            else
-                Renderer.renderTelegraph(telegraph, nowGameMinutes)
-            end
-        end
-        for _, vId in ipairs(expiredTelegraphs) do
-            activeTelegraphs[vId] = nil
-        end
-    end
-end
-
--- ============================================================================
--- Network Event Handling & Client Sync
--- ============================================================================
-
-local function onServerCommand(module, command, args)
-    if module ~= "NinjaLineages" then return end
-
-    if command == "bijuuShellSpawned" then
-        Renderer.addShell(args)
-    elseif command == "bijuuShellRemoved" then
-        Renderer.removeShell(args)
-    elseif command == "bijuuTelegraphStarted" then
-        Renderer.addTelegraph(args)
-    elseif command == "bijuuTelegraphEnded" then
-        Renderer.removeTelegraph(args)
-    elseif command == "bijuuActiveShellsSync" then
-        Renderer.clearAllShells()
-        if type(args) == "table" then
-            for _, shellData in ipairs(args) do
-                Renderer.addShell(shellData)
-            end
-        end
-    end
-end
-
-local function onWeaponSwing(player, weapon)
-    if not player or not player.isLocalPlayer or not player:isLocalPlayer() or (player.isDead and player:isDead()) then return end
-    if weapon and weapon.isRanged and weapon:isRanged() then return end
-
-    local px = player:getX()
-    local py = player:getY()
-    local pz = player:getZ()
-    local forward = player:getForwardDirection()
-    local fx = forward and forward:getX() or 0
-    local fy = forward and forward:getY() or 1
-    local fLen = math.sqrt(fx * fx + fy * fy)
-    if fLen > 0.001 then fx, fy = fx / fLen, fy / fLen else fx, fy = 0, 1 end
-
-    local maxRange = (weapon and weapon.getMaxRange and weapon:getMaxRange(player)) or 1.5
-    local bossRadius = 1.2
-    local allowedReach = bossRadius + maxRange + 0.35
-
-    for runtimeId, shell in pairs(activeShells) do
-        local bx = shell.lastKnownX
-        local by = shell.lastKnownY
-        local bz = shell.lastKnownZ
-        if math.abs(pz - bz) < 1.5 then
-            local dx = bx - px
-            local dy = by - py
-            local dist = math.sqrt(dx * dx + dy * dy)
-            if dist <= allowedReach and dist > (maxRange * 0.8) then
-                local dirX = dx / (dist > 0.0001 and dist or 1)
-                local dirY = dy / (dist > 0.0001 and dist or 1)
-                local dot = (dirX * fx) + (dirY * fy)
-                if dot >= 0.42 then
-                    local hit = NinjaLineages.Collision and NinjaLineages.Collision.traceSegment(px, py, pz, bx, by, pz)
-                    if hit == nil then
-                        local swingId = tostring(NinjaLineages.Utils.Time.gameMinutes()) .. "_" .. tostring(player.getOnlineID and player:getOnlineID() or 0)
-                        sendClientCommand(player, "NinjaLineages", "bijuuMeleeSwing", {
-                            bijuuId = shell.bijuuId,
-                            runtimeId = runtimeId,
-                            swingId = swingId,
-                        })
+    local baseX = math.floor(shell.lastKnownX)
+    local baseY = math.floor(shell.lastKnownY)
+    local baseZ = math.floor(shell.lastKnownZ)
+    for offsetX = -2, 2 do
+        for offsetY = -2, 2 do
+            local square = cell:getGridSquare(baseX + offsetX, baseY + offsetY, baseZ)
+            local moving = square and square.getMovingObjects and square:getMovingObjects()
+            if moving then
+                for index = 0, moving:size() - 1 do
+                    local candidate = moving:get(index)
+                    if candidate and instanceof(candidate, "IsoZombie") and matchesShell(candidate, shell) then
+                        return candidate
                     end
                 end
             end
         end
     end
+    return nil
 end
 
-NinjaLineages.addEventOnce(
-    "client.bijuuRenderer.onServerCommand",
-    Events.OnServerCommand,
-    onServerCommand
-)
+local function resolveProxy(shell)
+    if matchesShell(shell.proxy, shell) then return shell.proxy end
+    shell.proxy = nil
+
+    if shell.proxyOnlineId and shell.proxyOnlineId >= 0 and NinjaLineages.Utils.Zombies.getByOnlineID then
+        local byId = NinjaLineages.Utils.Zombies.getByOnlineID(shell.proxyOnlineId)
+        if matchesShell(byId, shell) then shell.proxy = byId end
+    end
+    if not shell.proxy then shell.proxy = findTaggedProxyNear(shell) end
+    return shell.proxy
+end
+
+local function hideProxy(proxy)
+    if not proxy then return end
+    local hidden = false
+    if proxy.setAlphaAndTarget then
+        hidden = pcall(function() proxy:setAlphaAndTarget(0.0) end)
+    end
+    if not hidden then
+        if proxy.setAlpha then pcall(function() proxy:setAlpha(0.0) end) end
+        if proxy.setTargetAlpha then pcall(function() proxy:setTargetAlpha(0.0) end) end
+    end
+end
+
+local function updateShellAnchor(shell)
+    local proxy = resolveProxy(shell)
+    if proxy then
+        hideProxy(proxy)
+        shell.lastKnownX = proxy:getX()
+        shell.lastKnownY = proxy:getY()
+        shell.lastKnownZ = proxy:getZ()
+        if proxy.getForwardDirection then
+            local forward = proxy:getForwardDirection()
+            if forward then
+                shell.facingX = forward:getX()
+                shell.facingY = forward:getY()
+            end
+        end
+    end
+    return proxy
+end
+
+local function normalizedFacing(shell)
+    local fx = tonumber(shell.facingX) or 0
+    local fy = tonumber(shell.facingY) or 1
+    local length = math.sqrt(fx * fx + fy * fy)
+    if length < 0.001 then return 0, 1, -1, 0 end
+    fx, fy = fx / length, fy / length
+    return fx, fy, -fy, fx
+end
+
+local function line(x1, y1, z1, x2, y2, z2, thickness, r, g, b, alpha)
+    local vfx = NinjaLineages.VFX
+    if vfx and vfx.renderLine then
+        vfx.renderLine(x1, y1, z1, x2, y2, z2, thickness, r, g, b, alpha)
+    end
+end
+
+local function ring(x, y, z, radius, segments, thickness, r, g, b, alpha)
+    local vfx = NinjaLineages.VFX
+    if vfx and vfx.renderRing then
+        vfx.renderRing(x, y, z, radius, segments, thickness, r, g, b, alpha, 0)
+    end
+end
+
+local function ellipse(cx, cy, cz, forwardX, forwardY, sideX, sideY, halfLength, halfWidth, segments, thickness, r, g, b, alpha)
+    local previousX, previousY = nil, nil
+    for step = 0, segments do
+        local angle = (step / segments) * math.pi * 2
+        local along = math.cos(angle) * halfLength
+        local across = math.sin(angle) * halfWidth
+        local x = cx + forwardX * along + sideX * across
+        local y = cy + forwardY * along + sideY * across
+        if previousX then line(previousX, previousY, cz, x, y, cz, thickness, r, g, b, alpha) end
+        previousX, previousY = x, y
+    end
+end
+
+local function limb(baseX, baseY, baseZ, kneeX, kneeY, kneeZ, pawX, pawY, groundZ, r, g, b, alpha)
+    line(baseX, baseY, baseZ, kneeX, kneeY, kneeZ, 4.2, r, g, b, alpha)
+    line(kneeX, kneeY, kneeZ, pawX, pawY, groundZ + 0.08, 4.0, r, g, b, alpha)
+    ring(pawX, pawY, groundZ + 0.06, 0.25, 12, 3.0, r, g, b, alpha)
+end
+
+local function drawBeast(shell, time)
+    updateShellAnchor(shell)
+
+    local x, y, z = shell.lastKnownX, shell.lastKnownY, shell.lastKnownZ
+    local cfg = shell.config
+    local color = cfg.color or { r = 1.0, g = 0.5, b = 0.1 }
+    local r, g, b = color.r, color.g, color.b
+    local fx, fy, sx, sy = normalizedFacing(shell)
+    local pulse = 0.88 + math.sin(time * 72.0) * 0.08
+    local alpha = 0.88 * pulse
+
+    local bodyLength = math.max(1.7, (cfg.visualRadius or 2.4) * 0.92)
+    local bodyWidth = bodyLength * 0.55
+    local bodyHeight = math.max(1.05, (cfg.visualHeight or 2.2) * 0.62)
+    local chestX = x + fx * bodyLength * 0.34
+    local chestY = y + fy * bodyLength * 0.34
+    local rumpX = x - fx * bodyLength * 0.34
+    local rumpY = y - fy * bodyLength * 0.34
+
+    for layer = 0, 4 do
+        local t = layer / 4
+        local widthScale = 1.0 - math.abs(t - 0.45) * 0.45
+        ellipse(x, y, z + 0.38 + t * bodyHeight, fx, fy, sx, sy,
+            bodyLength, bodyWidth * widthScale, 28, 3.3, r, g, b, alpha * (0.82 + t * 0.12))
+    end
+
+    ellipse(chestX, chestY, z + bodyHeight * 0.72, fx, fy, sx, sy,
+        bodyLength * 0.48, bodyWidth * 0.84, 22, 3.6, r, g, b, alpha)
+    ellipse(rumpX, rumpY, z + bodyHeight * 0.66, fx, fy, sx, sy,
+        bodyLength * 0.48, bodyWidth * 0.90, 22, 3.6, r, g, b, alpha)
+    line(rumpX - fx * 0.35, rumpY - fy * 0.35, z + bodyHeight * 0.95,
+        chestX + fx * 0.45, chestY + fy * 0.45, z + bodyHeight * 1.12,
+        4.2, r, g, b, alpha)
+    for ribIndex = -2, 2 do
+        local along = ribIndex * bodyLength * 0.27
+        local ribX = x + fx * along
+        local ribY = y + fy * along
+        line(ribX + sx * bodyWidth * 0.82, ribY + sy * bodyWidth * 0.82, z + bodyHeight * 0.55,
+            ribX, ribY, z + bodyHeight * 1.03, 2.6, r, g, b, alpha * 0.72)
+        line(ribX, ribY, z + bodyHeight * 1.03,
+            ribX - sx * bodyWidth * 0.82, ribY - sy * bodyWidth * 0.82, z + bodyHeight * 0.55,
+            2.6, r, g, b, alpha * 0.72)
+    end
+
+    local frontAlong = bodyLength * 0.55
+    local rearAlong = -bodyLength * 0.48
+    for _, legSpec in ipairs({
+        { frontAlong,  0.72 }, { frontAlong, -0.72 },
+        { rearAlong,   0.72 }, { rearAlong,  -0.72 },
+    }) do
+        local along, sideSign = legSpec[1], legSpec[2]
+        local baseX = x + fx * along + sx * bodyWidth * sideSign
+        local baseY = y + fy * along + sy * bodyWidth * sideSign
+        local kneeX = baseX + fx * 0.18 + sx * sideSign * 0.16
+        local kneeY = baseY + fy * 0.18 + sy * sideSign * 0.16
+        local pawX = kneeX + fx * 0.28
+        local pawY = kneeY + fy * 0.28
+        limb(baseX, baseY, z + bodyHeight * 0.58,
+            kneeX, kneeY, z + bodyHeight * 0.24,
+            pawX, pawY, z, r, g, b, alpha)
+    end
+
+    local neckX = x + fx * bodyLength * 0.78
+    local neckY = y + fy * bodyLength * 0.78
+    local headX = x + fx * bodyLength * 1.12
+    local headY = y + fy * bodyLength * 1.12
+    local headZ = z + bodyHeight * 1.05
+    line(chestX, chestY, z + bodyHeight * 0.92, neckX, neckY, headZ, 4.5, r, g, b, alpha)
+    ellipse(headX, headY, headZ, fx, fy, sx, sy, bodyLength * 0.38, bodyWidth * 0.58,
+        22, 3.8, r, g, b, alpha)
+    local muzzleX = headX + fx * bodyLength * 0.40
+    local muzzleY = headY + fy * bodyLength * 0.40
+    ellipse(muzzleX, muzzleY, headZ - 0.08, fx, fy, sx, sy, bodyLength * 0.28,
+        bodyWidth * 0.34, 16, 3.3, r, g, b, alpha)
+    line(headX + sx * bodyWidth * 0.42, headY + sy * bodyWidth * 0.42, headZ + 0.05,
+        headX + sx * bodyWidth * 0.72 - fx * 0.15, headY + sy * bodyWidth * 0.72 - fy * 0.15,
+        headZ + 0.48, 3.5, r, g, b, alpha)
+    line(headX - sx * bodyWidth * 0.42, headY - sy * bodyWidth * 0.42, headZ + 0.05,
+        headX - sx * bodyWidth * 0.72 - fx * 0.15, headY - sy * bodyWidth * 0.72 - fy * 0.15,
+        headZ + 0.48, 3.5, r, g, b, alpha)
+    local eyeForward = bodyLength * 0.18
+    for _, eyeSide in ipairs({ -1, 1 }) do
+        ring(headX + fx * eyeForward + sx * bodyWidth * 0.29 * eyeSide,
+            headY + fy * eyeForward + sy * bodyWidth * 0.29 * eyeSide,
+            headZ + 0.04, 0.08, 10, 2.5, 1.0, 0.95, 0.72, 1.0)
+    end
+
+    local tails = math.max(1, math.min(9, tonumber(cfg.tails) or 1))
+    local rearAngle = (math.atan2 or math.atan)(-fy, -fx)
+    local spread = math.rad(92)
+    for tailIndex = 1, tails do
+        local fraction = tails == 1 and 0 or ((tailIndex - 1) / (tails - 1) - 0.5)
+        local baseAngle = rearAngle + fraction * spread
+        local wave = math.sin(time * 68.0 + tailIndex * 0.91)
+        local currentX = rumpX + math.cos(baseAngle) * bodyWidth * 0.55
+        local currentY = rumpY + math.sin(baseAngle) * bodyWidth * 0.55
+        local currentZ = z + bodyHeight * 0.78
+        local segments = 6
+        for segment = 1, segments do
+            local progress = segment / segments
+            local angle = baseAngle + wave * (0.12 + progress * 0.25)
+                + math.sin(time * 53.0 + tailIndex + segment * 0.7) * 0.07
+            local length = bodyLength * (0.24 + progress * 0.035)
+            local nextX = currentX + math.cos(angle) * length
+            local nextY = currentY + math.sin(angle) * length
+            local nextZ = currentZ + 0.10 + math.sin(progress * math.pi) * 0.20
+                + wave * progress * 0.05
+            line(currentX, currentY, currentZ, nextX, nextY, nextZ,
+                5.0 - progress * 2.2, r, g, b, alpha * (1.0 - progress * 0.16))
+            currentX, currentY, currentZ = nextX, nextY, nextZ
+        end
+        ring(currentX, currentY, currentZ, 0.12, 10, 2.2, r, g, b, alpha)
+    end
+
+    for wisp = 1, 7 do
+        local angle = time * 35.0 + wisp * (math.pi * 2 / 7)
+        local distance = bodyWidth * (0.65 + (wisp % 3) * 0.12)
+        local wx = x + math.cos(angle) * distance
+        local wy = y + math.sin(angle) * distance
+        local phase = (time * 18.0 + wisp * 0.13) % 1
+        line(wx, wy, z + 0.12 + phase * bodyHeight,
+            wx, wy, z + 0.28 + phase * bodyHeight, 2.2, r, g, b,
+            alpha * math.sin(phase * math.pi) * 0.65)
+    end
+
+    local debugEnabled = (isDebugEnabled and isDebugEnabled())
+        or (SandboxVars and SandboxVars.NinjaLineages and SandboxVars.NinjaLineages.DebugMode == true)
+    if debugEnabled then
+        ring(x, y, z + 0.04, cfg.perimeterHitboxRadius or 1.2, 32, 2.5, 1.0, 0.95, 0.25, 0.85)
+    end
+end
+
+local function drawTelegraph(telegraph, time)
+    local color = telegraph.color or { r = 1.0, g = 0.25, b = 0.1 }
+    local alpha = 0.58 + math.sin(time * 95.0) * 0.25
+    for _, trajectory in ipairs(telegraph.trajectories) do
+        line(trajectory.originX, trajectory.originY, (trajectory.originZ or 0) + 0.10,
+            trajectory.destinationX, trajectory.destinationY, (trajectory.destinationZ or 0) + 0.10,
+            3.5, color.r, color.g, color.b, alpha)
+        ring(trajectory.destinationX, trajectory.destinationY, (trajectory.destinationZ or 0) + 0.05,
+            0.60, 18, 2.4, color.r, color.g, color.b, alpha * 0.82)
+    end
+end
+
+function Renderer.renderAll(time)
+    if not getCell or not getCell() then return end
+    for _, shell in pairs(activeShells) do drawBeast(shell, time) end
+    for volleyId, telegraph in pairs(activeTelegraphs) do
+        if time >= telegraph.endsAtGameMinutes then
+            activeTelegraphs[volleyId] = nil
+        else
+            drawTelegraph(telegraph, time)
+        end
+    end
+end
+
+local function nextSwingId(player)
+    swingCounter = swingCounter + 1
+    local playerId = player.getOnlineID and player:getOnlineID() or -1
+    return tostring(playerId) .. ":" .. tostring(NinjaLineages.Utils.Time.realMilliseconds()) .. ":" .. tostring(swingCounter)
+end
+
+local function sendCompensatedMelee(player, shell)
+    local payload = {
+        bijuuId = shell.bijuuId,
+        runtimeId = shell.runtimeId,
+        swingId = nextSwingId(player),
+    }
+    if NinjaLineages.isClient and NinjaLineages.isClient() then
+        sendClientCommand(player, "NinjaLineages", "bijuuMeleeSwing", payload)
+    elseif NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.handleMeleeSwing then
+        NinjaLineages.BijuuBossServer.handleMeleeSwing(player, payload)
+    end
+end
+
+local function onWeaponSwing(player, weapon)
+    if not player or (player.isLocalPlayer and not player:isLocalPlayer())
+            or (player.isDead and player:isDead()) then return end
+    if weapon and weapon.isRanged and weapon:isRanged() then return end
+
+    local px, py, pz = player:getX(), player:getY(), player:getZ()
+    local forward = player:getForwardDirection()
+    local fx = forward and forward:getX() or 0
+    local fy = forward and forward:getY() or 1
+    local fLength = math.sqrt(fx * fx + fy * fy)
+    if fLength > 0.001 then fx, fy = fx / fLength, fy / fLength end
+
+    local weaponRange = (weapon and weapon.getMaxRange and weapon:getMaxRange(player)) or 1.5
+    local closestShell, closestDistance = nil, math.huge
+    for _, shell in pairs(activeShells) do
+        updateShellAnchor(shell)
+        local dx = shell.lastKnownX - px
+        local dy = shell.lastKnownY - py
+        local distance = math.sqrt(dx * dx + dy * dy)
+        local radius = (shell.config and shell.config.perimeterHitboxRadius) or 1.2
+        if math.abs(pz - shell.lastKnownZ) < 1.5
+                and distance <= radius + weaponRange + 0.35
+                and distance < closestDistance then
+            local unitX = dx / math.max(distance, 0.0001)
+            local unitY = dy / math.max(distance, 0.0001)
+            if unitX * fx + unitY * fy >= 0.42 then
+                local obstruction = NinjaLineages.Collision
+                    and NinjaLineages.Collision.traceSegment(px, py, pz, shell.lastKnownX, shell.lastKnownY, pz)
+                if obstruction == nil then closestShell, closestDistance = shell, distance end
+            end
+        end
+    end
+
+    if closestShell then sendCompensatedMelee(player, closestShell) end
+end
+
+local function requestActiveShells(_, player)
+    player = player or (getPlayer and getPlayer())
+    if not player then return end
+    if NinjaLineages.isClient and NinjaLineages.isClient() then
+        sendClientCommand(player, "NinjaLineages", "requestBijuuActiveShells", {})
+    elseif NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.getActiveShellPayloads then
+        Renderer.replaceShells({ shells = NinjaLineages.BijuuBossServer.getActiveShellPayloads() })
+    end
+end
+
+Authority.registerEventHandler("bijuu_shell_spawned", Renderer.addShell)
+Authority.registerEventHandler("bijuu_shell_removed", Renderer.removeShell)
+Authority.registerEventHandler("bijuu_telegraph_started", Renderer.addTelegraph)
+Authority.registerEventHandler("bijuu_telegraph_ended", Renderer.removeTelegraph)
+Authority.registerEventHandler("bijuu_active_shells", Renderer.replaceShells)
 
 if Events and Events.OnWeaponSwing then
+    NinjaLineages.addEventOnce("client.bijuuRenderer.onWeaponSwing", Events.OnWeaponSwing, onWeaponSwing)
+end
+if Events and Events.OnCreatePlayer then
+    NinjaLineages.addEventOnce("client.bijuuRenderer.onCreatePlayer", Events.OnCreatePlayer, requestActiveShells)
+end
+if Events and Events.OnGameTimeLoaded then
     NinjaLineages.addEventOnce(
-        "client.bijuuRenderer.onWeaponSwing",
-        Events.OnWeaponSwing,
-        onWeaponSwing
+        "client.bijuuRenderer.onGameTimeLoaded",
+        Events.OnGameTimeLoaded,
+        function()
+            if NinjaLineages.isSinglePlayer and NinjaLineages.isSinglePlayer() then
+                requestActiveShells(nil, getPlayer and getPlayer())
+            end
+        end
     )
 end

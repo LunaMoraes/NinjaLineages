@@ -279,16 +279,14 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         local spawnSubMenu = ISContextMenu:getNew(bijuuSubMenu)
         bijuuSubMenu:addSubMenu(spawnOption, spawnSubMenu)
 
-        local order = (NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.Order) or {
-            "shukaku", "matatabi", "isobu", "son_goku", "kokuo", "saiken", "chomei", "gyuki", "kurama"
-        }
+        local order = (NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.Order) or {}
         for _, id in ipairs(order) do
             local def = NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.get(id)
             local name = def and getText(def.nameKey) or id
             local label = tostring(def and def.tails or "?") .. "-Tail: " .. name
             spawnSubMenu:addOption(label, player, function(p)
                 if NinjaLineages.isClient and NinjaLineages.isClient() then
-                    sendClientCommand(p, "NinjaLineages", "debugBijuuSpawnShell", { bijuuId = id })
+                    sendClientCommand(p, "NinjaLineages", "bijuuDebug", { action = "spawn_shell", bijuuId = id })
                 elseif NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.debugSpawnNearPlayer then
                     local ok, reason = NinjaLineages.BijuuBossServer.debugSpawnNearPlayer(p, id)
                     p:Say(ok and (getText("UI_NL_Debug_BijuuSpawned", name)) or ("Spawn failed: " .. tostring(reason)))
@@ -299,7 +297,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         -- 8.4 Despawn Active Bijū Shells
         bijuuSubMenu:addOption(getText("UI_NL_Debug_DespawnBijuu"), player, function(p)
             if NinjaLineages.isClient and NinjaLineages.isClient() then
-                sendClientCommand(p, "NinjaLineages", "debugBijuuDespawnShells", {})
+                sendClientCommand(p, "NinjaLineages", "bijuuDebug", { action = "despawn_shells" })
             elseif NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.debugDespawnAll then
                 local ok, reason, count = NinjaLineages.BijuuBossServer.debugDespawnAll(p)
                 p:Say(getText("UI_NL_Debug_BijuuDespawned", tostring(count or 0)))
@@ -309,7 +307,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         -- 8.5 Nudge Active Shell (+1 Tile X)
         bijuuSubMenu:addOption(getText("UI_NL_Debug_NudgeBijuu"), player, function(p)
             if NinjaLineages.isClient and NinjaLineages.isClient() then
-                sendClientCommand(p, "NinjaLineages", "debugBijuuNudgeShell", { dx = 1.0, dy = 0.0 })
+                sendClientCommand(p, "NinjaLineages", "bijuuDebug", { action = "nudge_shells", dx = 1.0, dy = 0.0 })
             elseif NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.debugNudgeActive then
                 NinjaLineages.BijuuBossServer.debugNudgeActive(p, 1.0, 0.0)
                 p:Say(getText("UI_NL_Debug_BijuuNudged"))
@@ -319,7 +317,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         -- 8.6 Assign Missing Wild Locations
         bijuuSubMenu:addOption(getText("UI_NL_Debug_AssignWildBijuu"), player, function(p)
             if NinjaLineages.isClient and NinjaLineages.isClient() then
-                sendClientCommand(p, "NinjaLineages", "debugBijuuAssignWild", {})
+                sendClientCommand(p, "NinjaLineages", "bijuuDebug", { action = "assign_wild" })
             elseif NinjaLineages.BijuuSpawnServer and NinjaLineages.BijuuSpawnServer.debugAssignMissingLocations then
                 NinjaLineages.BijuuSpawnServer.debugAssignMissingLocations(p)
             end
@@ -330,14 +328,18 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         local tpSubMenu = ISContextMenu:getNew(bijuuSubMenu)
         bijuuSubMenu:addSubMenu(tpOption, tpSubMenu)
 
-        local wildOrder = { "son_goku", "kokuo", "saiken", "chomei", "gyuki", "kurama" }
+        local wildOrder = {}
+        for _, id in ipairs(order) do
+            local definition = NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.get(id)
+            if definition and definition.nativeSpawnType == "wild" then table.insert(wildOrder, id) end
+        end
         for _, id in ipairs(wildOrder) do
             local def = NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.get(id)
             local name = def and getText(def.nameKey) or id
             local label = tostring(def and def.tails or "?") .. "-Tail: " .. name
             tpSubMenu:addOption(label, player, function(p)
                 if NinjaLineages.isClient and NinjaLineages.isClient() then
-                    sendClientCommand(p, "NinjaLineages", "debugBijuuTeleportWild", { bijuuId = id })
+                    sendClientCommand(p, "NinjaLineages", "bijuuDebug", { action = "teleport_wild", bijuuId = id })
                 elseif NinjaLineages.BijuuSpawnServer and NinjaLineages.BijuuSpawnServer.debugTeleportToWild then
                     NinjaLineages.BijuuSpawnServer.debugTeleportToWild(p, id)
                 end
@@ -347,7 +349,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         -- 8.8 Force Wild World Reconciliation
         bijuuSubMenu:addOption(getText("UI_NL_Debug_ReconcileWildBijuu"), player, function(p)
             if NinjaLineages.isClient and NinjaLineages.isClient() then
-                sendClientCommand(p, "NinjaLineages", "debugBijuuReconcileWild", {})
+                sendClientCommand(p, "NinjaLineages", "bijuuDebug", { action = "reconcile_world" })
             elseif NinjaLineages.BijuuSpawnServer and NinjaLineages.BijuuSpawnServer.debugForceReconciliation then
                 NinjaLineages.BijuuSpawnServer.debugForceReconciliation(p)
             end
@@ -356,7 +358,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         -- 8.9 Force Next Zombie Ninja Reveal
         bijuuSubMenu:addOption(getText("UI_NL_Debug_ForceZombieNinjaReveal"), player, function(p)
             if NinjaLineages.isClient and NinjaLineages.isClient() then
-                sendClientCommand(p, "NinjaLineages", "debugForceNextZombieNinjaReveal", {})
+                sendClientCommand(p, "NinjaLineages", "bijuuDebug", { action = "force_release" })
             elseif NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.debugForceNextZombieNinjaReveal then
                 NinjaLineages.BijuuLifecycleServer.debugForceNextZombieNinjaReveal(p)
                 p:Say("Enabled forced Zombie Ninja Bijū reveal on next death.")
@@ -368,14 +370,13 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         local defeatSubMenu = ISContextMenu:getNew(bijuuSubMenu)
         bijuuSubMenu:addSubMenu(defeatOption, defeatSubMenu)
 
-        local allOrder = { "shukaku", "matatabi", "isobu", "son_goku", "kokuo", "saiken", "chomei", "gyuki", "kurama" }
-        for _, id in ipairs(allOrder) do
+        for _, id in ipairs(order) do
             local def = NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.get(id)
             local name = def and getText(def.nameKey) or id
             local label = tostring(def and def.tails or "?") .. "-Tail: " .. name
             defeatSubMenu:addOption(label, player, function(p)
                 if NinjaLineages.isClient and NinjaLineages.isClient() then
-                    sendClientCommand(p, "NinjaLineages", "debugForceDefeatActiveBoss", { bijuuId = id })
+                    sendClientCommand(p, "NinjaLineages", "bijuuDebug", { action = "defeat_boss", bijuuId = id })
                 elseif NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.debugForceDefeatActiveBoss then
                     local ok, reason = NinjaLineages.BijuuLifecycleServer.debugForceDefeatActiveBoss(p, id)
                     p:Say(ok and ("Defeated active boss: " .. tostring(id)) or ("Defeat failed: " .. tostring(reason)))
@@ -394,7 +395,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
             local label = tostring(def and def.tails or "?") .. "-Tail: " .. name
             rerollSubMenu:addOption(label, player, function(p)
                 if NinjaLineages.isClient and NinjaLineages.isClient() then
-                    sendClientCommand(p, "NinjaLineages", "debugRerollWildLocation", { bijuuId = id })
+                    sendClientCommand(p, "NinjaLineages", "bijuuDebug", { action = "reroll_wild", bijuuId = id })
                 elseif NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.debugRerollWildLocation then
                     local ok, reason, loc = NinjaLineages.BijuuLifecycleServer.debugRerollWildLocation(p, id)
                     p:Say(ok and ("Rerolled location for " .. tostring(id)) or ("Reroll failed: " .. tostring(reason)))
@@ -410,7 +411,7 @@ local function onDebugServerCommand(module, command, args)
     if not player then return end
 
     if not args or args.ok ~= true then
-        player:Say("Ninja Lineages debug command denied.")
+        player:Say("Ninja Lineages debug command failed: " .. tostring(args and args.reason or "unknown"))
     elseif args.action == "addXP" then
         player:Say("Added " .. tostring(args.amount or 0) .. " Ninja XP!")
     elseif args.action == "toggleBypass" then
@@ -451,18 +452,30 @@ local function onDebugServerCommand(module, command, args)
                 ui:refreshDisciplineState()
             end
         end
-    elseif args.action == "bijuuDump" then
+    elseif args.action == "dump_registry" then
         player:Say(getText("UI_NL_Debug_BijuuDumped"))
-    elseif args.action == "bijuuReset" then
+    elseif args.action == "reset_registry" then
         player:Say(getText("UI_NL_Debug_BijuuReset"))
-    elseif args.action == "bijuuSpawnShell" then
+    elseif args.action == "spawn_shell" then
         local def = args.bijuuId and NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.get(args.bijuuId)
         local name = def and getText(def.nameKey) or tostring(args.bijuuId)
         player:Say(args.ok and getText("UI_NL_Debug_BijuuSpawned", name) or ("Spawn failed: " .. tostring(args.reason)))
-    elseif args.action == "bijuuDespawnShells" then
+    elseif args.action == "despawn_shells" then
         player:Say(getText("UI_NL_Debug_BijuuDespawned", tostring(args.count or 0)))
-    elseif args.action == "bijuuNudgeShell" then
+    elseif args.action == "nudge_shells" then
         player:Say(getText("UI_NL_Debug_BijuuNudged"))
+    elseif args.action == "assign_wild" then
+        player:Say("Assigned " .. tostring(args.count or 0) .. " missing wild Bijū locations.")
+    elseif args.action == "teleport_wild" then
+        player:Say("Wild Bijū teleport status: " .. tostring(args.reason or "ok"))
+    elseif args.action == "reconcile_world" then
+        player:Say("Wild Bijū world reconciliation complete.")
+    elseif args.action == "force_release" then
+        player:Say("The next eligible Zombie Ninja death will release a Bijū.")
+    elseif args.action == "defeat_boss" then
+        player:Say("Defeated active boss: " .. tostring(args.bijuuId))
+    elseif args.action == "reroll_wild" then
+        player:Say("Rerolled wild location for " .. tostring(args.bijuuId))
     end
 end
 

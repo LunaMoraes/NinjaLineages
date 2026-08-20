@@ -6,12 +6,14 @@ require "disciplines/jinchuuriki/NinjaLineages_BijuuState"
 require "disciplines/jinchuuriki/NinjaLineages_BijuuBoss"
 require "disciplines/jinchuuriki/NinjaLineages_BijuuCombat"
 require "combat/NinjaLineages_CombatRuntime"
+require "jinchuuriki/NinjaLineages_BijuuServerSupport"
 require "jinchuuriki/NinjaLineages_BijuuRegistryServer"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.BijuuBossServer = NinjaLineages.BijuuBossServer or {}
 
 local Server = NinjaLineages.BijuuBossServer
+local Support = NinjaLineages.BijuuServerSupport
 local Boss = NinjaLineages.BijuuBoss
 local Definitions = NinjaLineages.BijuuDefinitions
 local BijuuState = NinjaLineages.BijuuState
@@ -26,20 +28,45 @@ local function log(message)
 end
 
 local function nextRuntimeId(bijuuId)
-    local id = "bijuu_" .. tostring(bijuuId) .. "_" .. tostring(runtimeCounter)
+    local runtimeId = "bijuu_" .. tostring(bijuuId) .. "_" .. tostring(runtimeCounter)
     runtimeCounter = runtimeCounter + 1
-    return id
+    return runtimeId
+end
+
+local function proxyOnlineId(proxy)
+    if not proxy or not proxy.getOnlineID then return nil end
+    local ok, onlineId = pcall(function() return proxy:getOnlineID() end)
+    if ok and onlineId and onlineId >= 0 then return onlineId end
+    return nil
+end
+
+local function facingPayload(proxy)
+    local forward = proxy and proxy.getForwardDirection and proxy:getForwardDirection()
+    return forward and forward:getX() or 0, forward and forward:getY() or 1
+end
+
+local function shellPayload(runtime)
+    local facingX, facingY = facingPayload(runtime.proxy)
+    return {
+        bijuuId = runtime.bijuuId,
+        runtimeId = runtime.runtimeId,
+        proxyOnlineId = runtime.proxyOnlineId,
+        x = runtime.x,
+        y = runtime.y,
+        z = runtime.z,
+        facingX = facingX,
+        facingY = facingY,
+    }
+end
+
+function Server.getActiveShellPayloads()
+    local payloads = {}
+    for _, runtime in pairs(activeBosses) do table.insert(payloads, shellPayload(runtime)) end
+    return payloads
 end
 
 function Server.hasActiveBosses()
-    for _ in pairs(activeBosses) do return true end
-    return false
-end
-
-function Server.getActiveBossCount()
-    local count = 0
-    for _ in pairs(activeBosses) do count = count + 1 end
-    return count
+    return next(activeBosses) ~= nil
 end
 
 function Server.getActiveBossSnapshot(bijuuId)
@@ -52,806 +79,645 @@ function Server.getActiveBossSnapshot(bijuuId)
         x = runtime.x,
         y = runtime.y,
         z = runtime.z,
-        phase = runtime.combat and runtime.combat.phase or "idle",
+        tails = runtime.tails,
+        phase = runtime.combat.phase,
         health = runtime.proxy and runtime.proxy.getHealth and runtime.proxy:getHealth() or 0,
-        maxHealth = runtime.combat and runtime.combat.maxHealth or 1000,
+        maxHealth = runtime.maxHealth,
     }
 end
 
 local function spawnZombieProxy(x, y, z)
-    local cell = getCell()
+    local cell = getCell and getCell()
     if not cell then return nil end
 
     local square = cell:getGridSquare(math.floor(x), math.floor(y), math.floor(z))
-    if not square then
+    if not square and cell.getOrCreateGridSquare then
         square = cell:getOrCreateGridSquare(math.floor(x), math.floor(y), math.floor(z))
     end
 
     local zombie = nil
-
     if addZombiesInOutfit then
-        local beforeList = cell:getZombieList()
-        local beforeSize = beforeList and beforeList:size() or 0
+        local before = cell:getZombieList()
+        local beforeSize = before and before:size() or 0
         local ok = pcall(function()
             addZombiesInOutfit(math.floor(x), math.floor(y), math.floor(z), 1, nil, 0)
         end)
-        if ok then
-            local afterList = cell:getZombieList()
-            if afterList and afterList:size() > beforeSize then
-                zombie = afterList:get(afterList:size() - 1)
-            end
-        end
+        local after = ok and cell:getZombieList() or nil
+        if after and after:size() > beforeSize then zombie = after:get(after:size() - 1) end
     end
 
     if not zombie and IsoZombie and IsoZombie.new then
-        local ok, res = pcall(function()
-            local zObj = IsoZombie.new(cell)
-            zObj:setX(x)
-            zObj:setY(y)
-            zObj:setZ(z)
-            if square then
-                zObj:setCurrentSquare(square)
-            end
-            return zObj
+        local ok, created = pcall(function()
+            local value = IsoZombie.new(cell)
+            value:setX(x)
+            value:setY(y)
+            value:setZ(z)
+            if square then value:setCurrentSquare(square) end
+            return value
         end)
-        if ok and res then zombie = res end
+        if ok then zombie = created end
     end
 
     if not zombie and createZombie then
-        local ok, res = pcall(function()
-            return createZombie(x, y, z, nil, 0, nil)
-        end)
-        if ok and res then zombie = res end
+        local ok, created = pcall(function() return createZombie(x, y, z, nil, 0, nil) end)
+        if ok then zombie = created end
     end
 
     if zombie then
-        pcall(function() zombie:setX(x) end)
-        pcall(function() zombie:setY(y) end)
-        pcall(function() zombie:setZ(z) end)
+        pcall(function()
+            zombie:setX(x)
+            zombie:setY(y)
+            zombie:setZ(z)
+        end)
     end
-
     return zombie
 end
 
-function Server.materialize(bijuuId, x, y, z, opts)
-    if not Definitions.isValidId(bijuuId) then
-        log("rejected materialize: invalid bijuu ID=" .. tostring(bijuuId))
-        return nil, "invalid_bijuu_id"
-    end
-
-    local regState = Registry.getBijuuState(bijuuId)
-    if not BijuuState.isMaterializedBossState(regState) then
-        log("rejected materialize: bijuu=" .. tostring(bijuuId) .. " registry state is " .. tostring(regState) .. ", expected WILD_ACTIVE or BOSS_ACTIVE")
-        return nil, "invalid_registry_state"
-    end
-
-    if activeBosses[bijuuId] then
-        log("rejected materialize: bijuu=" .. tostring(bijuuId) .. " already has active runtime=" .. tostring(activeBosses[bijuuId].runtimeId))
-        return nil, "runtime_exists"
-    end
-
-    local runtimeId = nextRuntimeId(bijuuId)
-    local rootProxy = spawnZombieProxy(x, y, z)
-    if not rootProxy then
-        log("failed materialize: could not spawn root proxy zombie at (" .. tostring(x) .. "," .. tostring(y) .. "," .. tostring(z) .. ")")
-        return nil, "spawn_failed"
-    end
-
-    local def = Definitions.get(bijuuId)
-    local tails = def and def.tails or 1
-    local maxHp = BijuuCombat.getMaxHealth(tails)
-
-    -- 1. Exclude root proxy from Zombie Ninja mutation and classify
-    local modData = rootProxy:getModData()
+local function configureProxy(proxy, bijuuId, runtimeId, maxHealth)
+    local modData = proxy:getModData()
     modData[Boss.KEY_BOSS_PROXY] = true
     modData[Boss.KEY_BIJUU_ID] = bijuuId
     modData[Boss.KEY_RUNTIME_ID] = runtimeId
     modData.zombieNinjaRolled = true
     modData.isZombieNinja = false
+    if proxy.transmitModData then pcall(function() proxy:transmitModData() end) end
 
-    -- 2. Probe and apply engine width
-    local shellConfig = NinjaLineages.Balance.Jinchuuriki and NinjaLineages.Balance.Jinchuuriki.BossShell
-    local targetWidth = shellConfig and shellConfig.PROXY_WIDTH or 2.4
-    local defaultWidth = 0.3
-    if rootProxy.getWidth then
-        local okW, w = pcall(function() return rootProxy:getWidth() end)
-        if okW and w then defaultWidth = w end
+    local shellConfig = NinjaLineages.Balance.Jinchuuriki
+        and NinjaLineages.Balance.Jinchuuriki.BossShell or {}
+    local requestedWidth = shellConfig.PROXY_WIDTH or 2.4
+    local originalWidth = 0.3
+    if proxy.getWidth then
+        local ok, width = pcall(function() return proxy:getWidth() end)
+        if ok and width then originalWidth = width end
     end
 
-    local actualWidth = defaultWidth
-    if rootProxy.setWidth then
-        pcall(function() rootProxy:setWidth(targetWidth) end)
-        if rootProxy.getWidth then
-            local okW, w = pcall(function() return rootProxy:getWidth() end)
-            if okW and w then actualWidth = w end
-        end
-    end
-    log("proxy width default=" .. tostring(defaultWidth) .. " requested=" .. tostring(targetWidth) .. " actual=" .. tostring(actualWidth))
-
-    -- 3. Configure root proxy attributes (Shootable for Ballistics / Firearms, Collidable for Movement)
     pcall(function()
-        if rootProxy.setShootable then rootProxy:setShootable(true) end
-        if rootProxy.setCollidable then rootProxy:setCollidable(true) end
-        if rootProxy.setHealth then rootProxy:setHealth(maxHp) end
+        if proxy.setWidth then proxy:setWidth(requestedWidth) end
+        if proxy.setShootable then proxy:setShootable(true) end
+        if proxy.setCollidable then proxy:setCollidable(true) end
+        if proxy.setHealth then proxy:setHealth(maxHealth) end
+        if proxy.setTarget then proxy:setTarget(nil) end
+        if proxy.setUseless then proxy:setUseless(true) end
+        if proxy.setCanWalk then proxy:setCanWalk(true) end
     end)
 
-    local onlineId = nil
-    if rootProxy.getOnlineID then
-        local okId, idVal = pcall(function() return rootProxy:getOnlineID() end)
-        if okId and idVal and idVal >= 0 then
-            onlineId = idVal
-        end
+    local actualWidth = originalWidth
+    if proxy.getWidth then
+        local ok, width = pcall(function() return proxy:getWidth() end)
+        if ok and width then actualWidth = width end
     end
+    log("proxy width default=" .. tostring(originalWidth)
+        .. " requested=" .. tostring(requestedWidth)
+        .. " actual=" .. tostring(actualWidth))
+end
 
-    local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
+function Server.materialize(bijuuId, x, y, z, options)
+    if not Support.isAuthoritative() then return nil, "client_unauthorized" end
+    if not Definitions.isValidId(bijuuId) then return nil, "invalid_bijuu_id" end
+
+    local registryState = Registry.getBijuuState(bijuuId)
+    if not BijuuState.isMaterializedBossState(registryState) then
+        log("materialize rejected bijuu=" .. tostring(bijuuId)
+            .. " state=" .. tostring(registryState))
+        return nil, "invalid_registry_state"
+    end
+    if activeBosses[bijuuId] then return nil, "runtime_exists" end
+
+    local proxy = spawnZombieProxy(x, y, z)
+    if not proxy then return nil, "spawn_failed" end
+
+    local definition = Definitions.get(bijuuId)
+    local tails = definition.tails
+    local maximumHealth = BijuuCombat.getMaxHealth(tails)
+    local runtimeId = nextRuntimeId(bijuuId)
+    configureProxy(proxy, bijuuId, runtimeId, maximumHealth)
+
     local runtime = {
         bijuuId = bijuuId,
         runtimeId = runtimeId,
-        proxy = rootProxy,
-        proxyOnlineId = onlineId,
-        spawnedAtGameMinutes = nowGameMinutes,
+        definition = definition,
+        tails = tails,
+        maxHealth = maximumHealth,
+        proxy = proxy,
+        proxyOnlineId = proxyOnlineId(proxy),
         x = x,
         y = y,
         z = z,
-        tails = tails,
-        debug = opts and opts.debug == true,
-        debugOriginalState = opts and opts.debugOriginalState,
+        lastX = x,
+        lastY = y,
+        lastZ = z,
+        debug = options and options.debug == true,
+        debugOriginalState = options and options.debugOriginalState or nil,
+        defeatHandled = false,
+        meleeByPlayer = {},
         combat = {
             phase = "idle",
-            maxHealth = maxHp,
-            lastObservedHealth = maxHp,
+            lastObservedHealth = maximumHealth,
             lastAttackerOnlineId = nil,
             targetOnlineId = nil,
-            nextAttackAtGameMinutes = nowGameMinutes + 0.05,
-            nextRepathAtGameMinutes = nowGameMinutes,
+            nextAttackAtGameMinutes = 0,
+            nextRepathAtGameMinutes = 0,
+            cooldownEndsAtGameMinutes = 0,
             volley = nil,
-        }
+        },
     }
 
     activeBosses[bijuuId] = runtime
-    log("materialized bijuu=" .. tostring(bijuuId) .. " tails=" .. tostring(tails) .. " hp=" .. tostring(maxHp) .. " runtime=" .. tostring(runtimeId) .. " (1 root proxy)")
-
-    -- 4. Broadcast client shell presentation event
-    local eventPayload = {
-        bijuuId = bijuuId,
-        runtimeId = runtimeId,
-        proxyOnlineId = onlineId,
-        x = x,
-        y = y,
-        z = z,
-    }
-
-    if NinjaLineages.isServer() then
-        sendServerCommand("NinjaLineages", "bijuuShellSpawned", eventPayload)
-    elseif NinjaLineages.BijuuRenderer and NinjaLineages.BijuuRenderer.addShell then
-        NinjaLineages.BijuuRenderer.addShell(eventPayload)
-    end
-
+    Support.emit("bijuu_shell_spawned", shellPayload(runtime))
+    log("materialized bijuu=" .. tostring(bijuuId) .. " tails=" .. tostring(tails)
+        .. " hp=" .. tostring(maximumHealth) .. " runtime=" .. tostring(runtimeId))
     return runtime, "ok"
 end
 
+local function stopTelegraph(runtime)
+    local volley = runtime.combat and runtime.combat.volley
+    if not volley then return end
+    Support.emit("bijuu_telegraph_ended", {
+        volleyId = volley.volleyId,
+        bijuuId = runtime.bijuuId,
+        runtimeId = runtime.runtimeId,
+    })
+end
+
 function Server.dematerialize(bijuuId, runtimeId, reason)
+    if not Support.isAuthoritative() then return false, "client_unauthorized" end
     local runtime = activeBosses[bijuuId]
     if not runtime then return false, "no_active_runtime" end
+    if runtimeId and runtime.runtimeId ~= runtimeId then return false, "mismatched_runtime" end
 
-    if runtimeId and runtime.runtimeId ~= runtimeId then
-        log("rejected dematerialize: mismatched runtimeId=" .. tostring(runtimeId) .. " active=" .. tostring(runtime.runtimeId))
-        return false, "mismatched_runtime"
-    end
-
-    -- 1. Remove single root proxy safely without calling proxy:remove()
-    local rootProxy = runtime.proxy
-    if rootProxy then
-        pcall(function()
-            if rootProxy.removeFromWorld then rootProxy:removeFromWorld() end
-            if rootProxy.removeFromSquare then rootProxy:removeFromSquare() end
-        end)
-    end
-
-    -- 2. Clean up active projectiles owned by this boss runtime
+    stopTelegraph(runtime)
     if NinjaLineages.CombatRuntime and NinjaLineages.CombatRuntime.removeProjectilesByMeta then
         NinjaLineages.CombatRuntime.removeProjectilesByMeta("runtimeId", runtime.runtimeId)
     end
-
-    -- 3. Clean up active telegraph if any
-    if runtime.combat and runtime.combat.volley then
-        local telPayload = {
-            volleyId = runtime.combat.volley.volleyId,
-            bijuuId = bijuuId,
-            runtimeId = runtime.runtimeId,
-        }
-        if NinjaLineages.isServer() then
-            sendServerCommand("NinjaLineages", "bijuuTelegraphEnded", telPayload)
-        elseif NinjaLineages.BijuuRenderer and NinjaLineages.BijuuRenderer.removeTelegraph then
-            NinjaLineages.BijuuRenderer.removeTelegraph(telPayload)
-        end
+    if runtime.proxy then
+        pcall(function()
+            if runtime.proxy.removeFromWorld then runtime.proxy:removeFromWorld() end
+            if runtime.proxy.removeFromSquare then runtime.proxy:removeFromSquare() end
+        end)
     end
 
     activeBosses[bijuuId] = nil
-    log("dematerialized bijuu=" .. tostring(bijuuId) .. " runtime=" .. tostring(runtime.runtimeId) .. " reason=" .. tostring(reason or "none"))
-
-    -- 4. Broadcast removal event to clients
-    local removePayload = {
+    Support.emit("bijuu_shell_removed", {
         bijuuId = bijuuId,
         runtimeId = runtime.runtimeId,
-    }
-
-    if NinjaLineages.isServer() then
-        sendServerCommand("NinjaLineages", "bijuuShellRemoved", removePayload)
-    elseif NinjaLineages.BijuuRenderer and NinjaLineages.BijuuRenderer.removeShell then
-        NinjaLineages.BijuuRenderer.removeShell(removePayload)
-    end
-
+    })
+    log("dematerialized bijuu=" .. tostring(bijuuId)
+        .. " runtime=" .. tostring(runtime.runtimeId)
+        .. " reason=" .. tostring(reason or "none"))
     return true, "ok", runtime.debugOriginalState
 end
 
-function Server.resolveBossFromEntity(entity)
-    if not entity or not entity.getModData then return nil end
-    local modData = entity:getModData()
-
-    if modData[Boss.KEY_BOSS_PROXY] == true then
-        local bijuuId = modData[Boss.KEY_BIJUU_ID]
-        local runtime = activeBosses[bijuuId]
-        if runtime and runtime.runtimeId == modData[Boss.KEY_RUNTIME_ID] then
-            return {
-                bijuuId = bijuuId,
-                runtimeId = runtime.runtimeId,
-                rootProxy = runtime.proxy,
-                surface = "root",
-            }
-        end
-    end
-
-    return nil
+local function playerOnlineId(player)
+    if not player or not player.getOnlineID then return nil end
+    local onlineId = player:getOnlineID()
+    return onlineId and onlineId >= 0 and onlineId or nil
 end
 
-local function forEachCandidatePlayer(callback)
-    if getOnlinePlayers then
-        local players = getOnlinePlayers()
-        if players then
-            for i = 0, players:size() - 1 do
-                local player = players:get(i)
-                if player then callback(player) end
-            end
-            return
-        end
+local function findPlayerByOnlineId(onlineId)
+    if onlineId == nil then return nil end
+    if getPlayerByOnlineID then
+        local player = getPlayerByOnlineID(onlineId)
+        if player then return player end
     end
-    if getNumActivePlayers and getSpecificPlayer then
-        for i = 0, getNumActivePlayers() - 1 do
-            local player = getSpecificPlayer(i)
-            if player then callback(player) end
-        end
-    end
+    local found = nil
+    NinjaLineages.Utils.Players.forEach(function(player)
+        if not found and playerOnlineId(player) == onlineId then found = player end
+    end)
+    return found
 end
 
-local function selectBossTarget(runtime, rootProxy, combatCfg)
-    local rx = rootProxy:getX()
-    local ry = rootProxy:getY()
-    local rz = rootProxy:getZ()
-    local acqRadius = combatCfg and combatCfg.ACQUISITION_RADIUS or 20.0
-    local attackRange = combatCfg and combatCfg.ATTACK_RANGE or 14.0
+local function validTarget(player, x, y, z, maximumDistance)
+    if not player or (player.isDead and player:isDead())
+            or (player.isGhostMode and player:isGhostMode()) then return false, math.huge end
+    if math.abs(player:getZ() - z) >= 2.0 then return false, math.huge end
+    local distance = math.sqrt((player:getX() - x) ^ 2 + (player:getY() - y) ^ 2)
+    return distance <= maximumDistance, distance
+end
 
-    -- 1. Check last attacker strictly within ATTACK_RANGE (Slice 3 correction)
-    if runtime.combat.lastAttackerOnlineId then
-        local attacker = nil
-        if getPlayerByOnlineID then
-            attacker = getPlayerByOnlineID(runtime.combat.lastAttackerOnlineId)
-        end
-        if not attacker then
-            forEachCandidatePlayer(function(p)
-                if p and p.getOnlineID and p:getOnlineID() == runtime.combat.lastAttackerOnlineId then
-                    attacker = p
-                end
-            end)
-        end
+local function selectTarget(runtime, config)
+    local x, y, z = runtime.x, runtime.y, runtime.z
+    local attackRange = config.ATTACK_RANGE or 14.0
+    local acquisitionRadius = config.ACQUISITION_RADIUS or 20.0
 
-        if attacker and not (attacker.isDead and attacker:isDead()) then
-            if not (attacker.isGhostMode and attacker:isGhostMode()) then
-                local ax = attacker:getX()
-                local ay = attacker:getY()
-                local az = attacker:getZ()
-                if math.abs(az - rz) < 2.0 then
-                    local dist = math.sqrt((ax - rx)^2 + (ay - ry)^2)
-                    if dist <= attackRange then
-                        return attacker, dist
-                    end
-                end
-            end
-        end
-        runtime.combat.lastAttackerOnlineId = nil
-    end
+    local attacker = findPlayerByOnlineId(runtime.combat.lastAttackerOnlineId)
+    local attackerValid, attackerDistance = validTarget(attacker, x, y, z, attackRange)
+    if attackerValid then return attacker, attackerDistance end
+    runtime.combat.lastAttackerOnlineId = nil
 
-    -- 2. Fallback to nearest living non-ghost player within acquisition radius
-    local nearestPlayer = nil
-    local nearestDist = acqRadius + 1.0
-
-    forEachCandidatePlayer(function(p)
-        if p and not (p.isDead and p:isDead()) then
-            if not (p.isGhostMode and p:isGhostMode()) then
-                local pZ = p:getZ()
-                if math.abs(pZ - rz) < 2.0 then
-                    local px = p:getX()
-                    local py = p:getY()
-                    local dist = math.sqrt((px - rx)^2 + (py - ry)^2)
-                    if dist <= acqRadius and dist < nearestDist then
-                        nearestDist = dist
-                        nearestPlayer = p
-                    end
-                end
-            end
+    local nearest, nearestDistance = nil, acquisitionRadius + 1
+    NinjaLineages.Utils.Players.forEach(function(player)
+        local valid, distance = validTarget(player, x, y, z, acquisitionRadius)
+        if valid and distance < nearestDistance then
+            nearest, nearestDistance = player, distance
         end
     end)
+    return nearest, nearestDistance
+end
 
-    return nearestPlayer, nearestDist
+local function suppressVanillaCombat(proxy)
+    pcall(function()
+        if proxy.setTarget then proxy:setTarget(nil) end
+        if proxy.setAttackTargetSquare then proxy:setAttackTargetSquare(nil) end
+    end)
+end
+
+local function stopProxyPath(proxy)
+    pcall(function()
+        if proxy.setPath2 then proxy:setPath2(nil) end
+        if proxy.setTarget then proxy:setTarget(nil) end
+    end)
+end
+
+local function pursue(runtime, target, now, config)
+    if now < runtime.combat.nextRepathAtGameMinutes then return end
+    local proxy = runtime.proxy
+    local tx, ty, tz = target:getX(), target:getY(), target:getZ()
+    if proxy.pathToLocationF then
+        pcall(function() proxy:pathToLocationF(tx, ty, tz) end)
+    elseif proxy.pathToLocation then
+        pcall(function() proxy:pathToLocation(math.floor(tx), math.floor(ty), math.floor(tz)) end)
+    elseif proxy.pathToCharacter then
+        pcall(function() proxy:pathToCharacter(target) end)
+    end
+    runtime.combat.nextRepathAtGameMinutes = now + (config.REPATH_INTERVAL_MINUTES or 0.02)
+end
+
+local function startTelegraph(runtime, target, now, config)
+    stopProxyPath(runtime.proxy)
+    local trajectories = BijuuCombat.generateVolleyTrajectories(
+        runtime.x, runtime.y, runtime.z,
+        target:getX(), target:getY(), target:getZ(),
+        runtime.tails,
+        config.PROJECTILE_RANGE or 18.0,
+        config.FAN_STEP_RADIANS or math.rad(9.0)
+    )
+    local duration = BijuuCombat.getTelegraphDuration(runtime.tails)
+    local volleyId = "volley_" .. tostring(runtime.runtimeId) .. "_" .. tostring(now)
+    runtime.combat.phase = "telegraph"
+    runtime.combat.volley = {
+        volleyId = volleyId,
+        trajectories = trajectories,
+        endsAtGameMinutes = now + duration,
+        nextShotIndex = 1,
+        nextShotAtGameMinutes = now + duration,
+    }
+    Support.emit("bijuu_telegraph_started", {
+        volleyId = volleyId,
+        bijuuId = runtime.bijuuId,
+        runtimeId = runtime.runtimeId,
+        startedAtGameMinutes = now,
+        endsAtGameMinutes = now + duration,
+        trajectories = trajectories,
+    })
+    log("telegraph started bijuu=" .. tostring(runtime.bijuuId)
+        .. " shots=" .. tostring(#trajectories)
+        .. " duration=" .. tostring(duration))
+end
+
+local function fireProjectile(runtime, trajectory, volleyId, now, config)
+    local projectile = NinjaLineages.CombatRuntime.createProjectile({
+        abilityId = "bijuu_volley",
+        casterObject = runtime.proxy,
+        originX = trajectory.originX,
+        originY = trajectory.originY,
+        originZ = trajectory.originZ,
+        targetX = trajectory.destinationX,
+        targetY = trajectory.destinationY,
+        speed = config.PROJECTILE_SPEED or 28.0,
+        maximumTravelDistance = config.PROJECTILE_RANGE or 18.0,
+        trackingType = "fixed_path",
+        spatialCollision = true,
+        playerCollision = true,
+        hitRadius = config.PROJECTILE_HIT_RADIUS or 0.65,
+        isHostileNPC = true,
+        suppressDebugLog = true,
+        damagePayload = {
+            damage = BijuuCombat.getProjectileDamage(runtime.tails),
+            isHostileNPC = true,
+            bijuuId = runtime.bijuuId,
+            runtimeId = runtime.runtimeId,
+        },
+        meta = {
+            bijuuId = runtime.bijuuId,
+            runtimeId = runtime.runtimeId,
+            volleyId = volleyId,
+            hitGroupId = volleyId,
+            hitTargetOncePerGroup = true,
+        },
+    })
+    local color = Boss.getThemeColor(runtime.bijuuId)
+    Support.emit("bijuu_projectile", {
+        projectileId = projectile.projectileId,
+        abilityId = "bijuu_volley",
+        isBijuu = true,
+        runtimeId = runtime.runtimeId,
+        fromX = trajectory.originX,
+        fromY = trajectory.originY,
+        fromZ = trajectory.originZ,
+        toX = trajectory.destinationX,
+        toY = trajectory.destinationY,
+        toZ = trajectory.destinationZ,
+        speed = config.PROJECTILE_SPEED or 28.0,
+        startGameMinutes = now,
+        color = { R = color.r, G = color.g, B = color.b },
+        thickness = 3.5,
+        radius = 0.35,
+    })
+end
+
+local function advanceCombat(runtime, target, targetDistance, now, config)
+    local combat = runtime.combat
+    local attackRange = config.ATTACK_RANGE or 14.0
+
+    if combat.phase == "cooldown" then
+        stopProxyPath(runtime.proxy)
+        if now >= combat.cooldownEndsAtGameMinutes then combat.phase = "idle" end
+        return
+    end
+
+    if combat.phase == "telegraph" then
+        stopProxyPath(runtime.proxy)
+        local volley = combat.volley
+        if volley and now >= volley.endsAtGameMinutes then
+            combat.phase = "volley"
+            volley.nextShotAtGameMinutes = volley.endsAtGameMinutes
+            Support.emit("bijuu_telegraph_ended", {
+                volleyId = volley.volleyId,
+                bijuuId = runtime.bijuuId,
+                runtimeId = runtime.runtimeId,
+            })
+            log("telegraph ended bijuu=" .. tostring(runtime.bijuuId))
+        end
+        return
+    end
+
+    if combat.phase == "volley" then
+        stopProxyPath(runtime.proxy)
+        local volley = combat.volley
+        if not volley then
+            combat.phase = "cooldown"
+            combat.cooldownEndsAtGameMinutes = now + BijuuCombat.getAttackCooldown(runtime.tails)
+            return
+        end
+        local interval = BijuuCombat.getShotInterval(runtime.tails)
+        while volley.nextShotIndex <= #volley.trajectories
+                and now >= volley.nextShotAtGameMinutes do
+            fireProjectile(runtime, volley.trajectories[volley.nextShotIndex], volley.volleyId,
+                volley.nextShotAtGameMinutes, config)
+            volley.nextShotIndex = volley.nextShotIndex + 1
+            volley.nextShotAtGameMinutes = volley.nextShotAtGameMinutes + interval
+        end
+        if volley.nextShotIndex > #volley.trajectories then
+            combat.volley = nil
+            combat.phase = "cooldown"
+            combat.cooldownEndsAtGameMinutes = now + BijuuCombat.getAttackCooldown(runtime.tails)
+            log("volley complete bijuu=" .. tostring(runtime.bijuuId))
+        end
+        return
+    end
+
+    if not target then
+        combat.phase = "idle"
+        stopProxyPath(runtime.proxy)
+    elseif targetDistance > attackRange then
+        combat.phase = "pursuit"
+        pursue(runtime, target, now, config)
+    elseif now >= combat.nextAttackAtGameMinutes then
+        startTelegraph(runtime, target, now, config)
+    else
+        combat.phase = "idle"
+        stopProxyPath(runtime.proxy)
+    end
+end
+
+local function handleDefeat(runtime)
+    if runtime.defeatHandled then return end
+    runtime.defeatHandled = true
+    runtime.combat.phase = "defeated"
+    stopTelegraph(runtime)
+    runtime.combat.volley = nil
+    log("boss defeated bijuu=" .. tostring(runtime.bijuuId)
+        .. " runtime=" .. tostring(runtime.runtimeId))
+    if NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.handleBossDefeated then
+        NinjaLineages.BijuuLifecycleServer.handleBossDefeated(
+            runtime.bijuuId,
+            runtime.runtimeId,
+            { x = runtime.x, y = runtime.y, z = runtime.z }
+        )
+    end
 end
 
 function Server.update()
     local now = NinjaLineages.Utils.Time.gameMinutes()
-    local combatCfg = NinjaLineages.Balance and NinjaLineages.Balance.Jinchuuriki and NinjaLineages.Balance.Jinchuuriki.BossCombat
+    local config = NinjaLineages.Balance.Jinchuuriki
+        and NinjaLineages.Balance.Jinchuuriki.BossCombat or {}
 
-    for bijuuId, runtime in pairs(activeBosses) do
-        local rootProxy = runtime.proxy
-        if rootProxy then
-            local isDead = rootProxy.isDead and rootProxy:isDead()
-            local curHp = rootProxy.getHealth and rootProxy:getHealth() or 0
-
-            if isDead or curHp <= 0 then
-                if not runtime.defeatHandled then
-                    runtime.defeatHandled = true
-                    if runtime.combat then
-                        runtime.combat.phase = "defeated"
-                        runtime.combat.volley = nil
-                    end
-                    log("boss defeated bijuu=" .. tostring(bijuuId) .. " runtime=" .. tostring(runtime.runtimeId))
-                    if NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.handleBossDefeated then
-                        NinjaLineages.BijuuLifecycleServer.handleBossDefeated(bijuuId, runtime.runtimeId, {
-                            x = runtime.x or rootProxy:getX(),
-                            y = runtime.y or rootProxy:getY(),
-                            z = runtime.z or rootProxy:getZ(),
-                        })
-                    end
-                end
+    for _, runtime in pairs(activeBosses) do
+        local proxy = runtime.proxy
+        if proxy then
+            local currentHealth = proxy.getHealth and proxy:getHealth() or 0
+            if (proxy.isDead and proxy:isDead()) or currentHealth <= 0 then
+                handleDefeat(runtime)
             else
-                local rx = rootProxy:getX()
-                local ry = rootProxy:getY()
-                local rz = rootProxy:getZ()
-                runtime.x = rx
-                runtime.y = ry
-                runtime.z = rz
-
-                -- Direct Damage & Aggro Tracking on Root Proxy
-                if curHp < runtime.combat.lastObservedHealth then
-                    local attacker = rootProxy.getAttackedBy and rootProxy:getAttackedBy()
-                    if attacker and (type(attacker) == "table" or type(attacker) == "userdata") and instanceof(attacker, "IsoPlayer") and not (attacker.isDead and attacker:isDead()) then
-                        runtime.combat.lastAttackerOnlineId = attacker.getOnlineID and attacker:getOnlineID()
-                    end
-                    runtime.combat.lastObservedHealth = curHp
-                end
-
-                -- Combat State Machine
-                if curHp <= 0 then
-                    if not runtime.defeatHandled then
-                        runtime.defeatHandled = true
-                        runtime.combat.phase = "defeated"
-                        runtime.combat.volley = nil
-                        log("boss defeated bijuu=" .. tostring(bijuuId) .. " runtime=" .. tostring(runtime.runtimeId))
-                        if NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.handleBossDefeated then
-                            NinjaLineages.BijuuLifecycleServer.handleBossDefeated(bijuuId, runtime.runtimeId, {
-                                x = rx,
-                                y = ry,
-                                z = rz,
-                            })
-                        end
-                    end
-                else
-                    local tails = runtime.tails or 1
-                    local targetPlayer, targetDist = selectBossTarget(runtime, rootProxy, combatCfg)
-                    runtime.combat.targetOnlineId = targetPlayer and targetPlayer.getOnlineID and targetPlayer:getOnlineID() or nil
-
-                    local attackRange = combatCfg and combatCfg.ATTACK_RANGE or 14.0
-
-                    if runtime.combat.phase == "idle" then
-                        if targetPlayer then
-                            if targetDist <= attackRange and now >= runtime.combat.nextAttackAtGameMinutes then
-                                -- Start Telegraph Phase
-                                local tx = targetPlayer:getX()
-                                local ty = targetPlayer:getY()
-                                local tz = targetPlayer:getZ()
-
-                                local projRange = combatCfg and combatCfg.PROJECTILE_RANGE or 18.0
-                                local fanStep = combatCfg and combatCfg.FAN_STEP_RADIANS or math.rad(9.0)
-                                local trajectories = BijuuCombat.generateVolleyTrajectories(rx, ry, rz, tx, ty, tz, tails, projRange, fanStep)
-                                local telDuration = BijuuCombat.getTelegraphDuration(tails)
-                                local volleyId = "volley_" .. tostring(runtime.runtimeId) .. "_" .. tostring(now)
-
-                                runtime.combat.phase = "telegraph"
-                                runtime.combat.volley = {
-                                    volleyId = volleyId,
-                                    trajectories = trajectories,
-                                    startedAtGameMinutes = now,
-                                    endsAtGameMinutes = now + telDuration,
-                                    nextShotIndex = 1,
-                                    nextShotAtGameMinutes = now + telDuration,
-                                    targetX = tx,
-                                    targetY = ty,
-                                    targetZ = tz,
-                                }
-
-                                local telEvent = {
-                                    volleyId = volleyId,
-                                    bijuuId = bijuuId,
-                                    runtimeId = runtime.runtimeId,
-                                    startedAtGameMinutes = now,
-                                    endsAtGameMinutes = now + telDuration,
-                                    trajectories = trajectories,
-                                }
-
-                                if NinjaLineages.isServer() then
-                                    sendServerCommand("NinjaLineages", "bijuuTelegraphStarted", telEvent)
-                                elseif NinjaLineages.BijuuRenderer and NinjaLineages.BijuuRenderer.addTelegraph then
-                                    NinjaLineages.BijuuRenderer.addTelegraph(telEvent)
-                                end
-                                log("telegraph started bijuu=" .. tostring(bijuuId) .. " shots=" .. tostring(#trajectories) .. " duration=" .. tostring(telDuration))
-                            elseif targetDist > attackRange then
-                                -- Pursue Player
-                                if now >= runtime.combat.nextRepathAtGameMinutes then
-                                    local tx = targetPlayer:getX()
-                                    local ty = targetPlayer:getY()
-                                    local tz = targetPlayer:getZ()
-                                    if rootProxy.pathToLocationF then
-                                        pcall(function() rootProxy:pathToLocationF(tx, ty, tz) end)
-                                    elseif rootProxy.pathToLocation then
-                                        pcall(function() rootProxy:pathToLocation(math.floor(tx), math.floor(ty), math.floor(tz)) end)
-                                    elseif rootProxy.pathToCharacter then
-                                        pcall(function() rootProxy:pathToCharacter(targetPlayer) end)
-                                    end
-                                    runtime.combat.nextRepathAtGameMinutes = now + (combatCfg and combatCfg.REPATH_INTERVAL_MINUTES or 0.02)
-                                end
-                            end
-                        end
-                    elseif runtime.combat.phase == "telegraph" then
-                        -- Stand ground during telegraph
-                        local volley = runtime.combat.volley
-                        if volley and now >= volley.endsAtGameMinutes then
-                            runtime.combat.phase = "volley"
-                            volley.nextShotAtGameMinutes = now
-
-                            local endEvent = {
-                                volleyId = volley.volleyId,
-                                bijuuId = bijuuId,
-                                runtimeId = runtime.runtimeId,
-                            }
-                            if NinjaLineages.isServer() then
-                                sendServerCommand("NinjaLineages", "bijuuTelegraphEnded", endEvent)
-                            elseif NinjaLineages.BijuuRenderer and NinjaLineages.BijuuRenderer.removeTelegraph then
-                                NinjaLineages.BijuuRenderer.removeTelegraph(endEvent)
-                            end
-                            log("telegraph ended, volley starting bijuu=" .. tostring(bijuuId))
-                        end
-                    elseif runtime.combat.phase == "volley" then
-                        -- Stand ground during volley firing
-                        local volley = runtime.combat.volley
-                        if volley then
-                            local shotInterval = BijuuCombat.getShotInterval(tails)
-                            local maxLoop = #volley.trajectories - volley.nextShotIndex + 1
-
-                            while volley.nextShotIndex <= #volley.trajectories and now >= volley.nextShotAtGameMinutes and maxLoop > 0 do
-                                maxLoop = maxLoop - 1
-                                local traj = volley.trajectories[volley.nextShotIndex]
-                                local damage = BijuuCombat.getProjectileDamage(tails)
-                                local speed = combatCfg and combatCfg.PROJECTILE_SPEED or 28.0
-                                local pRange = combatCfg and combatCfg.PROJECTILE_RANGE or 18.0
-                                local hitRad = combatCfg and combatCfg.PROJECTILE_HIT_RADIUS or 0.65
-
-                                local proj = NinjaLineages.CombatRuntime.createProjectile({
-                                    abilityId = "bijuu_volley",
-                                    casterObject = rootProxy,
-                                    originX = traj.originX,
-                                    originY = traj.originY,
-                                    originZ = traj.originZ,
-                                    targetX = traj.destinationX,
-                                    targetY = traj.destinationY,
-                                    speed = speed,
-                                    maximumTravelDistance = pRange,
-                                    trackingType = "fixed_path",
-                                    spatialCollision = true,
-                                    playerCollision = true,
-                                    hitRadius = hitRad,
-                                    isHostileNPC = true,
-                                    damagePayload = {
-                                        damage = damage,
-                                        isHostileNPC = true,
-                                        bijuuId = bijuuId,
-                                        runtimeId = runtime.runtimeId,
-                                    },
-                                    meta = {
-                                        bijuuId = bijuuId,
-                                        runtimeId = runtime.runtimeId,
-                                        volleyId = volley.volleyId,
-                                    },
-                                })
-
-                                -- Broadcast visual projectile to clients
-                                local color = Boss.getThemeColor(bijuuId)
-                                local vfxPayload = {
-                                    projectileId = proj.projectileId,
-                                    fromX = traj.originX,
-                                    fromY = traj.originY,
-                                    fromZ = traj.originZ,
-                                    toX = traj.destinationX,
-                                    toY = traj.destinationY,
-                                    toZ = traj.destinationZ,
-                                    speed = speed,
-                                    startGameMinutes = now,
-                                    color = { R = color.r, G = color.g, B = color.b },
-                                    thickness = 3.5,
-                                }
-                                if NinjaLineages.isServer() then
-                                    sendServerCommand("NinjaLineages", "abilityEvent", {
-                                        kind = "chakra_needle_line",
-                                        projectileId = vfxPayload.projectileId,
-                                        fromX = vfxPayload.fromX,
-                                        fromY = vfxPayload.fromY,
-                                        fromZ = vfxPayload.fromZ,
-                                        toX = vfxPayload.toX,
-                                        toY = vfxPayload.toY,
-                                        toZ = vfxPayload.toZ,
-                                        speed = vfxPayload.speed,
-                                        startGameMinutes = vfxPayload.startGameMinutes,
-                                        color = vfxPayload.color,
-                                        thickness = vfxPayload.thickness,
-                                    })
-                                elseif NinjaLineages.VFX and NinjaLineages.VFX.addProjectile then
-                                    NinjaLineages.VFX.addProjectile(vfxPayload)
-                                end
-
-                                volley.nextShotIndex = volley.nextShotIndex + 1
-                                volley.nextShotAtGameMinutes = volley.nextShotAtGameMinutes + shotInterval
-                            end
-
-                            if volley.nextShotIndex > #volley.trajectories then
-                                runtime.combat.phase = "idle"
-                                runtime.combat.volley = nil
-                                runtime.combat.nextAttackAtGameMinutes = now + BijuuCombat.getAttackCooldown(tails)
-                                log("volley complete bijuu=" .. tostring(bijuuId) .. " cooldown until=" .. tostring(runtime.combat.nextAttackAtGameMinutes))
-                            end
-                        end
+                runtime.x, runtime.y, runtime.z = proxy:getX(), proxy:getY(), proxy:getZ()
+                if not runtime.proxyOnlineId then
+                    runtime.proxyOnlineId = proxyOnlineId(proxy)
+                    if runtime.proxyOnlineId and proxy.transmitModData then
+                        pcall(function() proxy:transmitModData() end)
                     end
                 end
+                suppressVanillaCombat(proxy)
+
+                if currentHealth < runtime.combat.lastObservedHealth then
+                    local attacker = proxy.getAttackedBy and proxy:getAttackedBy()
+                    if attacker and instanceof(attacker, "IsoPlayer")
+                            and not (attacker.isDead and attacker:isDead()) then
+                        runtime.combat.lastAttackerOnlineId = playerOnlineId(attacker)
+                    end
+                end
+                runtime.combat.lastObservedHealth = currentHealth
+
+                local target, targetDistance = selectTarget(runtime, config)
+                runtime.combat.targetOnlineId = playerOnlineId(target)
+                advanceCombat(runtime, target, targetDistance, now, config)
             end
         end
     end
 end
 
--- ============================================================================
--- Debug Tooling & Lifecycle Helpers
--- ============================================================================
+local function meleePlayerKey(player)
+    local onlineId = playerOnlineId(player)
+    if onlineId ~= nil then return "online:" .. tostring(onlineId) end
+    local playerNumber = player.getPlayerNum and player:getPlayerNum() or 0
+    return "local:" .. tostring(playerNumber)
+end
 
-local function canUseDebugCommands(player)
-    if not (SandboxVars
-            and SandboxVars.NinjaLineages
-            and SandboxVars.NinjaLineages.DebugMode == true) then
-        return false
+function Server.handleMeleeSwing(player, args)
+    if not Support.isAuthoritative() or not player or (player.isDead and player:isDead())
+            or (player.isGhostMode and player:isGhostMode()) then return false end
+
+    local weapon = player:getPrimaryHandItem()
+    if weapon and weapon.isRanged and weapon:isRanged() then return false end
+
+    local runtime = args and activeBosses[args.bijuuId]
+    if not runtime or runtime.runtimeId ~= args.runtimeId then return false end
+    local proxy = runtime.proxy
+    if not proxy or (proxy.isDead and proxy:isDead()) then return false end
+
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    local release = NinjaLineages.Balance.Jinchuuriki
+        and NinjaLineages.Balance.Jinchuuriki.Release or {}
+    local minimumInterval = release.MELEE_SWING_MIN_INTERVAL_GAME_MINUTES or 0.005
+    local key = meleePlayerKey(player)
+    local previous = runtime.meleeByPlayer[key]
+    if previous and ((args.swingId and previous.swingId == args.swingId)
+            or now - previous.at < minimumInterval) then return false end
+
+    local px, py, pz = player:getX(), player:getY(), player:getZ()
+    local rx, ry, rz = proxy:getX(), proxy:getY(), proxy:getZ()
+    local dx, dy = rx - px, ry - py
+    local distance = math.sqrt(dx * dx + dy * dy)
+    local forward = player.getForwardDirection and player:getForwardDirection()
+    if distance > 0.001 and forward then
+        local facingDot = forward:getX() * (dx / distance) + forward:getY() * (dy / distance)
+        if facingDot < 0.42 then return false end
     end
 
-    if NinjaLineages.isSinglePlayer and NinjaLineages.isSinglePlayer() then
-        return true
+    local weaponRange = (weapon and weapon.getMaxRange and weapon:getMaxRange(player)) or 1.25
+    local shell = NinjaLineages.Balance.Jinchuuriki
+        and NinjaLineages.Balance.Jinchuuriki.BossShell or {}
+    local allowedReach = (shell.PERIMETER_HITBOX_RADIUS or 1.2) + weaponRange + 0.35
+    if distance > allowedReach or math.abs(pz - rz) >= 1.5 then return false end
+    if NinjaLineages.Collision.traceSegment(px, py, pz, rx, ry, rz) ~= nil then return false end
+
+    runtime.meleeByPlayer[key] = { swingId = args.swingId, at = now }
+    local healthBefore = proxy.getHealth and proxy:getHealth() or 0
+    if weapon and instanceof(weapon, "HandWeapon") then
+        pcall(function() proxy:Hit(weapon, player, 1.0, false, 1.0) end)
+    else
+        pcall(function() proxy:Hit(nil, player, 1.0, false, 1.0) end)
     end
 
-    local ok, accessLevel = pcall(function() return player:getAccessLevel() end)
-    return ok and string.lower(tostring(accessLevel or "")) == "admin"
+    local healthAfter = proxy.getHealth and proxy:getHealth() or healthBefore
+    local damageMode = "native_hit"
+    if healthAfter >= healthBefore and healthBefore > 0 and proxy.setHealth then
+        damageMode = "health_fallback"
+        local damage = 25.0
+        if weapon and weapon.getMinDamage and weapon.getMaxDamage then
+            local minimum = weapon:getMinDamage() or 1.0
+            local maximum = weapon:getMaxDamage() or 2.0
+            damage = minimum + ((maximum - minimum) * 0.5) * 20.0
+        end
+        proxy:setHealth(math.max(0, healthBefore - damage))
+        healthAfter = proxy:getHealth()
+    end
+    runtime.combat.lastAttackerOnlineId = playerOnlineId(player)
+    if Support.canUseDebug(player) then
+        log("compensated melee runtime=" .. tostring(runtime.runtimeId)
+            .. " swing=" .. tostring(args.swingId)
+            .. " mode=" .. damageMode
+            .. " hp=" .. tostring(healthBefore) .. "->" .. tostring(healthAfter))
+    end
+    return true
 end
 
 function Server.debugSpawnNearPlayer(player, bijuuId)
-    if not player then return false, "no_player" end
+    if not Support.canUseDebug(player) then return false, "unauthorized" end
     if not Definitions.isValidId(bijuuId) then return false, "invalid_bijuu_id" end
-
-    if activeBosses[bijuuId] then
-        return false, "already_materialized"
-    end
+    if activeBosses[bijuuId] then return false, "already_active" end
 
     local forward = player:getForwardDirection()
-    local fx = forward and forward:getX() or 0
-    local fy = forward and forward:getY() or 1
-    local dist = 4.0
-    local spawnX = player:getX() + (fx * dist)
-    local spawnY = player:getY() + (fy * dist)
+    local shellConfig = NinjaLineages.Balance.Jinchuuriki
+        and NinjaLineages.Balance.Jinchuuriki.BossShell or {}
+    local spawnDistance = shellConfig.SPAWN_DISTANCE or 4.0
+    local spawnX = math.floor(player:getX() + (forward and forward:getX() or 0) * spawnDistance)
+    local spawnY = math.floor(player:getY() + (forward and forward:getY() or 1) * spawnDistance)
     local spawnZ = player:getZ()
-
-    -- 1. Read current canonical state
+    local targetState = Definitions.isWildBeast(bijuuId)
+        and BijuuState.WILD_ACTIVE or BijuuState.BOSS_ACTIVE
     local currentState = Registry.getBijuuState(bijuuId) or BijuuState.getInitialState(bijuuId)
-
-    -- 2. Perform authoritative transition to BOSS_ACTIVE
-    local okTrans, transReason = Registry.transition(
-        bijuuId,
-        currentState,
-        BijuuState.BOSS_ACTIVE,
+    local transitioned, reason = Registry.transition(
+        bijuuId, currentState, targetState,
         { world = { x = spawnX, y = spawnY, z = spawnZ } },
         "debug_spawn"
     )
+    if not transitioned then return false, reason end
 
-    if not okTrans then
-        log("debug spawn transition failed for " .. tostring(bijuuId) .. ": " .. tostring(transReason))
-        return false, transReason
-    end
-
-    -- 3. Materialize the physical boss proxy
-    local runtime, matReason = Server.materialize(bijuuId, spawnX, spawnY, spawnZ, {
-        debug = true,
-        debugOriginalState = currentState,
-    })
-
+    local runtime, materializeReason = Server.materialize(
+        bijuuId, spawnX, spawnY, spawnZ,
+        { debug = true, debugOriginalState = currentState }
+    )
     if not runtime then
-        -- Revert transition on spawn failure
-        Registry.transition(bijuuId, BijuuState.BOSS_ACTIVE, currentState, { world = false }, "debug_spawn_revert")
-        return false, matReason
+        Registry.transition(bijuuId, targetState, currentState, nil, "debug_spawn_rollback")
+        return false, materializeReason
     end
-
-    return true, "ok", runtime
+    return true, "ok"
 end
 
 function Server.debugDespawnAll(player)
-    local count = 0
+    if not Support.canUseDebug(player) then return false, "unauthorized", 0 end
+    local entries = {}
     for bijuuId, runtime in pairs(activeBosses) do
-        local originalState = runtime.debugOriginalState or BijuuState.getInitialState(bijuuId)
-        local ok, _, orig = Server.dematerialize(bijuuId, runtime.runtimeId, "debug_despawn")
-        if ok then
-            Registry.transition(bijuuId, BijuuState.BOSS_ACTIVE, originalState, { world = false }, "debug_despawn")
-            count = count + 1
-        end
+        table.insert(entries, {
+            bijuuId = bijuuId,
+            runtimeId = runtime.runtimeId,
+            originalState = runtime.debugOriginalState or BijuuState.getInitialState(bijuuId),
+        })
     end
-    log("debug despawned " .. tostring(count) .. " active bijuu shells")
-    return true, "ok", count
+    for _, entry in ipairs(entries) do
+        local currentState = Registry.getBijuuState(entry.bijuuId)
+        Server.dematerialize(entry.bijuuId, entry.runtimeId, "debug_despawn")
+        Registry.transition(entry.bijuuId, currentState, entry.originalState, nil, "debug_despawn_restore")
+    end
+    return true, "ok", #entries
 end
 
 function Server.debugNudgeActive(player, dx, dy)
+    if not Support.canUseDebug(player) then return false, "unauthorized", 0 end
     local count = 0
-    for bijuuId, runtime in pairs(activeBosses) do
+    for _, runtime in pairs(activeBosses) do
         local proxy = runtime.proxy
-        if proxy then
-            local newX = proxy:getX() + (dx or 1.0)
-            local newY = proxy:getY() + (dy or 0.0)
-            local newZ = proxy:getZ()
-            NinjaLineages.Utils.Movement.placeEntity(proxy, newX, newY, newZ)
-            runtime.x = newX
-            runtime.y = newY
-            runtime.z = newZ
+        if proxy and not (proxy.isDead and proxy:isDead()) then
+            local x, y, z = proxy:getX() + (dx or 1), proxy:getY() + (dy or 0), proxy:getZ()
+            pcall(function()
+                proxy:setX(x)
+                proxy:setY(y)
+                proxy:setZ(z)
+                local square = getCell():getGridSquare(math.floor(x), math.floor(y), math.floor(z))
+                if square then proxy:setCurrentSquare(square) end
+            end)
+            runtime.x, runtime.y, runtime.z = x, y, z
             count = count + 1
-            log("nudged " .. tostring(bijuuId) .. " to (" .. tostring(newX) .. "," .. tostring(newY) .. "," .. tostring(newZ) .. ")")
         end
     end
     return count > 0, "ok", count
 end
 
+Support.registerDebugAction("spawn_shell", function(player, args)
+    local ok, reason = Server.debugSpawnNearPlayer(player, args.bijuuId)
+    return ok, reason, { bijuuId = args.bijuuId }
+end)
+
+Support.registerDebugAction("despawn_shells", function(player)
+    local ok, reason, count = Server.debugDespawnAll(player)
+    return ok, reason, { count = count }
+end)
+
+Support.registerDebugAction("nudge_shells", function(player, args)
+    local ok, reason, count = Server.debugNudgeActive(
+        player,
+        tonumber(args.dx) or 1,
+        tonumber(args.dy) or 0
+    )
+    return ok, reason, { count = count }
+end)
+
 local function onClientCommand(module, command, player, args)
     if module ~= "NinjaLineages" then return end
-
     if command == "bijuuMeleeSwing" then
-        -- Perimeter Reach Compensation Hit Command (Authoritative & Deduplicated)
-        if not player or (player.isDead and player:isDead()) then return end
-        if player.isGhostMode and player:isGhostMode() then return end
-
-        local weapon = player:getPrimaryHandItem()
-        if weapon and weapon.isRanged and weapon:isRanged() then
-            return -- reject ranged weapons
-        end
-
-        local bijuuId = args and args.bijuuId
-        local runtimeId = args and args.runtimeId
-        local runtime = activeBosses[bijuuId]
-        if not runtime or runtime.runtimeId ~= runtimeId then return end
-
-        local rootProxy = runtime.proxy
-        if not rootProxy or (rootProxy.isDead and rootProxy:isDead()) then return end
-
-        local now = NinjaLineages.Utils.Time.gameMinutes()
-        local minInterval = NinjaLineages.Balance and NinjaLineages.Balance.Jinchuuriki and NinjaLineages.Balance.Jinchuuriki.Release and NinjaLineages.Balance.Jinchuuriki.Release.MELEE_SWING_MIN_INTERVAL_GAME_MINUTES or 0.005
-        local pData = player:getModData()
-        local lastHitAt = pData.lastBijuuMeleeHitAt or 0
-        if (now - lastHitAt) < minInterval then
-            return -- throttled / duplicate swing
-        end
-
-        local swingId = args and args.swingId
-        if swingId and pData.lastProcessedSwingId == swingId then
-            return -- duplicate swing ID
-        end
-
-        -- Server proximity & facing validation
-        local px, py, pz = player:getX(), player:getY(), player:getZ()
-        local rx, ry, rz = rootProxy:getX(), rootProxy:getY(), rootProxy:getZ()
-        local dx = rx - px
-        local dy = ry - py
-        local dist = math.sqrt(dx * dx + dy * dy)
-
-        if dist > 0.001 then
-            local forward = player.getForwardDirection and player:getForwardDirection()
-            local fx = forward and forward:getX() or 0
-            local fy = forward and forward:getY() or 0
-            local ux = dx / dist
-            local uy = dy / dist
-            local dot = (fx * ux) + (fy * uy)
-            if dot < 0.42 then
-                return -- facing away from boss
-            end
-        end
-
-        local maxRange = (weapon and weapon.getMaxRange and weapon:getMaxRange(player)) or 1.25
-        local allowedReach = 1.2 + maxRange + 0.35
-
-        if dist <= allowedReach and math.abs(pz - rz) < 1.5 then
-            -- Verify LOS
-            local hit = NinjaLineages.Collision.traceSegment(px, py, pz, rx, ry, rz)
-            if hit == nil then
-                pData.lastBijuuMeleeHitAt = now
-                if swingId then pData.lastProcessedSwingId = swingId end
-
-                -- Invoke native engine Hit method on root zombie proxy!
-                if weapon and instanceof(weapon, "HandWeapon") then
-                    pcall(function() rootProxy:Hit(weapon, player, 1.0, false, 1.0) end)
-                else
-                    pcall(function() rootProxy:Hit(nil, player, 1.0, false, 1.0) end)
-                end
-                runtime.combat.lastAttackerOnlineId = player.getOnlineID and player:getOnlineID()
-            end
-        end
-    elseif command == "debugBijuuSpawnShell" then
-        if not canUseDebugCommands(player) then return end
-        local bijuuId = args and args.bijuuId
-        local ok, reason = Server.debugSpawnNearPlayer(player, bijuuId)
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = ok,
-                action = "bijuuSpawnShell",
-                bijuuId = bijuuId,
-                reason = reason,
-            })
-        elseif player and player.Say then
-            player:Say(ok and ("Spawned Bijū shell: " .. tostring(bijuuId)) or ("Spawn failed: " .. tostring(reason)))
-        end
-    elseif command == "debugBijuuDespawnShells" then
-        if not canUseDebugCommands(player) then return end
-        local ok, reason, count = Server.debugDespawnAll(player)
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = ok,
-                action = "bijuuDespawnShells",
-                count = count,
-                reason = reason,
-            })
-        elseif player and player.Say then
-            player:Say("Despawned all active Bijū shells (" .. tostring(count or 0) .. ").")
-        end
-    elseif command == "debugBijuuNudgeShell" then
-        if not canUseDebugCommands(player) then return end
-        local dx = tonumber(args and args.dx) or 1.0
-        local dy = tonumber(args and args.dy) or 0.0
-        local ok, reason, count = Server.debugNudgeActive(player, dx, dy)
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = ok,
-                action = "bijuuNudgeShell",
-                count = count,
-                reason = reason,
-            })
-        elseif player and player.Say then
-            player:Say("Nudged active Bijū shells by (" .. tostring(dx) .. "," .. tostring(dy) .. ").")
-        end
+        Server.handleMeleeSwing(player, args)
     elseif command == "requestBijuuActiveShells" then
-        local syncPayload = {}
-        for bijuuId, runtime in pairs(activeBosses) do
-            table.insert(syncPayload, {
-                bijuuId = bijuuId,
-                runtimeId = runtime.runtimeId,
-                proxyOnlineId = runtime.proxyOnlineId,
-                x = runtime.x,
-                y = runtime.y,
-                z = runtime.z,
-            })
-        end
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "bijuuActiveShellsSync", syncPayload)
-        end
+        Support.emit("bijuu_active_shells", { shells = Server.getActiveShellPayloads() }, player)
     end
 end
 

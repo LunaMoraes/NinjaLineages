@@ -15,12 +15,12 @@ local function getCombatConfig()
     return NinjaLineages.Balance and NinjaLineages.Balance.Jinchuuriki and NinjaLineages.Balance.Jinchuuriki.BossCombat or {
         HEALTH_1_TAIL = 500.0,
         HEALTH_9_TAIL = 2000.0,
-        TELEGRAPH_1_TAIL_MINUTES = 0.08,
-        TELEGRAPH_9_TAIL_MINUTES = 0.04,
-        SHOT_INTERVAL_1_TAIL_MINUTES = 0.02,
-        SHOT_INTERVAL_9_TAIL_MINUTES = 0.006,
-        COOLDOWN_1_TAIL_MINUTES = 0.12,
-        COOLDOWN_9_TAIL_MINUTES = 0.06,
+        TELEGRAPH_1_TAIL_MINUTES = 0.8,
+        TELEGRAPH_9_TAIL_MINUTES = 0.4,
+        SHOT_INTERVAL_1_TAIL_MINUTES = 0.2,
+        SHOT_INTERVAL_9_TAIL_MINUTES = 0.06,
+        COOLDOWN_1_TAIL_MINUTES = 1.2,
+        COOLDOWN_9_TAIL_MINUTES = 0.6,
         DAMAGE_1_TAIL = 18.0,
         DAMAGE_9_TAIL = 35.0,
         PROJECTILE_RANGE = 18.0,
@@ -39,24 +39,24 @@ end
 function BijuuCombat.getTelegraphDuration(tails)
     local f = BijuuCombat.getTailFactor(tails)
     local cfg = getCombatConfig()
-    local t1 = cfg.TELEGRAPH_1_TAIL_MINUTES or 0.08
-    local t9 = cfg.TELEGRAPH_9_TAIL_MINUTES or 0.04
+    local t1 = cfg.TELEGRAPH_1_TAIL_MINUTES or 0.8
+    local t9 = cfg.TELEGRAPH_9_TAIL_MINUTES or 0.4
     return t1 - f * (t1 - t9)
 end
 
 function BijuuCombat.getShotInterval(tails)
     local f = BijuuCombat.getTailFactor(tails)
     local cfg = getCombatConfig()
-    local s1 = cfg.SHOT_INTERVAL_1_TAIL_MINUTES or 0.02
-    local s9 = cfg.SHOT_INTERVAL_9_TAIL_MINUTES or 0.006
+    local s1 = cfg.SHOT_INTERVAL_1_TAIL_MINUTES or 0.2
+    local s9 = cfg.SHOT_INTERVAL_9_TAIL_MINUTES or 0.06
     return s1 - f * (s1 - s9)
 end
 
 function BijuuCombat.getAttackCooldown(tails)
     local f = BijuuCombat.getTailFactor(tails)
     local cfg = getCombatConfig()
-    local c1 = cfg.COOLDOWN_1_TAIL_MINUTES or 0.12
-    local c9 = cfg.COOLDOWN_9_TAIL_MINUTES or 0.06
+    local c1 = cfg.COOLDOWN_1_TAIL_MINUTES or 1.2
+    local c9 = cfg.COOLDOWN_9_TAIL_MINUTES or 0.6
     return c1 - f * (c1 - c9)
 end
 

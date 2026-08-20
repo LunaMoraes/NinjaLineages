@@ -90,10 +90,7 @@ function Definitions.isValidId(id)
     return Definitions.ById[id] ~= nil
 end
 
-function Definitions.getAll()
-    return Definitions.ById
-end
-
-function Definitions.getOrder()
-    return Definitions.Order
+function Definitions.isWildBeast(id)
+    local def = Definitions.get(id)
+    return def ~= nil and def.nativeSpawnType == "wild"
 end

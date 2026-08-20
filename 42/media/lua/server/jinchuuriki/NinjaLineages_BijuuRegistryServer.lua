@@ -2,6 +2,7 @@ require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "disciplines/jinchuuriki/NinjaLineages_BijuuDefinitions"
 require "disciplines/jinchuuriki/NinjaLineages_BijuuState"
+require "jinchuuriki/NinjaLineages_BijuuServerSupport"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.BijuuRegistryServer = NinjaLineages.BijuuRegistryServer or {}
@@ -9,27 +10,45 @@ NinjaLineages.BijuuRegistryServer = NinjaLineages.BijuuRegistryServer or {}
 local Server = NinjaLineages.BijuuRegistryServer
 local Definitions = NinjaLineages.BijuuDefinitions
 local BijuuState = NinjaLineages.BijuuState
+local Support = NinjaLineages.BijuuServerSupport
 
 local state = nil
 
+local allowedTransitions = {
+    [BijuuState.HOST_POOL] = {
+        [BijuuState.BOSS_ACTIVE] = true,
+    },
+    [BijuuState.WILD_DORMANT] = {
+        [BijuuState.WILD_ACTIVE] = true,
+    },
+    [BijuuState.WILD_ACTIVE] = {
+        [BijuuState.WILD_DORMANT] = true,
+        [BijuuState.RESPAWNING] = true,
+        [BijuuState.SEALING] = true,
+    },
+    [BijuuState.BOSS_ACTIVE] = {
+        [BijuuState.HOST_POOL] = true,
+        [BijuuState.SEALING] = true,
+    },
+    [BijuuState.RESPAWNING] = {
+        [BijuuState.WILD_DORMANT] = true,
+    },
+    [BijuuState.SEALING] = {
+        [BijuuState.WILD_ACTIVE] = true,
+        [BijuuState.BOSS_ACTIVE] = true,
+        [BijuuState.SEALED_VESSEL] = true,
+        [BijuuState.SEALED_PLAYER] = true,
+    },
+    [BijuuState.SEALED_VESSEL] = {
+        [BijuuState.SEALING] = true,
+    },
+    [BijuuState.SEALED_PLAYER] = {
+        [BijuuState.SEALING] = true,
+    },
+}
+
 local function log(message)
     print("[NL-BIJUU-REGISTRY] " .. tostring(message))
-end
-
-local function defaultState()
-    local root = {
-        schemaVersion = BijuuState.SCHEMA_VERSION,
-        bijuu = {},
-    }
-    for _, id in ipairs(Definitions.Order) do
-        root.bijuu[id] = {
-            state = BijuuState.getInitialState(id),
-            world = nil,
-            host = nil,
-            vessel = nil,
-        }
-    end
-    return root
 end
 
 local migrations = {
@@ -127,18 +146,6 @@ function Server.getBijuuState(bijuuId)
     return rec and rec.state or nil
 end
 
-function Server.getAllRecordsSnapshot()
-    local current = getState()
-    local result = {}
-    for _, id in ipairs(Definitions.Order) do
-        local rec = current.bijuu and current.bijuu[id]
-        if rec then
-            result[id] = BijuuState.deepCopy(rec)
-        end
-    end
-    return result
-end
-
 function Server.transition(bijuuId, expectedState, newState, patch, reason)
     if not Definitions.isValidId(bijuuId) then
         log("rejected transition: invalid bijuu ID=" .. tostring(bijuuId))
@@ -153,6 +160,13 @@ function Server.transition(bijuuId, expectedState, newState, patch, reason)
     if not BijuuState.isValidState(expectedState) then
         log("rejected transition " .. tostring(bijuuId) .. ": invalid expected state=" .. tostring(expectedState))
         return false, "invalid_expected_state"
+    end
+
+    if newState ~= expectedState
+            and not (allowedTransitions[expectedState] and allowedTransitions[expectedState][newState]) then
+        log("rejected transition " .. tostring(bijuuId)
+            .. ": illegal " .. tostring(expectedState) .. " -> " .. tostring(newState))
+        return false, "illegal_transition"
     end
 
     Server.ensureState()
@@ -191,44 +205,7 @@ function Server.transition(bijuuId, expectedState, newState, patch, reason)
 end
 
 function Server.patch(bijuuId, expectedState, patch, reason)
-    if not Definitions.isValidId(bijuuId) then
-        log("rejected patch: invalid bijuu ID=" .. tostring(bijuuId))
-        return false, "invalid_bijuu_id"
-    end
-
-    if not BijuuState.isValidState(expectedState) then
-        log("rejected patch " .. tostring(bijuuId) .. ": invalid expected state=" .. tostring(expectedState))
-        return false, "invalid_expected_state"
-    end
-
-    Server.ensureState()
-    local record = getRecordInternal(bijuuId)
-    if not record then
-        log("rejected patch " .. tostring(bijuuId) .. ": record not found")
-        return false, "record_not_found"
-    end
-
-    if record.state ~= expectedState then
-        log("rejected patch " .. tostring(bijuuId) .. ": expected=" .. tostring(expectedState) .. " actual=" .. tostring(record.state) .. " reason=" .. tostring(reason or "none"))
-        return false, "state_mismatch"
-    end
-
-    if type(patch) == "table" then
-        for key, value in pairs(patch) do
-            if key ~= "state" then
-                if value == false or value == nil then
-                    record[key] = nil
-                elseif type(value) == "table" then
-                    record[key] = BijuuState.deepCopy(value)
-                else
-                    record[key] = value
-                end
-            end
-        end
-    end
-
-    log(tostring(bijuuId) .. " patched (state=" .. tostring(record.state) .. ") reason=" .. tostring(reason or "none"))
-    return true, "ok"
+    return Server.transition(bijuuId, expectedState, expectedState, patch, reason or "patch")
 end
 
 function Server.getWildBijuuIds()
@@ -304,69 +281,28 @@ function Server.resetRegistryDebug(force)
     return true, "ok"
 end
 
-local function canUseDebugCommands(player)
-    if not (SandboxVars
-            and SandboxVars.NinjaLineages
-            and SandboxVars.NinjaLineages.DebugMode == true) then
-        return false
-    end
+Support.registerDebugAction("dump_registry", function()
+    Server.dumpRegistry()
+    return true, "ok"
+end)
 
-    if NinjaLineages.isSinglePlayer and NinjaLineages.isSinglePlayer() then
-        return true
-    end
+Support.registerDebugAction("reset_registry", function()
+    return Server.resetRegistryDebug(true)
+end)
 
-    local ok, accessLevel = pcall(function() return player:getAccessLevel() end)
-    return ok and string.lower(tostring(accessLevel or "")) == "admin"
-end
-
-local function onClientCommand(module, command, player, args)
-    if module ~= "NinjaLineages" then return end
-
-    if command == "debugBijuuDump" then
-        if not canUseDebugCommands(player) then return end
-        Server.dumpRegistry()
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = true,
-                action = "bijuuDump",
-            })
-        elseif player and player.Say then
-            player:Say("Bijū registry dumped to console.")
-        end
-    elseif command == "debugBijuuReset" then
-        if not canUseDebugCommands(player) then return end
-        local ok, reason = Server.resetRegistryDebug(true)
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = ok,
-                action = "bijuuReset",
-                reason = reason,
-            })
-        elseif player and player.Say then
-            player:Say("Bijū registry reset to initial canonical state.")
-        end
-    elseif command == "debugBijuuTransition" then
-        if not canUseDebugCommands(player) then return end
-        local bijuuId = args and args.bijuuId
-        local expectedState = args and args.expectedState
-        local newState = args and args.newState
-        local patch = args and args.patch
-        local reason = args and args.reason or "debug_client_command"
-        local ok, resultReason = Server.transition(bijuuId, expectedState, newState, patch, reason)
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = ok,
-                action = "bijuuTransition",
-                bijuuId = bijuuId,
-                newState = newState,
-                reason = resultReason,
-            })
-        elseif player and player.Say then
-            player:Say(ok and ("Transitioned " .. tostring(bijuuId) .. " to " .. tostring(newState))
-                or ("Transition rejected: " .. tostring(resultReason)))
-        end
-    end
-end
+Support.registerDebugAction("transition", function(_, args)
+    local ok, reason = Server.transition(
+        args.bijuuId,
+        args.expectedState,
+        args.newState,
+        args.patch,
+        args.reason or "debug_client_command"
+    )
+    return ok, reason, {
+        bijuuId = args.bijuuId,
+        newState = args.newState,
+    }
+end)
 
 local function onInitGlobalModData(isNewGame)
     Server.ensureState()
@@ -377,10 +313,4 @@ NinjaLineages.addEventOnce(
     "server.bijuu.onInitGlobalModData",
     Events.OnInitGlobalModData,
     onInitGlobalModData
-)
-
-NinjaLineages.addEventOnce(
-    "server.bijuu.onClientCommand",
-    Events.OnClientCommand,
-    onClientCommand
 )

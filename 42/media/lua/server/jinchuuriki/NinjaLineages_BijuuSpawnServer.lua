@@ -6,6 +6,7 @@ require "disciplines/jinchuuriki/NinjaLineages_BijuuState"
 require "disciplines/jinchuuriki/NinjaLineages_BijuuBoss"
 require "jinchuuriki/NinjaLineages_BijuuRegistryServer"
 require "jinchuuriki/NinjaLineages_BijuuBossServer"
+require "jinchuuriki/NinjaLineages_BijuuServerSupport"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.BijuuSpawnServer = NinjaLineages.BijuuSpawnServer or {}
@@ -15,8 +16,10 @@ local Definitions = NinjaLineages.BijuuDefinitions
 local BijuuState = NinjaLineages.BijuuState
 local Registry = NinjaLineages.BijuuRegistryServer
 local BossServer = NinjaLineages.BijuuBossServer
+local Support = NinjaLineages.BijuuServerSupport
 
 local lastPersistCheckGameMinutes = 0
+local lastStreamCheckGameMinutes = 0
 
 local function log(message)
     print("[NL-BIJUU-SPAWN] " .. tostring(message))
@@ -52,6 +55,15 @@ function SpawnServer.checkFootprintState(x, y, z)
         { x = radius * 0.7, y = radius * 0.7 },
     }
 
+    local function isWaterSquare(sq)
+        if not sq then return false end
+        if sq.has and sq:has(IsoFlagType.water) then return true end
+        local props = sq.getProperties and sq:getProperties()
+        if props and props.has and props:has(IsoFlagType.water) then return true end
+        if props and props.Is and props:Is(IsoFlagType.water) then return true end
+        return false
+    end
+
     local hasUnloaded = false
     for _, off in ipairs(sampleOffsets) do
         local checkX = math.floor(x + off.x)
@@ -62,9 +74,11 @@ function SpawnServer.checkFootprintState(x, y, z)
         else
             if sq.getRoom and sq:getRoom() ~= nil then return "INVALID" end
             if sq.getBuilding and sq:getBuilding() ~= nil then return "INVALID" end
+            if sq.has and sq:has(IsoFlagType.solid) then return "INVALID" end
+            if sq.has and sq:has(IsoFlagType.solidtrans) then return "INVALID" end
             if sq.isSolid and sq:isSolid() then return "INVALID" end
             if sq.isSolidTrans and sq:isSolidTrans() then return "INVALID" end
-            if sq.getProperties and sq:getProperties():Is(IsoFlagType.water) then return "INVALID" end
+            if isWaterSquare(sq) then return "INVALID" end
             if sq.testCollideSpecialObjects and sq:testCollideSpecialObjects(nil) then return "INVALID" end
         end
     end
@@ -74,10 +88,6 @@ function SpawnServer.checkFootprintState(x, y, z)
     end
 
     return "VALID"
-end
-
-function SpawnServer.isValidFootprint(x, y, z)
-    return SpawnServer.checkFootprintState(x, y, z) == "VALID"
 end
 
 function SpawnServer.findValidWildLocation(bijuuId, options)
@@ -270,15 +280,8 @@ function SpawnServer.tryMaterializeWildBijuu(bijuuId)
     return true, "ok", runtime
 end
 
-local function isServerAuthority()
-    if isClient and isClient() and not (isServer and isServer()) then
-        return false
-    end
-    return true
-end
-
 function SpawnServer.reconcileOnStartup()
-    if not isServerAuthority() then return end
+    if not Support.isAuthoritative() then return end
     SpawnServer.assignMissingWildLocations()
 
     local wildIds = Registry.getWildBijuuIds()
@@ -302,77 +305,62 @@ function SpawnServer.reconcileOnStartup()
     end
 end
 
-function SpawnServer.onLoadChunk(chunk)
-    if not isServerAuthority() then return end
-    if not chunk then return end
-    local chunkWx = chunk.wx
-    local chunkWy = chunk.wy
-    if not chunkWx or not chunkWy then return end
-
-    local minWorldX = chunkWx * 10
-    local maxWorldX = minWorldX + 10
-    local minWorldY = chunkWy * 10
-    local maxWorldY = minWorldY + 10
-
-    local wildIds = Registry.getWildBijuuIds()
-    for _, bijuuId in ipairs(wildIds) do
-        local record = Registry.getRecord(bijuuId)
-        if record and record.state == BijuuState.WILD_DORMANT and record.world then
-            local bx = record.world.x
-            local by = record.world.y
-            if bx >= minWorldX and bx < maxWorldX and by >= minWorldY and by < maxWorldY then
-                SpawnServer.tryMaterializeWildBijuu(bijuuId)
-            end
-        end
-    end
-end
-
 function SpawnServer.update()
-    if not isServerAuthority() then return end
+    if not Support.isAuthoritative() then return end
     local now = NinjaLineages.Utils.Time.gameMinutes()
     local cfg = getWildConfig()
     local persistInterval = cfg.POSITION_PERSIST_INTERVAL_GAME_MINUTES or 0.5
+    local streamInterval = cfg.STREAM_SCAN_INTERVAL_GAME_MINUTES or 0.05
     local minDistance = cfg.POSITION_PERSIST_MIN_DISTANCE or 2.0
 
     local shouldCheckPersist = (now - lastPersistCheckGameMinutes) >= persistInterval
+    local shouldCheckStreaming = (now - lastStreamCheckGameMinutes) >= streamInterval
+    if not shouldCheckPersist and not shouldCheckStreaming then return end
 
     local wildIds = Registry.getWildBijuuIds()
     for _, bijuuId in ipairs(wildIds) do
         local record = Registry.getRecord(bijuuId)
-        if record and record.state == BijuuState.WILD_ACTIVE then
-            local snap = BossServer.getActiveBossSnapshot(bijuuId)
-            if snap then
-                -- 1. Movement persistence
-                if shouldCheckPersist and record.world then
-                    local dx = snap.x - record.world.x
-                    local dy = snap.y - record.world.y
-                    local dist = math.sqrt(dx * dx + dy * dy)
-                    if dist >= minDistance then
-                        Registry.patch(bijuuId, BijuuState.WILD_ACTIVE, {
-                            world = {
-                                x = snap.x,
-                                y = snap.y,
-                                z = snap.z,
-                                regionId = record.world.regionId,
-                            }
-                        }, "movement_sync")
-                        record = Registry.getRecord(bijuuId)
-                    end
+        if record then
+            if shouldCheckStreaming and record.state == BijuuState.WILD_DORMANT and record.world then
+                -- Check if dormant wild beast location is loaded in cell or near a player
+                if SpawnServer.isLocationLoaded(record.world.x, record.world.y, record.world.z) then
+                    SpawnServer.tryMaterializeWildBijuu(bijuuId)
                 end
+            elseif record.state == BijuuState.WILD_ACTIVE then
+                local snap = BossServer.getActiveBossSnapshot(bijuuId)
+                if snap then
+                    -- 1. Movement persistence
+                    if shouldCheckPersist and record.world then
+                        local dx = snap.x - record.world.x
+                        local dy = snap.y - record.world.y
+                        local dist = math.sqrt(dx * dx + dy * dy)
+                        if dist >= minDistance then
+                            Registry.patch(bijuuId, BijuuState.WILD_ACTIVE, {
+                                world = {
+                                    x = snap.x,
+                                    y = snap.y,
+                                    z = snap.z,
+                                    regionId = record.world.regionId,
+                                }
+                            }, "movement_sync")
+                            record = Registry.getRecord(bijuuId)
+                        end
+                    end
 
-                -- 2. Area unload dematerialization (unless defeated, which is preserved for Slice 5)
-                if snap.phase ~= "defeated" then
-                    if not SpawnServer.isLocationLoaded(snap.x, snap.y, snap.z) then
-                        log("area unloaded for wild bijuu=" .. tostring(bijuuId) .. ", dematerializing at (" .. tostring(snap.x) .. "," .. tostring(snap.y) .. ")")
-                        BossServer.dematerialize(bijuuId, snap.runtimeId, "area_unloaded")
-                        Registry.transition(bijuuId, BijuuState.WILD_ACTIVE, BijuuState.WILD_DORMANT, {
-                            world = {
-                                x = snap.x,
-                                y = snap.y,
-                                z = snap.z,
-                                regionId = record.world and record.world.regionId or "wilderness_unknown",
-                            }
-                        }, "area_unloaded")
+                    -- 2. Area unload dematerialization (unless defeated, which is preserved for Slice 5)
+                    if shouldCheckStreaming and snap.phase ~= "defeated" then
+                        if not SpawnServer.isLocationLoaded(snap.x, snap.y, snap.z) then
+                            log("area unloaded for wild bijuu=" .. tostring(bijuuId) .. ", dematerializing at (" .. tostring(snap.x) .. "," .. tostring(snap.y) .. ")")
+                            BossServer.dematerialize(bijuuId, snap.runtimeId, "area_unloaded")
+                            Registry.transition(bijuuId, BijuuState.WILD_ACTIVE, BijuuState.WILD_DORMANT, {
+                                world = {
+                                    x = snap.x,
+                                    y = snap.y,
+                                    z = snap.z,
+                                    regionId = record.world and record.world.regionId or "wilderness_unknown",
+                                }
+                            }, "area_unloaded")
+                        end
                     end
                 end
             end
@@ -382,26 +370,14 @@ function SpawnServer.update()
     if shouldCheckPersist then
         lastPersistCheckGameMinutes = now
     end
+    if shouldCheckStreaming then
+        lastStreamCheckGameMinutes = now
+    end
 end
 
 -- ============================================================================
 -- Debug Commands & Handlers
 -- ============================================================================
-
-local function canUseDebugCommands(player)
-    if not (SandboxVars
-            and SandboxVars.NinjaLineages
-            and SandboxVars.NinjaLineages.DebugMode == true) then
-        return false
-    end
-
-    if NinjaLineages.isSinglePlayer and NinjaLineages.isSinglePlayer() then
-        return true
-    end
-
-    local ok, accessLevel = pcall(function() return player:getAccessLevel() end)
-    return ok and string.lower(tostring(accessLevel or "")) == "admin"
-end
 
 function SpawnServer.debugAssignMissingLocations(player)
     local count = SpawnServer.assignMissingWildLocations()
@@ -420,11 +396,27 @@ function SpawnServer.debugTeleportToWild(player, bijuuId)
         return false, "no_world_coordinate"
     end
 
-    NinjaLineages.Utils.Movement.placeEntity(player, record.world.x, record.world.y, record.world.z or 0)
-    if player.Say then
-        player:Say("Teleported to " .. tostring(bijuuId) .. " wild coordinate (" .. tostring(math.floor(record.world.x)) .. "," .. tostring(math.floor(record.world.y)) .. ").")
+    local snapshot = BossServer.getActiveBossSnapshot(bijuuId)
+    local destination = snapshot or record.world
+    local safeOffset = (getWildConfig().FOOTPRINT_RADIUS or 2.5) + 3.0
+    NinjaLineages.Utils.Movement.placeEntity(
+        player,
+        destination.x + safeOffset,
+        destination.y,
+        destination.z or 0
+    )
+
+    local status = snapshot and "already_active" or "pending_chunk_load"
+    if not snapshot and record.state == BijuuState.WILD_DORMANT
+            and SpawnServer.isLocationLoaded(record.world.x, record.world.y, record.world.z) then
+        local materialized, materializeReason = SpawnServer.tryMaterializeWildBijuu(bijuuId)
+        status = materialized and "materialized" or materializeReason
     end
-    return true, "ok"
+    if player.Say then
+        player:Say("Teleported near " .. tostring(bijuuId)
+            .. " (" .. tostring(status) .. ").")
+    end
+    return true, status
 end
 
 function SpawnServer.debugForceReconciliation(player)
@@ -435,67 +427,16 @@ function SpawnServer.debugForceReconciliation(player)
     return true, "ok"
 end
 
-local function onClientCommand(module, command, player, args)
-    if module ~= "NinjaLineages" then return end
+Support.registerDebugAction("assign_wild", function(player)
+    local ok, reason, count = SpawnServer.debugAssignMissingLocations(player)
+    return ok, reason, { count = count }
+end)
 
-    if command == "debugBijuuAssignWild" then
-        if not canUseDebugCommands(player) then return end
-        local ok, rsn, count = SpawnServer.debugAssignMissingLocations(player)
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = ok,
-                action = "bijuuAssignWild",
-                count = count,
-                reason = rsn,
-            })
-        end
-    elseif command == "debugBijuuTeleportWild" then
-        if not canUseDebugCommands(player) then return end
-        local bijuuId = args and args.bijuuId
-        local ok, rsn = SpawnServer.debugTeleportToWild(player, bijuuId)
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = ok,
-                action = "bijuuTeleportWild",
-                bijuuId = bijuuId,
-                reason = rsn,
-            })
-        end
-    elseif command == "debugBijuuReconcileWild" then
-        if not canUseDebugCommands(player) then return end
-        local ok, rsn = SpawnServer.debugForceReconciliation(player)
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = ok,
-                action = "bijuuReconcileWild",
-                reason = rsn,
-            })
-        end
-    end
-end
+Support.registerDebugAction("teleport_wild", function(player, args)
+    local ok, reason = SpawnServer.debugTeleportToWild(player, args.bijuuId)
+    return ok, reason, { bijuuId = args.bijuuId }
+end)
 
-NinjaLineages.addEventOnce(
-    "server.bijuuSpawn.onClientCommand",
-    Events.OnClientCommand,
-    onClientCommand
-)
-
-if Events and Events.LoadChunk then
-    NinjaLineages.addEventOnce(
-        "server.bijuuSpawn.onLoadChunk",
-        Events.LoadChunk,
-        function(chunk)
-            SpawnServer.onLoadChunk(chunk)
-        end
-    )
-end
-
-if Events and Events.OnGameTimeLoaded then
-    NinjaLineages.addEventOnce(
-        "server.bijuuSpawn.onGameTimeLoaded",
-        Events.OnGameTimeLoaded,
-        function()
-            SpawnServer.reconcileOnStartup()
-        end
-    )
-end
+Support.registerDebugAction("reconcile_world", function(player)
+    return SpawnServer.debugForceReconciliation(player)
+end)

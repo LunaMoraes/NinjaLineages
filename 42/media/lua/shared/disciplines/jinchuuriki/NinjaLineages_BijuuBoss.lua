@@ -9,7 +9,6 @@ local Boss = NinjaLineages.BijuuBoss
 local Definitions = NinjaLineages.BijuuDefinitions
 
 Boss.KEY_BOSS_PROXY = "isBijuuBossProxy"
-Boss.KEY_HIT_PROXY  = "isBijuuHitProxy"
 Boss.KEY_BIJUU_ID   = "bijuuId"
 Boss.KEY_RUNTIME_ID = "bijuuRuntimeId"
 
@@ -29,12 +28,6 @@ function Boss.isBossProxy(entity)
     if not entity or not entity.getModData then return false end
     local modData = entity:getModData()
     return modData and modData[Boss.KEY_BOSS_PROXY] == true
-end
-
-function Boss.isHitProxy(entity)
-    if not entity or not entity.getModData then return false end
-    local modData = entity:getModData()
-    return modData and modData[Boss.KEY_HIT_PROXY] == true
 end
 
 function Boss.getBijuuId(entity)
@@ -62,10 +55,9 @@ function Boss.getShellConfig(bijuuId)
         tails = def and def.tails or 1,
         nameKey = def and def.nameKey or "UI_NL_Bijuu_" .. tostring(bijuuId),
         visualRadius = shell and shell.VISUAL_RADIUS or 2.4,
-        headRadius = shell and shell.HEAD_RADIUS or 1.2,
-        visualHeight = shell and shell.VISUAL_HEIGHT or 2.2,
-        ringsCount = shell and shell.RINGS_COUNT or 4,
+        visualHeight = shell and shell.VISUAL_HEIGHT or 0.45,
         proxyWidth = shell and shell.PROXY_WIDTH or 2.4,
+        perimeterHitboxRadius = shell and shell.PERIMETER_HITBOX_RADIUS or 1.2,
         color = color,
     }
 end

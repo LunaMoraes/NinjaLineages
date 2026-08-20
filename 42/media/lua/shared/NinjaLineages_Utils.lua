@@ -185,6 +185,26 @@ function NinjaLineages.Utils.isLivePlayer(player)
 end
 NinjaLineages.Utils.Players.isLive = NinjaLineages.Utils.isLivePlayer
 
+function NinjaLineages.Utils.Players.forEach(callback)
+    local online = getOnlinePlayers and getOnlinePlayers()
+    if online and online:size() > 0 then
+        for index = 0, online:size() - 1 do
+            local player = online:get(index)
+            if player then callback(player) end
+        end
+        return
+    end
+    if getNumActivePlayers and getSpecificPlayer then
+        for index = 0, getNumActivePlayers() - 1 do
+            local player = getSpecificPlayer(index)
+            if player then callback(player) end
+        end
+    elseif getPlayer then
+        local player = getPlayer()
+        if player then callback(player) end
+    end
+end
+
 function NinjaLineages.Utils.isSinglePlayer()
     return not (NinjaLineages.isClient and NinjaLineages.isClient())
         and not (NinjaLineages.isServer and NinjaLineages.isServer())

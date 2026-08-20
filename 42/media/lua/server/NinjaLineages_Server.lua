@@ -9,9 +9,9 @@ require "NinjaLineages_ZombieNinjaServer"
 require "NinjaLineages_ExperimentalSurgeryServer"
 require "NinjaLineages_SocialServer"
 require "NinjaLineages_MissionServer"
+require "jinchuuriki/NinjaLineages_BijuuServerSupport"
 require "jinchuuriki/NinjaLineages_BijuuRegistryServer"
 require "jinchuuriki/NinjaLineages_BijuuBossServer"
-require "jinchuuriki/NinjaLineages_BijuuSpawnServer"
 require "jinchuuriki/NinjaLineages_BijuuLifecycleServer"
 require "lineages/NinjaLineages_UchihaPassives"
 
@@ -49,24 +49,6 @@ local function onClientCommand(module, command, player, args)
     end
 end
 
-local function forEachOnlinePlayer(callback)
-    local players = getOnlinePlayers and getOnlinePlayers()
-    if players then
-        for i = 0, players:size() - 1 do
-            local player = players:get(i)
-            if player then callback(player) end
-        end
-        return
-    end
-
-    if getNumActivePlayers and getSpecificPlayer then
-        for i = 0, getNumActivePlayers() - 1 do
-            local player = getSpecificPlayer(i)
-            if player then callback(player) end
-        end
-    end
-end
-
 local function updateAbilities()
     NinjaLineages.AbilityAuthority.pruneSeenRequests()
     NinjaLineages.RinneganMechanics.update()
@@ -79,12 +61,12 @@ local function updateAbilities()
     if NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.update then
         NinjaLineages.BijuuBossServer.update()
     end
-    if NinjaLineages.BijuuSpawnServer and NinjaLineages.BijuuSpawnServer.update then
-        NinjaLineages.BijuuSpawnServer.update()
+    if NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.update then
+        NinjaLineages.BijuuLifecycleServer.update()
     end
     NinjaLineages.AbilityAuthority.updateWorld()
 
-    forEachOnlinePlayer(function(player)
+    NinjaLineages.Utils.Players.forEach(function(player)
         NinjaLineages.AbilityAuthority.updatePlayer(player)
 
         if NinjaLineages.ServerPassives then
@@ -96,7 +78,7 @@ end
 local function everyOneMinute()
     NinjaLineages.AbilityAuthority.updateAlarmSeals()
 
-    forEachOnlinePlayer(function(player)
+    NinjaLineages.Utils.Players.forEach(function(player)
         NinjaLineages.AbilityAuthority.everyMinute(player)
 
         if NinjaLineages.ServerPassives then

@@ -2,6 +2,7 @@ require "combat/NinjaLineages_Collision"
 require "combat/NinjaLineages_Damage"
 require "NinjaLineages_Balance"
 require "NinjaLineages_Constants"
+require "NinjaLineages_Utils"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.CombatRuntime = NinjaLineages.CombatRuntime or {}
@@ -10,6 +11,7 @@ local Runtime = NinjaLineages.CombatRuntime
 local geometry = NinjaLineages.Constants.Geometry
 Runtime.projectiles = Runtime.projectiles or {}
 Runtime.katonStreams = Runtime.katonStreams or {}
+Runtime.projectileHitGroups = Runtime.projectileHitGroups or {}
 
 local nextProjectileId = 0
 local nextKatonStreamId = 0
@@ -30,6 +32,11 @@ end
 
 local function log(message)
     debugLog(LOG_PREFIX, message)
+end
+
+local function projectileLog(projectile, message)
+    if projectile and projectile.suppressDebugLog then return end
+    log(message)
 end
 
 local function katonLog(message)
@@ -306,6 +313,60 @@ local function finish(projectile, result, x, y, z, toRemove)
     table.insert(toRemove, projectile.projectileId)
 end
 
+local function playerHitKey(player)
+    if player and player.getOnlineID then
+        local ok, onlineId = pcall(function() return player:getOnlineID() end)
+        if ok and onlineId and onlineId >= 0 then return "online:" .. tostring(onlineId) end
+    end
+    if player and player.getPlayerNum then
+        local ok, playerNum = pcall(function() return player:getPlayerNum() end)
+        if ok and playerNum ~= nil then return "local:" .. tostring(playerNum) end
+    end
+    return tostring(player)
+end
+
+local function registerProjectileHitGroup(projectile)
+    local meta = projectile and projectile.meta
+    if not meta or meta.hitTargetOncePerGroup ~= true or not meta.hitGroupId then return end
+
+    local groupId = tostring(meta.hitGroupId)
+    local group = Runtime.projectileHitGroups[groupId]
+    if not group then
+        group = { targets = {}, expiresAtGameMinutes = projectile.expiresAtGameMinutes }
+        Runtime.projectileHitGroups[groupId] = group
+    else
+        group.expiresAtGameMinutes = math.max(
+            group.expiresAtGameMinutes or 0,
+            projectile.expiresAtGameMinutes
+        )
+    end
+end
+
+local function shouldApplyGroupedPlayerHit(projectile, player)
+    local meta = projectile and projectile.meta
+    if not meta or meta.hitTargetOncePerGroup ~= true or not meta.hitGroupId then return true end
+
+    local groupId = tostring(meta.hitGroupId)
+    local group = Runtime.projectileHitGroups[groupId]
+    if not group then
+        group = { targets = {}, expiresAtGameMinutes = projectile.expiresAtGameMinutes }
+        Runtime.projectileHitGroups[groupId] = group
+    end
+
+    local targetKey = playerHitKey(player)
+    if group.targets[targetKey] then return false end
+    group.targets[targetKey] = true
+    return true
+end
+
+local function pruneProjectileHitGroups(now)
+    for groupId, group in pairs(Runtime.projectileHitGroups) do
+        if now >= (group.expiresAtGameMinutes or 0) then
+            Runtime.projectileHitGroups[groupId] = nil
+        end
+    end
+end
+
 function Runtime.createProjectile(config)
     local now = NinjaLineages.Utils.Time.gameMinutes()
     local defaultSpeed = NinjaLineages.Balance.JutsuRuntime.Projectile.DEFAULT_SPEED
@@ -343,13 +404,15 @@ function Runtime.createProjectile(config)
         hitRadius = config.hitRadius or 0.65,
         isHostileNPC = config.isHostileNPC == true,
         meta = config.meta or {},
+        suppressDebugLog = config.suppressDebugLog == true,
         createdAtGameMinutes = now,
         lastTickGameMinutes = now,
         expiresAtGameMinutes = now + (maximumTravelDistance / speed),
     }
 
     Runtime.projectiles[projectile.projectileId] = projectile
-    log(string.format(
+    registerProjectileHitGroup(projectile)
+    projectileLog(projectile, string.format(
         "CREATED id=%s ability=%s tracking=%s targetKind=%s targetId=%s targetObject=%s pos=(%.3f,%.3f,%.3f) speed=%.3f expiresAt=%.6f",
         tostring(projectile.projectileId),
         tostring(projectile.abilityId),
@@ -379,25 +442,6 @@ function Runtime.removeProjectilesByMeta(key, value)
     end
 end
 
-local function forEachCandidatePlayer(callback)
-    if getOnlinePlayers then
-        local players = getOnlinePlayers()
-        if players then
-            for i = 0, players:size() - 1 do
-                local player = players:get(i)
-                if player then callback(player) end
-            end
-            return
-        end
-    end
-    if getNumActivePlayers and getSpecificPlayer then
-        for i = 0, getNumActivePlayers() - 1 do
-            local player = getSpecificPlayer(i)
-            if player then callback(player) end
-        end
-    end
-end
-
 local function findSpatialPlayerCollision(x1, y1, z1, x2, y2, z2, hitRadius, caster)
     local segDx = x2 - x1
     local segDy = y2 - y1
@@ -408,7 +452,7 @@ local function findSpatialPlayerCollision(x1, y1, z1, x2, y2, z2, hitRadius, cas
     local bestDistAlong = nil
     local bestHitX, bestHitY = nil, nil
 
-    forEachCandidatePlayer(function(player)
+    NinjaLineages.Utils.Players.forEach(function(player)
         if player and not (player.isDead and player:isDead()) then
             if not (player.isGhostMode and player:isGhostMode()) then
                 if player ~= caster then
@@ -468,7 +512,7 @@ local function handleCollision(projectile, collision, caster)
             projectile.damagePayload
         )
     end
-    log(string.format(
+    projectileLog(projectile, string.format(
         "BLOCKED id=%s collision=%s object=%s pos=(%.3f,%.3f,%.3f) damaged=%s structuralDamage=%.3f healthBefore=%s healthAfter=%s",
         tostring(projectile.projectileId),
         tostring(collision.kind),
@@ -488,6 +532,7 @@ function Runtime.update()
 
     local now = NinjaLineages.Utils.Time.gameMinutes()
     updateKatonStreams(now)
+    pruneProjectileHitGroups(now)
     local toRemove = {}
 
     for _, projectile in pairs(Runtime.projectiles) do
@@ -496,7 +541,7 @@ function Runtime.update()
         local resolved = false
 
         if now >= projectile.expiresAtGameMinutes then
-            log("EXPIRED id=" .. tostring(projectile.projectileId))
+            projectileLog(projectile, "EXPIRED id=" .. tostring(projectile.projectileId))
             finish(
                 projectile,
                 "expired",
@@ -510,7 +555,7 @@ function Runtime.update()
             local targetObject, targetSource = resolveTargetObject(projectile)
             if projectile.trackingType == "homing" then
                 if not targetObject then
-                    log(string.format(
+                    projectileLog(projectile, string.format(
                         "TARGET_LOST id=%s reason=%s",
                         tostring(projectile.projectileId),
                         tostring(targetSource)
@@ -577,10 +622,12 @@ function Runtime.update()
                 if playerHit and (not wallDistance or playerHit.distance < wallDistance) then
                     local hitPlayer = playerHit.player
                     local payload = projectile.damagePayload or {}
-                    if projectile.isHostileNPC or payload.isHostileNPC then
-                        NinjaLineages.Damage.applyHostileDamage(resolveCaster(projectile), hitPlayer, payload)
-                    else
-                        NinjaLineages.Damage.applyPlayerDamage(resolveCaster(projectile), hitPlayer, payload)
+                    if shouldApplyGroupedPlayerHit(projectile, hitPlayer) then
+                        if projectile.isHostileNPC or payload.isHostileNPC then
+                            NinjaLineages.Damage.applyHostileDamage(resolveCaster(projectile), hitPlayer, payload)
+                        else
+                            NinjaLineages.Damage.applyPlayerDamage(resolveCaster(projectile), hitPlayer, payload)
+                        end
                     end
                     finish(
                         projectile,
@@ -628,7 +675,7 @@ function Runtime.update()
                             },
                             projectile.damagePayload
                         )
-                        log(string.format(
+                        projectileLog(projectile, string.format(
                             "TARGET_HIT id=%s source=%s damage=%s healthBefore=%s healthAfter=%s",
                             tostring(projectile.projectileId),
                             tostring(targetSource),
@@ -663,8 +710,9 @@ function Runtime.update()
     end
 
     for _, id in ipairs(toRemove) do
+        local projectile = Runtime.projectiles[id]
         Runtime.removeProjectile(id)
-        log("REMOVED id=" .. tostring(id))
+        projectileLog(projectile, "REMOVED id=" .. tostring(id))
     end
 end
 

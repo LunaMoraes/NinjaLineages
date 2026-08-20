@@ -203,24 +203,38 @@ function VFX.addLine(args)
     })
 end
 
+local activeImpactDetonations = {}
+
+function VFX.addImpactDetonation(x, y, z, radius, color, duration)
+    table.insert(activeImpactDetonations, {
+        x = x or 0,
+        y = y or 0,
+        z = z or 0,
+        radius = radius or 1.5,
+        color = color or { R = 1.0, G = 0.5, B = 0.1 },
+        duration = duration or 0.04,
+        startedAtGameMinutes = NinjaLineages.Utils.Time.gameMinutes(),
+    })
+end
+
 function VFX.addProjectile(args)
     if not args then return end
     local constsMedical = consts.Medical and consts.Medical.ChakraNeedle or {}
-    local dx = args.toX - args.fromX
-    local dy = args.toY - args.fromY
-    local dz = args.toZ - args.fromZ
+    local dx = (args.toX or 0) - (args.fromX or 0)
+    local dy = (args.toY or 0) - (args.fromY or 0)
+    local dz = (args.toZ or 0) - (args.fromZ or 0)
     local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
     local projectileId = args.projectileId
         or ("proj_" .. tostring(NinjaLineages.Utils.Time.gameMinutes()))
 
     activeProjectiles[projectileId] = {
         projectileId = projectileId,
-        fromX = args.fromX,
-        fromY = args.fromY,
-        fromZ = args.fromZ,
-        toX = args.toX,
-        toY = args.toY,
-        toZ = args.toZ,
+        fromX = args.fromX or 0,
+        fromY = args.fromY or 0,
+        fromZ = args.fromZ or 0,
+        toX = args.toX or 0,
+        toY = args.toY or 0,
+        toZ = args.toZ or 0,
         fromHeight = args.fromHeight or VFX.ANCHOR_HAND,
         toHeight = args.toHeight or VFX.ANCHOR_CHEST,
         speed = args.speed or 20,
@@ -228,6 +242,8 @@ function VFX.addProjectile(args)
         distance = distance,
         color = args.color or constsMedical.COLOR or { R = 0.2, G = 0.8, B = 1.0 },
         thickness = args.thickness or constsMedical.THICKNESS or 2.0,
+        radius = args.radius,
+        isBijuu = args.isBijuu == true or args.abilityId == "bijuu_volley",
     }
 end
 
@@ -235,10 +251,14 @@ function VFX.resolveProjectile(args)
     if not args or not args.projectileId then return end
     local proj = activeProjectiles[args.projectileId]
     if not proj then return end
-    proj.resolvedX = args.x
-    proj.resolvedY = args.y
-    proj.resolvedZ = args.z
+    proj.resolvedX = args.x or proj.toX
+    proj.resolvedY = args.y or proj.toY
+    proj.resolvedZ = args.z or proj.toZ
     proj.resolvedAtGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
+
+    if proj.isBijuu then
+        VFX.addImpactDetonation(proj.resolvedX, proj.resolvedY, proj.resolvedZ, 1.4, proj.color, 0.04)
+    end
 end
 
 function VFX.addKatonStream(args)
@@ -526,26 +546,10 @@ local function renderTravelingProjectiles(nowGameMinutes)
         if proj.resolvedAtGameMinutes then
             if nowGameMinutes - proj.resolvedAtGameMinutes >= 0.01 then
                 activeProjectiles[projectileId] = nil
-            else
-                local dirX = proj.toX - proj.fromX
-                local dirY = proj.toY - proj.fromY
-                local dirLen = math.sqrt(dirX * dirX + dirY * dirY)
-                if dirLen > 0 then
-                    dirX = dirX / dirLen
-                    dirY = dirY / dirLen
-                end
-                local hitZ = proj.resolvedZ + proj.toHeight
-                VFX.renderLine(
-                    proj.resolvedX, proj.resolvedY, hitZ,
-                    proj.resolvedX + dirX * 0.18, proj.resolvedY + dirY * 0.18, hitZ,
-                    proj.thickness * 1.6,
-                    proj.color.R, proj.color.G, proj.color.B,
-                    0.95
-                )
             end
         else
             local elapsed = nowGameMinutes - proj.startGameMinutes
-            local totalTime = proj.distance / proj.speed
+            local totalTime = proj.distance / math.max(1, proj.speed or 20)
             local progress = totalTime > 0 and (elapsed / totalTime) or 1
 
             if progress >= 1 then
@@ -565,16 +569,63 @@ local function renderTravelingProjectiles(nowGameMinutes)
                     dirY = dirY / dirLen
                 end
 
-                local endX = cx + dirX * 0.18
-                local endY = cy + dirY * 0.18
+                local c = proj.color or { R = 1.0, G = 0.5, B = 0.1 }
 
-                VFX.renderLine(
-                    cx, cy, boltZ,
-                    endX, endY, boltZ,
-                    proj.thickness * 1.6,
-                    proj.color.R, proj.color.G, proj.color.B,
-                    0.95
-                )
+                if proj.isBijuu then
+                    local orbRadius = proj.radius or 0.35
+                    -- 1. High density central chakra orb
+                    renderIsoCircle(cx, cy, boltZ, orbRadius, 24, 4.0, c.R, c.G, c.B, 0.95)
+                    -- 2. Outer corona halo ring
+                    renderIsoCircle(cx, cy, boltZ, orbRadius * 1.5, 20, 2.2, c.R, c.G, c.B, 0.60)
+                    -- 3. Directional comet energy trail
+                    VFX.renderLine(
+                        cx - dirX * 0.45, cy - dirY * 0.45, boltZ,
+                        cx, cy, boltZ,
+                        proj.thickness * 1.8,
+                        c.R, c.G, c.B,
+                        0.90
+                    )
+                else
+                    local endX = cx + dirX * 0.18
+                    local endY = cy + dirY * 0.18
+                    VFX.renderLine(
+                        cx, cy, boltZ,
+                        endX, endY, boltZ,
+                        proj.thickness * 1.6,
+                        c.R, c.G, c.B,
+                        0.95
+                    )
+                end
+            end
+        end
+    end
+end
+
+local function renderImpactDetonations(nowGameMinutes)
+    for i = #activeImpactDetonations, 1, -1 do
+        local det = activeImpactDetonations[i]
+        local elapsed = nowGameMinutes - det.startedAtGameMinutes
+        if elapsed >= det.duration or elapsed < 0 then
+            table.remove(activeImpactDetonations, i)
+        else
+            local progress = elapsed / det.duration
+            local currentR = det.radius * progress
+            local alpha = (1.0 - progress) ^ 1.5
+            local c = det.color or { R = 1.0, G = 0.5, B = 0.1 }
+            local z = (det.z or 0) + 0.03
+
+            -- Expanding ground shockwave ring
+            renderIsoCircle(det.x, det.y, z, currentR, 36, 3.5, c.R, c.G, c.B, alpha * 0.90)
+
+            -- 8 radial explosive fracture spikes
+            local spikeCount = 8
+            for s = 1, spikeCount do
+                local a = s * (math.pi * 2 / spikeCount)
+                local x1 = det.x + (math.cos(a) * (currentR * 0.2))
+                local y1 = det.y + (math.sin(a) * (currentR * 0.2))
+                local x2 = det.x + (math.cos(a) * currentR)
+                local y2 = det.y + (math.sin(a) * currentR)
+                VFX.renderLine(x1, y1, z, x2, y2, z, 2.5, c.R, c.G, c.B, alpha * 0.80)
             end
         end
     end
@@ -1110,16 +1161,8 @@ local function renderSageModeAuras()
     end
 end
 
-local function isWorldReady()
-    if not getCell or not getCell() then return false end
-    if not getSpecificPlayer or not getSpecificPlayer(0) then return false end
-    if not IsoCamera or not IsoCamera.CamCharacter then return false end
-    if not GameTime or not GameTime.getInstance or not GameTime.getInstance() then return false end
-    return true
-end
-
 function VFX.renderAll()
-    if not isWorldReady() then return end
+    if not getPlayer or not getPlayer() then return end
 
     local nowGameMinutes = NinjaLineages.Utils.Time.gameMinutes()
 
@@ -1130,6 +1173,7 @@ function VFX.renderAll()
     renderGenjutsuCircles(nowGameMinutes)
     renderGenericAbilityPulses(nowGameMinutes)
     renderSnareTethers(nowGameMinutes)
+    renderImpactDetonations(nowGameMinutes)
 
     -- Summoning & Companion Renderers (game-time driven)
     renderSummonMarkers(nowGameMinutes)
@@ -1151,12 +1195,14 @@ function VFX.renderAll()
 end
 
 -- ============================================================================
--- Central OnPostRender & Event Registration
+-- Central Render Loop & Event Registration
 -- ============================================================================
 
-NinjaLineages.addEventOnce("client.vfx.onPostRender", Events.OnPostRender, VFX.renderAll)
+if Events and Events.OnPostRender then
+    NinjaLineages.addEventOnce("client.vfx.onPostRender", Events.OnPostRender, VFX.renderAll)
+end
 
-if Events and Events.OnServerCommand then
+do
     require "NinjaLineages_AbilityAuthority"
 
     NinjaLineages.AbilityAuthority.registerEventHandler("chakra_needle_line", function(args)
@@ -1165,6 +1211,10 @@ if Events and Events.OnServerCommand then
         else
             VFX.addLine(args)
         end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("bijuu_projectile", function(args)
+        if args then VFX.addProjectile(args) end
     end)
 
     NinjaLineages.AbilityAuthority.registerEventHandler("projectile_resolved", function(args)

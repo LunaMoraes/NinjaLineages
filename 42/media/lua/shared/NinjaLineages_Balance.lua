@@ -643,16 +643,13 @@ end
 NinjaLineages.Balance.Jinchuuriki = NinjaLineages.Balance.Jinchuuriki or {}
 
 NinjaLineages.Balance.Jinchuuriki.BossShell = {
-    -- Placeholder visual dimensions
-    VISUAL_RADIUS = 2.4,       -- Main body radius in world tiles
-    HEAD_RADIUS = 1.2,         -- Head contour radius
-    VISUAL_HEIGHT = 2.2,       -- Height elevation in world units
-    RINGS_COUNT = 4,           -- Elevation contour rings
+    -- Procedural beast-frame dimensions
+    VISUAL_RADIUS = 2.4,
+    VISUAL_HEIGHT = 0.45,
 
     -- Hitbox & Engine Proxy tuning (Strictly 1 single root zombie proxy)
     PROXY_WIDTH = 2.4,         -- Target width for setWidth() probe (default zombie is ~0.3)
     PERIMETER_HITBOX_RADIUS = 1.2, -- Body radius for perimeter melee reach compensation
-    DEBUG_HEALTH = 1000.0,     -- Temporary survivability health for collision/weapon testing
 
     -- Debug spawn configuration
     SPAWN_DISTANCE = 4.0,      -- Distance in front of player for debug spawn
@@ -666,7 +663,6 @@ NinjaLineages.Balance.Jinchuuriki.BossCombat = {
     -- Encounter & aggro ranges
     ACQUISITION_RADIUS = 20.0, -- Max radius to acquire or maintain target (world tiles)
     ATTACK_RANGE = 14.0,       -- Max range to initiate volley attack / last attacker aggro (world tiles)
-    PREFERRED_DISTANCE = 5.0,  -- Ideal pursuit distance (world tiles)
 
     -- Projectile flight & hitbox
     PROJECTILE_RANGE = 18.0,   -- Travel distance before expiring (world tiles)
@@ -681,16 +677,16 @@ NinjaLineages.Balance.Jinchuuriki.BossCombat = {
     FAN_STEP_RADIANS = math.rad(9.0), -- 9 degrees angular spread per trajectory lane
 
     -- Telegraph duration (in-game minutes: worldAgeHours * 60)
-    TELEGRAPH_1_TAIL_MINUTES = 0.08,
-    TELEGRAPH_9_TAIL_MINUTES = 0.04,
+    TELEGRAPH_1_TAIL_MINUTES = 0.8,
+    TELEGRAPH_9_TAIL_MINUTES = 0.4,
 
     -- Sequential volley inter-shot interval (in-game minutes)
-    SHOT_INTERVAL_1_TAIL_MINUTES = 0.02,
-    SHOT_INTERVAL_9_TAIL_MINUTES = 0.006,
+    SHOT_INTERVAL_1_TAIL_MINUTES = 0.2,
+    SHOT_INTERVAL_9_TAIL_MINUTES = 0.06,
 
     -- Attack cooldown (in-game minutes)
-    COOLDOWN_1_TAIL_MINUTES = 0.12,
-    COOLDOWN_9_TAIL_MINUTES = 0.06,
+    COOLDOWN_1_TAIL_MINUTES = 1.2,
+    COOLDOWN_9_TAIL_MINUTES = 0.6,
 
     -- Pathfinding repath throttle (in-game minutes)
     REPATH_INTERVAL_MINUTES = 0.02,
@@ -698,6 +694,7 @@ NinjaLineages.Balance.Jinchuuriki.BossCombat = {
 
 NinjaLineages.Balance.Jinchuuriki.WildSpawn = {
     FOOTPRINT_RADIUS = 2.5,                        -- Validation radius for open space around spawn
+    STREAM_SCAN_INTERVAL_GAME_MINUTES = 0.05,      -- Throttle dormant materialization/unload scans
     POSITION_PERSIST_INTERVAL_GAME_MINUTES = 0.5,  -- Periodic save interval while moved (in-game minutes)
     POSITION_PERSIST_MIN_DISTANCE = 2.0,           -- Minimum movement distance to trigger write (tiles)
     REGIONS = {
@@ -760,5 +757,3 @@ NinjaLineages.Balance.Jinchuuriki.Release = {
     CORPSE_SUPPRESSION_TIMEOUT_MINUTES = 0.5, -- Window to match and suppress corpse after reveal
     MELEE_SWING_MIN_INTERVAL_GAME_MINUTES = 0.005, -- Throttling to deduplicate melee swing hits (~360ms)
 }
-
-

@@ -38,14 +38,6 @@ function BijuuState.isMaterializedBossState(state)
     return state == BijuuState.WILD_ACTIVE or state == BijuuState.BOSS_ACTIVE
 end
 
-function BijuuState.isValidBijuuId(id)
-    return Definitions.isValidId(id)
-end
-
-function BijuuState.getDefinition(id)
-    return Definitions.get(id)
-end
-
 function BijuuState.getInitialState(id)
     local def = Definitions.get(id)
     if not def then return nil end
@@ -69,7 +61,7 @@ end
 function BijuuState.requestDebugDump(player)
     if not player then return false end
     if NinjaLineages.isClient and NinjaLineages.isClient() then
-        sendClientCommand(player, "NinjaLineages", "debugBijuuDump", {})
+        sendClientCommand(player, "NinjaLineages", "bijuuDebug", { action = "dump_registry" })
         return true
     end
     if NinjaLineages.BijuuRegistryServer and NinjaLineages.BijuuRegistryServer.dumpRegistry then
@@ -82,7 +74,7 @@ end
 function BijuuState.requestDebugReset(player)
     if not player then return false end
     if NinjaLineages.isClient and NinjaLineages.isClient() then
-        sendClientCommand(player, "NinjaLineages", "debugBijuuReset", {})
+        sendClientCommand(player, "NinjaLineages", "bijuuDebug", { action = "reset_registry" })
         return true
     end
     if NinjaLineages.BijuuRegistryServer and NinjaLineages.BijuuRegistryServer.resetRegistryDebug then

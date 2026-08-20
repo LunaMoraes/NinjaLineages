@@ -6,6 +6,7 @@ require "disciplines/jinchuuriki/NinjaLineages_BijuuState"
 require "jinchuuriki/NinjaLineages_BijuuRegistryServer"
 require "jinchuuriki/NinjaLineages_BijuuBossServer"
 require "jinchuuriki/NinjaLineages_BijuuSpawnServer"
+require "jinchuuriki/NinjaLineages_BijuuServerSupport"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.BijuuLifecycleServer = NinjaLineages.BijuuLifecycleServer or {}
@@ -16,23 +17,14 @@ local BijuuState = NinjaLineages.BijuuState
 local Registry = NinjaLineages.BijuuRegistryServer
 local BossServer = NinjaLineages.BijuuBossServer
 local SpawnServer = NinjaLineages.BijuuSpawnServer
+local Support = NinjaLineages.BijuuServerSupport
 
 local pendingCorpseSuppression = {}
 local forceNextReveal = false
+local startupReconciled = false
 
 local function log(message)
     print("[NL-BIJUU-LIFECYCLE] " .. tostring(message))
-end
-
-local function isServerAuthority()
-    if isClient and isClient() and not (isServer and isServer()) then
-        return false
-    end
-    return true
-end
-
-local function getCorpseKey(x, y, z)
-    return tostring(math.floor(x or 0)) .. ":" .. tostring(math.floor(y or 0)) .. ":" .. tostring(math.floor(z or 0))
 end
 
 local function getReleaseConfig()
@@ -44,16 +36,12 @@ local function getReleaseConfig()
     }
 end
 
-function LifecycleServer.getPendingCorpseSuppression()
-    return pendingCorpseSuppression
-end
-
 function LifecycleServer.setForceNextReveal(value)
     forceNextReveal = (value == true)
 end
 
 function LifecycleServer.onZombieNinjaDead(zombie, attacker)
-    if not isServerAuthority() then return end
+    if not Support.isAuthoritative() then return end
     if not zombie or not zombie.getModData then return end
 
     local modData = zombie:getModData()
@@ -144,10 +132,18 @@ function LifecycleServer.onZombieNinjaDead(zombie, attacker)
     end
 
     -- 6. Register corpse suppression for this exact death
-    local key = getCorpseKey(zx, zy, zz)
-    pendingCorpseSuppression[key] = {
+    local characterOnlineId = nil
+    if zombie.getOnlineID then
+        local ok, onlineId = pcall(function() return zombie:getOnlineID() end)
+        if ok and onlineId and onlineId >= 0 then characterOnlineId = onlineId end
+    end
+    pendingCorpseSuppression[runtime.runtimeId] = {
         bijuuId = claimedId,
         runtimeId = runtime.runtimeId,
+        characterOnlineId = characterOnlineId,
+        x = zx,
+        y = zy,
+        z = zz,
         timestamp = NinjaLineages.Utils.Time.gameMinutes(),
     }
 
@@ -155,33 +151,57 @@ function LifecycleServer.onZombieNinjaDead(zombie, attacker)
 end
 
 function LifecycleServer.onDeadBodySpawn(body)
-    if not isServerAuthority() then return end
+    if not Support.isAuthoritative() then return end
     if not body or not instanceof(body, "IsoDeadBody") then return end
+    if not body.isZombie or not body:isZombie() then return end
 
     local bx = body:getX()
     local by = body:getY()
     local bz = body:getZ()
-    local key = getCorpseKey(bx, by, bz)
+    local bodyOnlineId = nil
+    if body.getCharacterOnlineID then
+        local ok, onlineId = pcall(function() return body:getCharacterOnlineID() end)
+        if ok and onlineId and onlineId >= 0 then bodyOnlineId = onlineId end
+    end
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    local timeout = getReleaseConfig().CORPSE_SUPPRESSION_TIMEOUT_MINUTES or 0.5
 
-    local pending = pendingCorpseSuppression[key]
-    if pending then
-        local now = NinjaLineages.Utils.Time.gameMinutes()
-        local cfg = getReleaseConfig()
-        local timeout = cfg.CORPSE_SUPPRESSION_TIMEOUT_MINUTES or 0.5
-
-        if (now - pending.timestamp) <= timeout then
-            pcall(function()
-                if body.removeFromWorld then body:removeFromWorld() end
-                if body.removeFromSquare then body:removeFromSquare() end
-            end)
-            log("suppressed zombie ninja corpse for released bijuu=" .. tostring(pending.bijuuId) .. " at (" .. tostring(bx) .. "," .. tostring(by) .. ")")
+    for runtimeId, pending in pairs(pendingCorpseSuppression) do
+        if now - pending.timestamp > timeout then
+            pendingCorpseSuppression[runtimeId] = nil
+        else
+            local idMatches = pending.characterOnlineId ~= nil
+                and bodyOnlineId ~= nil
+                and pending.characterOnlineId == bodyOnlineId
+            local coordinateMatches = pending.characterOnlineId == nil
+                and math.floor(bx) == math.floor(pending.x)
+                and math.floor(by) == math.floor(pending.y)
+                and math.floor(bz) == math.floor(pending.z)
+            if idMatches or coordinateMatches then
+                pcall(function()
+                    if body.removeFromWorld then body:removeFromWorld() end
+                    if body.removeFromSquare then body:removeFromSquare() end
+                end)
+                log("suppressed zombie ninja corpse for released bijuu=" .. tostring(pending.bijuuId) .. " at (" .. tostring(bx) .. "," .. tostring(by) .. ")")
+                pendingCorpseSuppression[runtimeId] = nil
+                return
+            end
         end
-        pendingCorpseSuppression[key] = nil
+    end
+end
+
+local function pruneCorpseSuppressions()
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    local timeout = getReleaseConfig().CORPSE_SUPPRESSION_TIMEOUT_MINUTES or 0.5
+    for runtimeId, pending in pairs(pendingCorpseSuppression) do
+        if now - pending.timestamp > timeout then
+            pendingCorpseSuppression[runtimeId] = nil
+        end
     end
 end
 
 function LifecycleServer.handleBossDefeated(bijuuId, runtimeId, position)
-    if not isServerAuthority() then return end
+    if not Support.isAuthoritative() then return end
     if not Definitions.isValidId(bijuuId) then return end
 
     local def = Definitions.get(bijuuId)
@@ -192,23 +212,32 @@ function LifecycleServer.handleBossDefeated(bijuuId, runtimeId, position)
     if def.nativeSpawnType == "host" then
         -- 1–3 Tails (Low Tails): Dematerialize & Return to HOST_POOL
         BossServer.dematerialize(bijuuId, runtimeId, "boss_defeated")
-        Registry.transition(
+        local transitioned, reason = Registry.transition(
             bijuuId,
             BijuuState.BOSS_ACTIVE,
             BijuuState.HOST_POOL,
             { world = false, host = false, vessel = false },
             "boss_defeated_host_return"
         )
+        if not transitioned then
+            log("host defeat transition failed bijuu=" .. tostring(bijuuId)
+                .. " reason=" .. tostring(reason))
+        end
         log("boss_defeated bijuu=" .. tostring(bijuuId) .. " native=host -> returned_to_host_pool")
     else
         -- 4–9 Tails (Wild Beasts): WILD_ACTIVE -> RESPAWNING -> WILD_DORMANT at new location
-        Registry.transition(
+        local transitioned, reason = Registry.transition(
             bijuuId,
             BijuuState.WILD_ACTIVE,
             BijuuState.RESPAWNING,
             nil,
             "boss_defeated_wild_respawn"
         )
+        if not transitioned then
+            log("wild defeat transition failed bijuu=" .. tostring(bijuuId)
+                .. " reason=" .. tostring(reason))
+            return
+        end
 
         BossServer.dematerialize(bijuuId, runtimeId, "boss_defeated")
 
@@ -237,7 +266,9 @@ function LifecycleServer.handleBossDefeated(bijuuId, runtimeId, position)
 end
 
 function LifecycleServer.reconcileOnStartup()
-    if not isServerAuthority() then return end
+    if not Support.isAuthoritative() or startupReconciled then return end
+    startupReconciled = true
+    SpawnServer.reconcileOnStartup()
 
     -- 1. Reconcile low-tail orphans (BOSS_ACTIVE with no runtime -> HOST_POOL)
     for _, bijuuId in ipairs(Definitions.Order) do
@@ -276,6 +307,10 @@ function LifecycleServer.reconcileOnStartup()
             end
         end
     end
+end
+
+function LifecycleServer.update()
+    SpawnServer.update()
 end
 
 -- ============================================================================
@@ -330,67 +365,22 @@ local function onDeadBodySpawn(body)
     LifecycleServer.onDeadBodySpawn(body)
 end
 
-local function canUseDebugCommands(player)
-    if not (SandboxVars
-            and SandboxVars.NinjaLineages
-            and SandboxVars.NinjaLineages.DebugMode == true) then
-        return false
-    end
+Support.registerDebugAction("force_release", function(player)
+    return LifecycleServer.debugForceNextZombieNinjaReveal(player)
+end)
 
-    if NinjaLineages.isSinglePlayer and NinjaLineages.isSinglePlayer() then
-        return true
-    end
+Support.registerDebugAction("defeat_boss", function(player, args)
+    local ok, reason = LifecycleServer.debugForceDefeatActiveBoss(player, args.bijuuId)
+    return ok, reason, { bijuuId = args.bijuuId }
+end)
 
-    local ok, accessLevel = pcall(function() return player:getAccessLevel() end)
-    return ok and string.lower(tostring(accessLevel or "")) == "admin"
-end
-
-local function onClientCommand(module, command, player, args)
-    if module ~= "NinjaLineages" then return end
-
-    if command == "debugForceNextZombieNinjaReveal" then
-        if not canUseDebugCommands(player) then return end
-        local ok, reason = LifecycleServer.debugForceNextZombieNinjaReveal(player)
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = ok,
-                action = "debugForceNextZombieNinjaReveal",
-                reason = reason,
-            })
-        elseif player and player.Say then
-            player:Say("Enabled forced Zombie Ninja Bijū reveal on next death.")
-        end
-    elseif command == "debugForceDefeatActiveBoss" then
-        if not canUseDebugCommands(player) then return end
-        local bijuuId = args and args.bijuuId
-        local ok, reason = LifecycleServer.debugForceDefeatActiveBoss(player, bijuuId)
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = ok,
-                action = "debugForceDefeatActiveBoss",
-                bijuuId = bijuuId,
-                reason = reason,
-            })
-        elseif player and player.Say then
-            player:Say(ok and ("Defeated active boss: " .. tostring(bijuuId)) or ("Defeat failed: " .. tostring(reason)))
-        end
-    elseif command == "debugRerollWildLocation" then
-        if not canUseDebugCommands(player) then return end
-        local bijuuId = args and args.bijuuId
-        local ok, reason, loc = LifecycleServer.debugRerollWildLocation(player, bijuuId)
-        if NinjaLineages.isServer() then
-            sendServerCommand(player, "NinjaLineages", "debugResult", {
-                ok = ok,
-                action = "debugRerollWildLocation",
-                bijuuId = bijuuId,
-                reason = reason,
-                location = loc,
-            })
-        elseif player and player.Say then
-            player:Say(ok and ("Rerolled location for " .. tostring(bijuuId)) or ("Reroll failed: " .. tostring(reason)))
-        end
-    end
-end
+Support.registerDebugAction("reroll_wild", function(player, args)
+    local ok, reason, location = LifecycleServer.debugRerollWildLocation(player, args.bijuuId)
+    return ok, reason, {
+        bijuuId = args.bijuuId,
+        location = location,
+    }
+end)
 
 NinjaLineages.addEventOnce(
     "server.bijuuLifecycle.onZombieDead",
@@ -406,6 +396,14 @@ if Events and Events.OnDeadBodySpawn then
     )
 end
 
+if Events and Events.EveryOneMinute then
+    NinjaLineages.addEventOnce(
+        "server.bijuuLifecycle.pruneCorpseSuppressions",
+        Events.EveryOneMinute,
+        pruneCorpseSuppressions
+    )
+end
+
 if Events and Events.OnGameTimeLoaded then
     NinjaLineages.addEventOnce(
         "server.bijuuLifecycle.onGameTimeLoaded",
@@ -415,9 +413,3 @@ if Events and Events.OnGameTimeLoaded then
         end
     )
 end
-
-NinjaLineages.addEventOnce(
-    "server.bijuuLifecycle.onClientCommand",
-    Events.OnClientCommand,
-    onClientCommand
-)
