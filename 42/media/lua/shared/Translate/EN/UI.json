@@ -579,8 +579,15 @@
     "UI_NL_Bijuu_Chomei": "Chōmei",
     "UI_NL_Bijuu_Gyuki": "Gyūki",
     "UI_NL_Bijuu_Kurama": "Kurama",
-    "UI_NL_Debug_DumpBijuu": "Debug: Dump Bijū Registry",
-    "UI_NL_Debug_ResetBijuu": "Debug: Reset Bijū Registry",
+    "UI_NL_Debug_DumpBijuu": "Dump Registry",
+    "UI_NL_Debug_ResetBijuu": "Reset Registry",
     "UI_NL_Debug_BijuuDumped": "Bijū registry dumped to console.",
-    "UI_NL_Debug_BijuuReset": "Bijū registry reset to initial canonical state."
+    "UI_NL_Debug_BijuuReset": "Bijū registry reset to initial canonical state.",
+    "UI_NL_Debug_BijuuMenu": "Debug: Bijū",
+    "UI_NL_Debug_SpawnBijuu": "Spawn Bijū Shell",
+    "UI_NL_Debug_DespawnBijuu": "Despawn Active Bijū Shells",
+    "UI_NL_Debug_NudgeBijuu": "Nudge Active Shell (+1 Tile X)",
+    "UI_NL_Debug_BijuuSpawned": "Spawned Bijū shell: %1",
+    "UI_NL_Debug_BijuuDespawned": "Despawned all active Bijū shells (%1).",
+    "UI_NL_Debug_BijuuNudged": "Nudged active Bijū shells."
 }

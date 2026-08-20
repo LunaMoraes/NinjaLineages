@@ -635,3 +635,28 @@ end
 function NinjaLineages.Balance.scaleNinjaXP(value)
     return math.max(0, value * NinjaLineages.Balance.getSandboxMultiplier("NinjaXPGainMultiplier"))
 end
+
+-- ============================================================================
+-- Jinchūriki & Bijū Subsystem Tuning
+-- ============================================================================
+
+NinjaLineages.Balance.Jinchuuriki = NinjaLineages.Balance.Jinchuuriki or {}
+
+NinjaLineages.Balance.Jinchuuriki.BossShell = {
+    -- Placeholder visual dimensions
+    VISUAL_RADIUS = 2.4,       -- Main body radius in world tiles
+    HEAD_RADIUS = 1.2,         -- Head contour radius
+    VISUAL_HEIGHT = 2.2,       -- Height elevation in world units
+    RINGS_COUNT = 4,           -- Elevation contour rings
+
+    -- Hitbox & Engine Proxy tuning
+    PROXY_WIDTH = 2.4,         -- Target width for setWidth() probe (default zombie is ~0.3)
+    DEBUG_HEALTH = 1000.0,     -- Temporary survivability health for collision/weapon testing
+
+    -- Debug spawn configuration
+    SPAWN_DISTANCE = 4.0,      -- Distance in front of player for debug spawn
+
+    -- Multi-proxy fallback offsets (if native setWidth probe proves insufficient)
+    MULTI_PROXY_RADIUS = 1.6,  -- Offset radius for secondary hit proxies
+}
+

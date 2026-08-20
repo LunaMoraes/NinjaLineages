@@ -249,8 +249,13 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
             NinjaLineages.Social.request(p, "socialDebugWanted", {})
         end)
 
-        -- 8. Dump Bijū Registry
-        debugSubMenu:addOption(getText("UI_NL_Debug_DumpBijuu"), player, function(p)
+        -- 8. Bijū Submenu
+        local bijuuMenuOption = debugSubMenu:addOption(getText("UI_NL_Debug_BijuuMenu"))
+        local bijuuSubMenu = ISContextMenu:getNew(debugSubMenu)
+        debugSubMenu:addSubMenu(bijuuMenuOption, bijuuSubMenu)
+
+        -- 8.1 Dump Registry
+        bijuuSubMenu:addOption(getText("UI_NL_Debug_DumpBijuu"), player, function(p)
             if NinjaLineages.BijuuState and NinjaLineages.BijuuState.requestDebugDump then
                 local requested = NinjaLineages.BijuuState.requestDebugDump(p)
                 if requested and not NinjaLineages.isClient() then
@@ -259,13 +264,55 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
             end
         end)
 
-        -- 9. Reset Bijū Registry
-        debugSubMenu:addOption(getText("UI_NL_Debug_ResetBijuu"), player, function(p)
+        -- 8.2 Reset Registry
+        bijuuSubMenu:addOption(getText("UI_NL_Debug_ResetBijuu"), player, function(p)
             if NinjaLineages.BijuuState and NinjaLineages.BijuuState.requestDebugReset then
                 local requested = NinjaLineages.BijuuState.requestDebugReset(p)
                 if requested and not NinjaLineages.isClient() then
                     p:Say(getText("UI_NL_Debug_BijuuReset"))
                 end
+            end
+        end)
+
+        -- 8.3 Spawn Bijū Shell (Submenu with all 9 Bijū)
+        local spawnOption = bijuuSubMenu:addOption(getText("UI_NL_Debug_SpawnBijuu"))
+        local spawnSubMenu = ISContextMenu:getNew(bijuuSubMenu)
+        bijuuSubMenu:addSubMenu(spawnOption, spawnSubMenu)
+
+        local order = (NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.Order) or {
+            "shukaku", "matatabi", "isobu", "son_goku", "kokuo", "saiken", "chomei", "gyuki", "kurama"
+        }
+        for _, id in ipairs(order) do
+            local def = NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.get(id)
+            local name = def and getText(def.nameKey) or id
+            local label = tostring(def and def.tails or "?") .. "-Tail: " .. name
+            spawnSubMenu:addOption(label, player, function(p)
+                if NinjaLineages.isClient and NinjaLineages.isClient() then
+                    sendClientCommand(p, "NinjaLineages", "debugBijuuSpawnShell", { bijuuId = id })
+                elseif NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.debugSpawnNearPlayer then
+                    local ok, reason = NinjaLineages.BijuuBossServer.debugSpawnNearPlayer(p, id)
+                    p:Say(ok and (getText("UI_NL_Debug_BijuuSpawned", name)) or ("Spawn failed: " .. tostring(reason)))
+                end
+            end)
+        end
+
+        -- 8.4 Despawn Active Bijū Shells
+        bijuuSubMenu:addOption(getText("UI_NL_Debug_DespawnBijuu"), player, function(p)
+            if NinjaLineages.isClient and NinjaLineages.isClient() then
+                sendClientCommand(p, "NinjaLineages", "debugBijuuDespawnShells", {})
+            elseif NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.debugDespawnAll then
+                local ok, reason, count = NinjaLineages.BijuuBossServer.debugDespawnAll(p)
+                p:Say(getText("UI_NL_Debug_BijuuDespawned", tostring(count or 0)))
+            end
+        end)
+
+        -- 8.5 Nudge Active Shell (+1 Tile X)
+        bijuuSubMenu:addOption(getText("UI_NL_Debug_NudgeBijuu"), player, function(p)
+            if NinjaLineages.isClient and NinjaLineages.isClient() then
+                sendClientCommand(p, "NinjaLineages", "debugBijuuNudgeShell", { dx = 1.0, dy = 0.0 })
+            elseif NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.debugNudgeActive then
+                NinjaLineages.BijuuBossServer.debugNudgeActive(p, 1.0, 0.0)
+                p:Say(getText("UI_NL_Debug_BijuuNudged"))
             end
         end)
     end
@@ -322,6 +369,14 @@ local function onDebugServerCommand(module, command, args)
         player:Say(getText("UI_NL_Debug_BijuuDumped"))
     elseif args.action == "bijuuReset" then
         player:Say(getText("UI_NL_Debug_BijuuReset"))
+    elseif args.action == "bijuuSpawnShell" then
+        local def = args.bijuuId and NinjaLineages.BijuuDefinitions and NinjaLineages.BijuuDefinitions.get(args.bijuuId)
+        local name = def and getText(def.nameKey) or tostring(args.bijuuId)
+        player:Say(args.ok and getText("UI_NL_Debug_BijuuSpawned", name) or ("Spawn failed: " .. tostring(args.reason)))
+    elseif args.action == "bijuuDespawnShells" then
+        player:Say(getText("UI_NL_Debug_BijuuDespawned", tostring(args.count or 0)))
+    elseif args.action == "bijuuNudgeShell" then
+        player:Say(getText("UI_NL_Debug_BijuuNudged"))
     end
 end
 

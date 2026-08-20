@@ -2,6 +2,7 @@ require "NinjaLineages_Constants"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Balance"
+require "jinchuuriki/NinjaLineages_BijuuRenderer"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.VFX = NinjaLineages.VFX or {}
@@ -1130,6 +1131,11 @@ function VFX.renderAll()
     -- Rasengan Renderers (game-time driven)
     renderRasengans(nowGameMinutes)
     renderRasenganWallImpacts(nowGameMinutes)
+
+    -- Bijū Giant Boss Shell Renderers (game-time driven)
+    if NinjaLineages.BijuuRenderer and NinjaLineages.BijuuRenderer.renderAll then
+        NinjaLineages.BijuuRenderer.renderAll(nowGameMinutes)
+    end
 
     renderSageModeAuras()
 end

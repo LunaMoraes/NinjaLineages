@@ -98,34 +98,37 @@ function Server.normalize()
     end
 end
 
+local function getState()
+    if not state then
+        Server.ensureState()
+    end
+    return state
+end
+
+local function getRecordInternal(bijuuId)
+    local current = getState()
+    return current.bijuu and current.bijuu[bijuuId] or nil
+end
+
 function Server.ensureState()
     state = ModData.getOrCreate(BijuuState.DATA_KEY)
     Server.normalize()
     return state
 end
 
-function Server.getState()
-    return state or Server.ensureState()
-end
-
-function Server.getRecordInternal(bijuuId)
-    local current = Server.getState()
-    return current.bijuu and current.bijuu[bijuuId] or nil
-end
-
 function Server.getRecord(bijuuId)
-    local rec = Server.getRecordInternal(bijuuId)
+    local rec = getRecordInternal(bijuuId)
     if not rec then return nil end
     return BijuuState.deepCopy(rec)
 end
 
 function Server.getBijuuState(bijuuId)
-    local rec = Server.getRecordInternal(bijuuId)
+    local rec = getRecordInternal(bijuuId)
     return rec and rec.state or nil
 end
 
 function Server.getAllRecordsSnapshot()
-    local current = Server.getState()
+    local current = getState()
     local result = {}
     for _, id in ipairs(Definitions.Order) do
         local rec = current.bijuu and current.bijuu[id]
@@ -153,7 +156,7 @@ function Server.transition(bijuuId, expectedState, newState, patch, reason)
     end
 
     Server.ensureState()
-    local record = Server.getRecordInternal(bijuuId)
+    local record = getRecordInternal(bijuuId)
     if not record then
         log("rejected transition " .. tostring(bijuuId) .. ": record not found in registry")
         return false, "record_not_found"
@@ -188,7 +191,7 @@ function Server.transition(bijuuId, expectedState, newState, patch, reason)
 end
 
 function Server.dumpRegistry()
-    local current = Server.getState()
+    local current = getState()
     log("--- BIJUU REGISTRY DUMP (schema=" .. tostring(current.schemaVersion) .. ") ---")
     for _, id in ipairs(Definitions.Order) do
         local rec = current.bijuu and current.bijuu[id]
