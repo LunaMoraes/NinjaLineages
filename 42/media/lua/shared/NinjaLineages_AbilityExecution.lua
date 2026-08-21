@@ -9,6 +9,8 @@ require "NinjaLineages_Items"
 require "lineages/NinjaLineages_KamuiState"
 require "disciplines/NinjaLineages_ScrollUtils"
 require "combat/NinjaLineages_EarthWall"
+require "disciplines/jinchuuriki/NinjaLineages_ChakraCloak"
+require "combat/NinjaLineages_CombatModifiers"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.AbilityExecution = NinjaLineages.AbilityExecution or {}

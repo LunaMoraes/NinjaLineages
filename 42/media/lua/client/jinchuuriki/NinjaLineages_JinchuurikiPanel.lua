@@ -60,7 +60,7 @@ function NLJinchuurikiPanelUI:new(player)
     local playerNum = player:getPlayerNum()
     local screenWidth = getPlayerScreenWidth(playerNum)
     local screenHeight = getPlayerScreenHeight(playerNum)
-    local width, height = 600, math.min(720, screenHeight - 40)
+    local width, height = 600, math.min(840, screenHeight - 40)
     local x = getPlayerScreenLeft(playerNum) + (screenWidth - width) / 2
     local y = getPlayerScreenTop(playerNum) + (screenHeight - height) / 2
     local o = ISCollapsableWindow.new(self, x, y, width, height)
@@ -306,7 +306,34 @@ function NLJinchuurikiPanelUI:drawHostView()
     self:drawText(text("UI_NL_Jinchuuriki_ExtractionGrace", remainingExtractionText(jinchuuriki)),
         38, y, 0.78, 0.78, 0.82, 1, UIFont.Small)
 
-    y = y + 38
+    y = y + 36
+    self:drawText(text("UI_NL_BijuuSynchronization_Title"), 28, y,
+        1, 0.78, 0.35, 1, UIFont.Medium)
+    y = y + 30
+    local synchronization = jinchuuriki.synchronization or {}
+    if synchronization.completed == true then
+        self:drawText(text("UI_NL_BijuuSynchronization_CompleteShort"),
+            38, y, 0.55, 0.9, 0.55, 1, UIFont.Small)
+        y = y + 26
+    elseif #hosted == 0 then
+        self:drawText(text("UI_NL_BijuuSynchronization_RequiresHost"),
+            38, y, 0.72, 0.72, 0.76, 1, UIFont.Small)
+        y = y + 26
+    else
+        local requirement = Progression.getBijuuSynchronizationRequirement(self.player)
+        self:drawText(text("UI_NL_BijuuSynchronization_Inner",
+                tostring(math.floor(synchronization.meditationMinutes or 0)),
+                tostring(requirement.meditationMinutes)),
+            38, y, 0.82, 0.82, 0.86, 1, UIFont.Small)
+        y = y + 24
+        self:drawText(text("UI_NL_BijuuSynchronization_Chakra",
+                tostring(math.floor(synchronization.chakraSpent or 0)),
+                tostring(requirement.chakra)),
+            38, y, 0.82, 0.82, 0.86, 1, UIFont.Small)
+        y = y + 26
+    end
+
+    y = y + 12
     self:drawText(text("UI_NL_Jinchuuriki_VesselActions"), 28, y,
         1, 0.78, 0.35, 1, UIFont.Medium)
     y = y + 34

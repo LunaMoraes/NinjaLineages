@@ -14,7 +14,8 @@ local active = NinjaLineages.AbilityExecution.active
 local Catalog = NinjaLineages.JutsuCatalog
 local Balance = NinjaLineages.Balance
 
-local function spendChakraTowardStat(player, stats, stat, target, statPerChakra, maximumSpend)
+local function spendChakraTowardStat(player, stats, stat, target, statPerChakra,
+        maximumSpend, abilityId)
     local current = stats:get(stat)
     local direction = target >= current and 1 or -1
     local chakraSpent = math.min(
@@ -22,7 +23,10 @@ local function spendChakraTowardStat(player, stats, stat, target, statPerChakra,
         NinjaLineages.Chakra.getChakra(player),
         math.abs(target - current) / statPerChakra
     )
-    if chakraSpent <= 0 or not NinjaLineages.Chakra.spendChakra(player, chakraSpent) then return end
+    if chakraSpent <= 0 or not NinjaLineages.Chakra.spendChakra(player, chakraSpent, {
+            jutsuSpend = true,
+            abilityId = abilityId,
+        }) then return end
     local adjusted = current + (direction * chakraSpent * statPerChakra)
     stats:set(stat, direction > 0 and math.min(target, adjusted) or math.max(target, adjusted))
 end
@@ -65,7 +69,7 @@ local function processStatRestorationLoop(player, state, now, actionId, stateUnt
             if not isStatMet(current, config.targetValue) then
                 spendChakraTowardStat(
                     player, stats, config.stat, config.targetValue,
-                    config.conversionRate, step
+                    config.conversionRate, step, actionId
                 )
             end
         end
@@ -143,7 +147,15 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
     local now = NinjaLineages.Utils.Time.gameMinutes()
     local previousUpdateAt = state.lastUpdateAt or now
     state.lastUpdateAt = now
+    local elapsed = math.max(0, now - previousUpdateAt)
     local data = NinjaLineages.getNLData(player)
+
+    if NinjaLineages.ChakraCloak and NinjaLineages.ChakraCloak.update then
+        NinjaLineages.ChakraCloak.update(player, elapsed)
+    end
+    if NinjaLineages.CombatModifiers and NinjaLineages.CombatModifiers.updatePlayer then
+        NinjaLineages.CombatModifiers.updatePlayer(player)
+    end
 
     NinjaLineages.BringerOfDarkness.updatePlayer(player)
     NinjaLineages.DemonicFlute.updatePlayer(player)
@@ -218,12 +230,24 @@ function NinjaLineages.AbilityAuthority.updatePlayer(player)
                 local part = parts:get(i)
                 if NinjaLineages.Utils.Healing.getPartSeverity(part) > 0
                         and NinjaLineages.Chakra.getChakra(player) >= step then
+                    local healing = {}
+                    for key, value in pairs(rebirth.healing) do
+                        healing[key] = type(value) == "number"
+                            and NinjaLineages.CombatModifiers
+                            and NinjaLineages.CombatModifiers.applyJutsuHealing(player, value)
+                            or value
+                    end
                     local changed = NinjaLineages.Utils.Healing.healPart(
                         player:getBodyDamage(),
                         part,
-                        rebirth.healing
+                        healing
                     )
-                    if changed then NinjaLineages.Chakra.spendChakra(player, step) end
+                    if changed then
+                        NinjaLineages.Chakra.spendChakra(player, step, {
+                            jutsuSpend = true,
+                            abilityId = "creation_rebirth",
+                        })
+                    end
                 end
             end
             state.nextRebirthTick = state.nextRebirthTick + rebirth.tickInterval

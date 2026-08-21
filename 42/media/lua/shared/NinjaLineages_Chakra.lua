@@ -2,6 +2,7 @@ require "NinjaLineages_Traits"
 require "NinjaLineages_Skills"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Balance"
+require "disciplines/jinchuuriki/NinjaLineages_BijuuDefinitions"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.Chakra = NinjaLineages.Chakra or {}
@@ -19,6 +20,16 @@ function NinjaLineages.Chakra.getMaxChakra(player)
     local ccLevel = NinjaLineages.Skills.getChakraControlLevel(player)
     local ccMult = 1.0 + (ccLevel * chakraBalance.CONTROL_MAX_PER_LEVEL)
     maxVal = maxVal * ccMult
+
+    local jinchuuriki = NinjaLineages.Progression.getJinchuurikiData(player)
+    local hostedId = jinchuuriki and jinchuuriki.hostedBijuuIds
+        and jinchuuriki.hostedBijuuIds[1] or nil
+    local definition = hostedId and NinjaLineages.BijuuDefinitions.get(hostedId) or nil
+    if definition and NinjaLineages.Progression.isCompleted(player, "tailed_beast_chakra") then
+        maxVal = maxVal
+            + NinjaLineages.Balance.Jinchuuriki.Synchronization.CHAKRA_PER_TAIL
+                * definition.tails
+    end
 
     return maxVal
 end
@@ -52,6 +63,7 @@ function NinjaLineages.Chakra.spendChakra(player, amount, opts)
     if current < amount then return false end
 
     NinjaLineages.Chakra.setChakra(player, current - amount)
+    local actualSpent = math.max(0, current - NinjaLineages.Chakra.getChakra(player))
 
     opts = opts or {}
     if opts.awardXP ~= false then
@@ -59,6 +71,16 @@ function NinjaLineages.Chakra.spendChakra(player, amount, opts)
         NinjaLineages.Skills.addJutsuProwessXP(player, amount * ratio)
         local ninjaRatio = NinjaLineages.Balance.Progression.NinjaXP.CHAKRA_RATIO
         NinjaLineages.Progression.awardXP(player, "chakra", math.floor(amount * ninjaRatio))
+    end
+
+    if opts.jutsuSpend == true and actualSpent > 0 then
+        if NinjaLineages.JinchuurikiServer
+                and NinjaLineages.JinchuurikiServer.recordJutsuChakraSpend then
+            NinjaLineages.JinchuurikiServer.recordJutsuChakraSpend(
+                player, actualSpent, opts.abilityId)
+        elseif not NinjaLineages.isClient() then
+            NinjaLineages.Progression.recordBijuuSynchronizationChakra(player, actualSpent)
+        end
     end
 
     return true

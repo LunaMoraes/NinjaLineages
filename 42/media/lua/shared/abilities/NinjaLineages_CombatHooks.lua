@@ -10,16 +10,42 @@ NinjaLineages = NinjaLineages or {}
 NinjaLineages.AbilityExecution = NinjaLineages.AbilityExecution or {}
 NinjaLineages.AbilityExecution.sharinganRolls = NinjaLineages.AbilityExecution.sharinganRolls or {}
 NinjaLineages.AbilityExecution.boundZombies = NinjaLineages.AbilityExecution.boundZombies or {}
+NinjaLineages.AbilityExecution.restrainedPlayers =
+    NinjaLineages.AbilityExecution.restrainedPlayers or {}
 NinjaLineages.AbilityExecution.active = NinjaLineages.AbilityExecution.active or {}
 NinjaLineages.AbilityExecution.pvpDodgeHits =
     NinjaLineages.AbilityExecution.pvpDodgeHits or {}
 
 local sharinganRolls = NinjaLineages.AbilityExecution.sharinganRolls
 local boundZombies = NinjaLineages.AbilityExecution.boundZombies
+local restrainedPlayers = NinjaLineages.AbilityExecution.restrainedPlayers
 local active = NinjaLineages.AbilityExecution.active
 local pvpDodgeHits = NinjaLineages.AbilityExecution.pvpDodgeHits
 local PVP_DODGE_DEDUP_MS = NinjaLineages.Constants.Uchiha.PVP_DODGE_DEDUP_MS
 local Balance = NinjaLineages.Balance
+
+function NinjaLineages.AbilityAuthority.bindZombie(zombie, expiresAtGameMinutes, options)
+    if not zombie or zombie:isDead() then return false end
+    local existing = boundZombies[zombie]
+    local existingExpiry = type(existing) == "table"
+        and existing.expiresAtGameMinutes or tonumber(existing) or 0
+    boundZombies[zombie] = {
+        expiresAtGameMinutes = math.max(existingExpiry,
+            tonumber(expiresAtGameMinutes) or 0),
+        suppressMovement = options and options.suppressMovement == true,
+        suppressAttacks = not options or options.suppressAttacks ~= false,
+    }
+    return true
+end
+
+function NinjaLineages.AbilityAuthority.restrainPlayer(player, expiresAtGameMinutes)
+    if not player or (player.isDead and player:isDead()) then return false end
+    local state = restrainedPlayers[player] or {}
+    state.expiresAtGameMinutes = math.max(state.expiresAtGameMinutes or 0,
+        tonumber(expiresAtGameMinutes) or 0)
+    restrainedPlayers[player] = state
+    return true
+end
 
 local function playerIdentity(player)
     if not player then return "unknown" end
@@ -85,7 +111,10 @@ local function gentleFist(zombie, attacker, bodyPartType, weapon)
     if not NinjaLineages.getNLData(attacker).eyePowerActive then return end
     if not weapon or weapon:getType() ~= "BareHands" or zombie:isDead() then return end
     local cost = Balance.getCost("TRIVIAL")
-    if not NinjaLineages.Chakra.spendChakra(attacker, cost) then return end
+    if not NinjaLineages.Chakra.spendChakra(attacker, cost, {
+            jutsuSpend = true,
+            abilityId = "gentle_fist",
+        }) then return end
     local multiplier = NinjaLineages.getEyePowerMultiplier(attacker, "byakugan")
     NinjaLineages.Utils.Combat.staggerZombie(zombie, { knockdown = true, position = "FRONT" })
     NinjaLineages.Damage.applyZombieDamage(attacker, zombie, Balance.rollDamage("LIGHT") * multiplier)
@@ -94,11 +123,16 @@ end
 local function sageCombatHook(zombie, attacker, bodyPartType, weapon)
     if not attacker or not zombie or not instanceof(attacker, "IsoPlayer") then return end
 
-    -- Sage Mode hit consumption and bonus damage
-    if NinjaLineages.SageMode and NinjaLineages.SageMode.isActive(attacker) then
-        NinjaLineages.SageMode.onHit(attacker)
+    local sageActive = NinjaLineages.SageMode
+        and NinjaLineages.SageMode.isActive(attacker)
+    local cloakActive = NinjaLineages.ChakraCloak
+        and NinjaLineages.ChakraCloak.isActive(attacker)
+    if sageActive or cloakActive then
+        if sageActive then NinjaLineages.SageMode.onHit(attacker) end
         if weapon and not weapon:isRanged() then
-            local mult = NinjaLineages.SageMode.getMeleeDamageMultiplier(attacker)
+            local mult = NinjaLineages.CombatModifiers
+                and NinjaLineages.CombatModifiers.getMeleeDamageMultiplier(attacker)
+                or NinjaLineages.SageMode.getMeleeDamageMultiplier(attacker)
             if mult > 1.0 then
                 local bonus = (mult - 1.0) * (weapon:getMaxDamage() or 1.0)
                 NinjaLineages.Damage.applyZombieDamage(attacker, zombie, bonus)
@@ -150,17 +184,48 @@ if Events and Events.OnWeaponHitCharacter then
     )
 end
 
-function NinjaLineages.AbilityAuthority.updateWorld()
+function NinjaLineages.AbilityAuthority.updateRestraints()
     local now = NinjaLineages.Utils.Time.gameMinutes()
-    local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
-    for zombie, bindUntil in pairs(boundZombies) do
+    for zombie, binding in pairs(boundZombies) do
+        local bindUntil = type(binding) == "table"
+            and binding.expiresAtGameMinutes or tonumber(binding) or 0
         if not zombie or zombie:isDead() or now >= bindUntil then
+            if zombie and type(binding) == "table" and binding.suppressMovement then
+                pcall(function() zombie:setCanWalk(true) end)
+            end
             boundZombies[zombie] = nil
         else
-            zombie:setVariable("AttackOutcome", "fail")
-            pcall(function() zombie:setStaggerBack(true) end)
+            if type(binding) ~= "table" or binding.suppressAttacks then
+                zombie:setVariable("AttackOutcome", "fail")
+                pcall(function() zombie:setStaggerBack(true) end)
+            end
+            if type(binding) == "table" and binding.suppressMovement then
+                pcall(function()
+                    zombie:setCanWalk(false)
+                    zombie:setTarget(nil)
+                    if zombie.setPath2 then zombie:setPath2(nil) end
+                end)
+            end
         end
     end
+    for player, restraint in pairs(restrainedPlayers) do
+        if not player or player:isDead() or now >= restraint.expiresAtGameMinutes then
+            if player then
+                pcall(function() player:setBlockMovement(false) end)
+                pcall(function() player:setBannedAttacking(false) end)
+            end
+            restrainedPlayers[player] = nil
+        else
+            pcall(function() player:setBlockMovement(true) end)
+            pcall(function() player:setBannedAttacking(true) end)
+            pcall(function() player:StopAllActionQueueAiming() end)
+        end
+    end
+end
+
+function NinjaLineages.AbilityAuthority.updateWorld()
+    local nowMs = NinjaLineages.Utils.Time.realMilliseconds()
+    NinjaLineages.AbilityAuthority.updateRestraints()
     for zombie, _ in pairs(sharinganRolls) do
         if not zombie or zombie:isDead() then
             sharinganRolls[zombie] = nil

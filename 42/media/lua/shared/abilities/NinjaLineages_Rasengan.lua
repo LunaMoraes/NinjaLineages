@@ -258,6 +258,10 @@ function Rasengan.updateAll()
                     -- Periodic DoT processing (no drift)
                     while now >= runtime.nextDamageGameMinutes do
                         local tickDamage = Balance.rollDamage(tuning.damageTier)
+                        if NinjaLineages.CombatModifiers then
+                            tickDamage = NinjaLineages.CombatModifiers.applyJutsuDamage(
+                                player, tickDamage)
+                        end
                         NinjaLineages.Damage.applyZombieDamage(player, lead, tickDamage)
 
                         for _, caught in ipairs(runtime.caughtZombies) do

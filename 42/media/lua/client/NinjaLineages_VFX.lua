@@ -2,6 +2,8 @@ require "NinjaLineages_Constants"
 require "NinjaLineages_Utils"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Balance"
+require "disciplines/jinchuuriki/NinjaLineages_BijuuBoss"
+require "disciplines/jinchuuriki/NinjaLineages_BijuuDefinitions"
 require "jinchuuriki/NinjaLineages_BijuuRenderer"
 require "jinchuuriki/NinjaLineages_BijuuBossHealthBar"
 
@@ -129,6 +131,7 @@ local activeKatsuyuHealWaves = {}
 local activeRasengans = {}
 local activeRasenganWallImpacts = {}
 local activeSnareTethers = {}
+local activeAdamantineChains = {}
 
 local katonFireTexture = nil
 local katonTextureProbed = false
@@ -1162,6 +1165,138 @@ local function renderSageModeAuras()
     end
 end
 
+local function collectRenderedPlayers()
+    local players = {}
+    if IsoPlayer and IsoPlayer.getPlayers then
+        local list = IsoPlayer.getPlayers()
+        if list then
+            for index = 0, list:size() - 1 do
+                local player = list:get(index)
+                if player and not player:isDead() then table.insert(players, player) end
+            end
+        end
+    end
+    if #players == 0 then
+        local player = getPlayer and getPlayer()
+        if player and not player:isDead() then table.insert(players, player) end
+    end
+    return players
+end
+
+local function renderChakraCloakAuras(now)
+    local boss = NinjaLineages.BijuuBoss
+    for _, player in ipairs(collectRenderedPlayers()) do
+        local data = NinjaLineages.getNLData(player)
+        if data and data.chakraCloakActive and data.chakraCloakBijuuId then
+            local color = boss and boss.getThemeColor(data.chakraCloakBijuuId)
+                or { r = 1.0, g = 0.45, b = 0.05 }
+            local x, y, z = player:getX(), player:getY(), player:getZ()
+            local pulse = 0.92 + math.sin(now * 45) * 0.08
+
+            for layer = 1, 5 do
+                local radius = (0.24 + layer * 0.055) * pulse
+                local alpha = 0.22 - layer * 0.022
+                VFX.renderRing(x, y, z, radius, 28, 4.2,
+                    color.r * 0.62, color.g * 0.62, color.b * 0.62,
+                    alpha, 0.02 + layer * 0.045)
+            end
+
+            for strand = 1, 16 do
+                local angle = strand * math.pi * 2 / 16 + now * 5.5
+                local radius = 0.25 + 0.07 * math.sin(now * 17 + strand)
+                local baseX = x + math.cos(angle) * radius
+                local baseY = y + math.sin(angle) * radius
+                local leanX = math.cos(angle + 0.7) * 0.08
+                local leanY = math.sin(angle + 0.7) * 0.08
+                local height = 0.24 + 0.10 * ((strand - 1) % 4)
+                VFX.renderLine(baseX, baseY, z + 0.02,
+                    baseX + leanX, baseY + leanY, z + height,
+                    5.0, color.r, color.g, color.b, 0.42)
+                VFX.renderLine(baseX + leanX, baseY + leanY, z + height,
+                    baseX + leanX * 0.45, baseY + leanY * 0.45, z + height + 0.08,
+                    2.5, 1.0, math.min(1, color.g + 0.25),
+                    math.min(1, color.b + 0.18), 0.72)
+            end
+
+            local definition = NinjaLineages.BijuuDefinitions
+                and NinjaLineages.BijuuDefinitions.get(data.chakraCloakBijuuId)
+            local tails = definition and definition.tails or 1
+            local forward = player:getForwardDirection()
+            local fx, fy = forward and forward:getX() or 0, forward and forward:getY() or 1
+            local sideX, sideY = -fy, fx
+            for tail = 1, tails do
+                local spread = (tail - (tails + 1) / 2) * 0.10
+                local wave = math.sin(now * 18 + tail * 0.8) * 0.10
+                local startX, startY = x - fx * 0.18, y - fy * 0.18
+                local midX = startX - fx * 0.35 + sideX * (spread + wave)
+                local midY = startY - fy * 0.35 + sideY * (spread + wave)
+                local endX = startX - fx * 0.62 + sideX * (spread * 1.8 - wave)
+                local endY = startY - fy * 0.62 + sideY * (spread * 1.8 - wave)
+                VFX.renderLine(startX, startY, z + 0.13,
+                    midX, midY, z + 0.24, 5.5,
+                    color.r, color.g, color.b, 0.48)
+                VFX.renderLine(midX, midY, z + 0.24,
+                    endX, endY, z + 0.18, 3.2,
+                    color.r, color.g, color.b, 0.58)
+            end
+        end
+    end
+end
+
+local function bezierPoint(a, b, c, t)
+    local inverse = 1 - t
+    return inverse * inverse * a + 2 * inverse * t * b + t * t * c
+end
+
+local function renderAdamantineChains(now)
+    for id, chain in pairs(activeAdamantineChains) do
+        if now >= chain.endsAtGameMinutes then
+            activeAdamantineChains[id] = nil
+        else
+            local target = chain.targetOnlineId
+                and NinjaLineages.AbilityAuthority.findLocalPlayer(chain.targetOnlineId) or nil
+            local toX = target and target:getX() or chain.toX
+            local toY = target and target:getY() or chain.toY
+            local toZ = target and target:getZ() or chain.toZ
+            local dx, dy = toX - chain.fromX, toY - chain.fromY
+            local length = math.max(0.001, math.sqrt(dx * dx + dy * dy))
+            local sideX, sideY = -dy / length, dx / length
+
+            for strand = 1, 5 do
+                local spread = (strand - 3) * 0.13
+                local controlX = (chain.fromX + toX) * 0.5 + sideX * spread
+                local controlY = (chain.fromY + toY) * 0.5 + sideY * spread
+                local controlZ = math.max(chain.fromZ, toZ) + 0.55
+                    + 0.08 * math.sin(now * 22 + strand)
+                local previousX, previousY, previousZ = chain.fromX, chain.fromY,
+                    chain.fromZ + 0.18
+                for segment = 1, 18 do
+                    local t = segment / 18
+                    local nextX = bezierPoint(chain.fromX, controlX, toX, t)
+                    local nextY = bezierPoint(chain.fromY, controlY, toY, t)
+                    local nextZ = bezierPoint(chain.fromZ + 0.18, controlZ, toZ + 0.20, t)
+                    VFX.renderLine(previousX, previousY, previousZ,
+                        nextX, nextY, nextZ, 3.8,
+                        1.0, 0.72, 0.08, 0.88)
+                    if segment % 2 == 0 then
+                        local size = 0.055
+                        VFX.renderLine(nextX - sideX * size, nextY - sideY * size, nextZ,
+                            nextX, nextY, nextZ + size, 2.0, 1.0, 0.92, 0.35, 0.92)
+                        VFX.renderLine(nextX, nextY, nextZ + size,
+                            nextX + sideX * size, nextY + sideY * size, nextZ,
+                            2.0, 1.0, 0.92, 0.35, 0.92)
+                    end
+                    previousX, previousY, previousZ = nextX, nextY, nextZ
+                end
+            end
+            for ring = 1, 3 do
+                VFX.renderRing(toX, toY, toZ, 0.32 + ring * 0.11,
+                    28, 3.5, 1.0, 0.72, 0.08, 0.42, 0.01 + ring * 0.05)
+            end
+        end
+    end
+end
+
 function VFX.renderAll()
     if not getPlayer or not getPlayer() then return end
 
@@ -1193,6 +1328,8 @@ function VFX.renderAll()
     end
 
     renderSageModeAuras()
+    renderChakraCloakAuras(nowGameMinutes)
+    renderAdamantineChains(nowGameMinutes)
 end
 
 -- ============================================================================
@@ -1254,6 +1391,28 @@ do
     NinjaLineages.AbilityAuthority.registerEventHandler("generic_ability_pulse", function(args)
         if args then
             VFX.addGenericPulse(args)
+        end
+    end)
+
+    NinjaLineages.AbilityAuthority.registerEventHandler("adamantine_chains", function(args)
+        if not args or not args.endsAtGameMinutes then return end
+        local id = tostring(args.casterOnlineId) .. ":" .. tostring(args.runtimeId
+            or args.targetOnlineId) .. ":" .. tostring(args.startedAtGameMinutes)
+        activeAdamantineChains[id] = args
+        if args.targetKind == "player" or args.targetKind == "hostile_player" then
+            local target = NinjaLineages.AbilityAuthority.findLocalPlayer(args.targetOnlineId)
+            if target then
+                NinjaLineages.AbilityAuthority.restrainPlayer(
+                    target, args.endsAtGameMinutes)
+            end
+        elseif args.targetKind == "zombie" and args.targetOnlineId then
+            local zombie = NinjaLineages.Utils.Zombies.getByOnlineID(args.targetOnlineId)
+            if zombie then
+                NinjaLineages.AbilityAuthority.bindZombie(zombie, args.endsAtGameMinutes, {
+                    suppressMovement = true,
+                    suppressAttacks = true,
+                })
+            end
         end
     end)
 

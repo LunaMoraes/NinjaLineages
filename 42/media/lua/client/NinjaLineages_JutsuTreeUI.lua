@@ -324,6 +324,26 @@ function NLJutsuTreeUI:initialise()
                         nodeDesc = getText("UI_NL_Node_nature_chakra_manipulation_SnailTrial")
                             .. "\n\n" .. getText("UI_NL_TrialProgress_Snail", tostring(math.min(requirements.MEDITATION_MINUTES, math.floor(trial.meditationMinutes or 0))), tostring(requirements.MEDITATION_MINUTES), tostring(math.min(requirements.SNAIL_HEALTH_HEALED, math.floor(trial.healthHealed or 0))), tostring(requirements.SNAIL_HEALTH_HEALED))
                     end
+                elseif self.selectedNode == "tailed_beast_chakra"
+                        or self.selectedNode == "chakra_cloak" then
+                    local jinchuuriki = NinjaLineages.Progression.getJinchuurikiData(self.player)
+                    local synchronization = jinchuuriki and jinchuuriki.synchronization or {}
+                    if synchronization.completed == true then
+                        nodeDesc = nodeDesc .. "\n\n"
+                            .. getText("UI_NL_BijuuSynchronization_CompleteShort")
+                    elseif not synchronization.bijuuId then
+                        nodeDesc = nodeDesc .. "\n\n"
+                            .. getText("UI_NL_BijuuSynchronization_RequiresHost")
+                    else
+                        local requirement = NinjaLineages.Progression
+                            .getBijuuSynchronizationRequirement(self.player)
+                        nodeDesc = nodeDesc .. "\n\n"
+                            .. getText("UI_NL_BijuuSynchronization_TreeProgress",
+                                tostring(math.floor(synchronization.meditationMinutes or 0)),
+                                tostring(requirement.meditationMinutes),
+                                tostring(math.floor(synchronization.chakraSpent or 0)),
+                                tostring(requirement.chakra))
+                    end
                 elseif self.selectedNode == "summoning" then
                     local chosen = NinjaLineages.Progression.getChosenContract(self.player)
                     if chosen == "toad" then

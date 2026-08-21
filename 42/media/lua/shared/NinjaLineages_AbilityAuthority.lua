@@ -163,6 +163,7 @@ local externalSuccessMessages = {
 local errorMessages = {
     chakra = "UI_NL_Error_NotEnoughChakra",
     no_target = "UI_NL_Error_NoFacingTarget",
+    no_hosted_bijuu = "UI_NL_Error_NoHostedBijuu",
     not_learned = "UI_NL_Error_JutsuNotLearned",
     busy = "UI_NL_HandSigns_Busy",
     locked = "UI_NL_Error_MangekyoLocked",

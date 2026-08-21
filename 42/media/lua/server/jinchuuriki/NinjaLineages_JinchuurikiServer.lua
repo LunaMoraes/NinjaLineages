@@ -1,5 +1,6 @@
 require "NinjaLineages_Balance"
 require "NinjaLineages_Progression"
+require "NinjaLineages_Chakra"
 require "NinjaLineages_Traits"
 require "NinjaLineages_Utils"
 require "disciplines/jinchuuriki/NinjaLineages_BijuuDefinitions"
@@ -9,6 +10,7 @@ require "jinchuuriki/NinjaLineages_BijuuBossServer"
 require "jinchuuriki/NinjaLineages_BijuuRegistryServer"
 require "jinchuuriki/NinjaLineages_BijuuSealingServer"
 require "jinchuuriki/NinjaLineages_BijuuServerSupport"
+require "disciplines/jinchuuriki/NinjaLineages_ChakraCloak"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.JinchuurikiServer = NinjaLineages.JinchuurikiServer or {}
@@ -25,6 +27,8 @@ local BijuuState = NinjaLineages.BijuuState
 local Support = NinjaLineages.BijuuServerSupport
 
 local initializedPlayers = {}
+local lastSynchronizationUpdateAt = setmetatable({}, { __mode = "k" })
+local lastSynchronizationBroadcastAt = setmetatable({}, { __mode = "k" })
 
 local function log(message)
     print("[NL-JINCHUURIKI] " .. tostring(message))
@@ -92,8 +96,19 @@ local function syncProjection(player, canonicalIds)
     if not data then return false end
     canonicalIds = canonicalIds or {}
     local projected = data.hostedBijuuIds or {}
-    if arraysEqual(projected, canonicalIds) then return false end
+    local oldBijuuId = projected[1]
+    local newBijuuId = canonicalIds[1]
+    local chakraBefore = NinjaLineages.Chakra.getChakra(player)
+    if arraysEqual(projected, canonicalIds) then
+        Progression.onHostedBijuuChanged(player, oldBijuuId, newBijuuId)
+        return false
+    end
     data.hostedBijuuIds = canonicalIds
+    Progression.onHostedBijuuChanged(player, oldBijuuId, newBijuuId)
+    if oldBijuuId ~= newBijuuId and NinjaLineages.ChakraCloak then
+        NinjaLineages.ChakraCloak.deactivate(player, "host_lost")
+    end
+    NinjaLineages.Chakra.setChakra(player, chakraBefore)
     NinjaLineages.transmitPlayerData(player)
     log("host_projection_repaired host=" .. tostring(data.hostKey)
         .. " count=" .. tostring(#canonicalIds))
@@ -146,6 +161,7 @@ function Server.updatePlayer(player)
     if not initializedPlayers[player] then
         initializedPlayers[player] = true
         Server.reconcilePlayer(player)
+        lastSynchronizationUpdateAt[player] = nowGameMinutes()
         return
     end
     local data = Progression.getJinchuurikiData(player)
@@ -153,6 +169,29 @@ function Server.updatePlayer(player)
     if deadline and nowGameMinutes() >= deadline then
         Server.reconcilePlayer(player)
     end
+    local now = nowGameMinutes()
+    local previous = lastSynchronizationUpdateAt[player] or now
+    lastSynchronizationUpdateAt[player] = now
+    local hosted = data and data.hostedBijuuIds or {}
+    local changed, completed = Progression.updateBijuuSynchronization(
+        player, hosted[1], math.max(0, now - previous))
+    if changed and not completed
+            and now - (lastSynchronizationBroadcastAt[player] or 0) >= 0.25 then
+        lastSynchronizationBroadcastAt[player] = now
+        NinjaLineages.transmitPlayerData(player)
+    end
+end
+
+function Server.recordJutsuChakraSpend(player, actualAmount, abilityId)
+    if not Support.isAuthoritative() or not isLivingPlayer(player) then return false end
+    local canonicalIds = Server.getCanonicalHostedBijuuIds(player)
+    if #canonicalIds ~= 1 then return false end
+    local data = Progression.getJinchuurikiData(player)
+    if not data or not data.hostedBijuuIds
+            or data.hostedBijuuIds[1] ~= canonicalIds[1] then
+        syncProjection(player, canonicalIds)
+    end
+    return Progression.recordBijuuSynchronizationChakra(player, actualAmount, abilityId)
 end
 
 function Server.installFromVessel(player, vesselItemId)
@@ -263,7 +302,7 @@ function Server.extractHostedBijuu(player, vesselItemId)
     end
 
     local data = Progression.getJinchuurikiData(player)
-    data.hostedBijuuIds = {}
+    syncProjection(player, {})
     local uzumaki = NinjaLineages.hasUzumaki(player)
     if uzumaki then
         data.extractionDeathAt = nowGameMinutes() + 1440
@@ -317,7 +356,7 @@ function Server.releaseHostedBijuuOnDeath(character)
         end
     end
     local data = Progression.getJinchuurikiData(character)
-    data.hostedBijuuIds = {}
+    syncProjection(character, {})
     data.extractionDeathAt = nil
     NinjaLineages.transmitPlayerData(character)
     return released
@@ -349,6 +388,10 @@ function Server.debugExpireGrace(player)
     return true, reason
 end
 
+function Server.debugUnlockAllJinchuuriki(player)
+    return Progression.debugUnlockAllJinchuuriki(player)
+end
+
 local function onClientCommand(module, command, player, args)
     if module ~= "NinjaLineages" then return end
     if command == "installBijuuFromVessel" then
@@ -377,6 +420,10 @@ end)
 Support.registerDebugAction("reconcile_jinchuuriki", function(player)
     local ok, reason, ids = Server.reconcilePlayer(player)
     return ok, reason, { hostedCount = ids and #ids or 0 }
+end)
+
+Support.registerDebugAction("unlock_jinchuuriki_tree", function(player)
+    return Server.debugUnlockAllJinchuuriki(player)
 end)
 
 NinjaLineages.addEventOnce(

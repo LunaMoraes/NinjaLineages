@@ -286,6 +286,38 @@ function Server.addOrRefreshRestraint(bijuuId, runtimeId, sourceKey, player,
     return true, "ok"
 end
 
+function Server.applyBossRestraint(player, target, sourceKey, options)
+    options = options or {}
+    if not target or not target.bijuuId or not target.runtimeId then
+        return false, "invalid_target"
+    end
+    local expiresAt = tonumber(options.expiresAtGameMinutes) or 0
+    local suppressed, suppressionReason = BossServer.addOrRefreshSuppression(
+        target.bijuuId, target.runtimeId, sourceKey, player, {
+            movement = options.suppressMovement == true,
+            attacks = options.suppressAttacks == true,
+            expiresAtGameMinutes = expiresAt,
+        })
+    if not suppressed then return false, suppressionReason end
+
+    local restrained, restraintReason = Server.addOrRefreshRestraint(
+        target.bijuuId, target.runtimeId, sourceKey, player,
+        options.sealingPower, expiresAt)
+    if not restrained then
+        BossServer.removeSuppression(
+            target.bijuuId, target.runtimeId, sourceKey, player)
+        return false, restraintReason
+    end
+
+    local damage = math.max(0, tonumber(options.damage) or 0)
+    if damage > 0 then
+        local damaged, damageReason = BossServer.applyDamage(
+            target.bijuuId, target.runtimeId, player, damage, sourceKey)
+        if not damaged then return false, damageReason end
+    end
+    return true, "ok"
+end
+
 function Server.getTotalRestraintStrength(bijuuId, runtimeId)
     if not Definitions.isValidId(bijuuId) or not runtimeId then return 0 end
     return pruneRestraints(bijuuId, runtimeId, nowGameMinutes())

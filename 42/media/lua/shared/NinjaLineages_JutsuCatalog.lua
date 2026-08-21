@@ -424,8 +424,24 @@ Catalog.Definitions = {
         { "containment_technique" }, "passive"),
     node("tailed_beast_chakra", "jinchuuriki", "JONIN", 10,
         { "tailed_beast_locator", "seal_reinforcement", "bijuu_extraction_transfer" }, "passive"),
-    node("chakra_cloak", "jinchuuriki", "JONIN", 20,
-        { "tailed_beast_chakra" }, "passive"),
+    {
+        id = "chakra_cloak",
+        category = "jinchuuriki",
+        presentation = {
+            nameKey = "UI_NL_Node_chakra_cloak_Name",
+            descriptionKey = "UI_NL_Node_chakra_cloak_Desc",
+            castMessageKey = "UI_NL_Ability_ChakraCloak_Cast",
+            icon = "media/ui/NLJutsu.png",
+        },
+        node = {
+            discipline = "jinchuuriki", rank = "JONIN", order = 20,
+            prerequisites = { "tailed_beast_chakra" }, effectType = "ability",
+        },
+        balance = {
+            sustainedDrain = Balance.Jinchuuriki.ChakraCloak.SUSTAINED_DRAIN_TIER,
+        },
+        executor = "chakra_cloak",
+    },
 
     {
         id = "sharingan",
@@ -493,6 +509,23 @@ Catalog.Definitions = {
             outerKnockdownChance = Balance.JutsuRuntime.BindingRoots.OUTER_KNOCKDOWN_CHANCE,
         },
         executor = "binding_roots",
+    },
+    {
+        id = "adamantine_sealing_chains",
+        category = "uzumaki",
+        presentation = {
+            nameKey = "UI_NL_Ability_AdamantineChains_Name",
+            descriptionKey = "UI_NL_Ability_AdamantineChains_Desc",
+            castMessageKey = "UI_NL_Ability_AdamantineChains_Cast",
+            icon = "media/ui/Traits/trait_uzumaki.png",
+        },
+        requirements = { { kind = "lineage", id = "uzumaki" } },
+        balance = {
+            cost = "ULTIMATE", cooldown = "LONG",
+            radius = Balance.Jinchuuriki.Restraints.AdamantineChains.RANGE_TIER,
+            duration = Balance.Jinchuuriki.Restraints.AdamantineChains.DURATION_TIER,
+        },
+        executor = "adamantine_sealing_chains",
     },
     {
         id = "creation_rebirth",

@@ -401,6 +401,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         end)
 
         local hostDebugActions = {
+            { key = "UI_NL_Debug_UnlockJinchuurikiTree", action = "unlock_jinchuuriki_tree", method = "debugUnlockAllJinchuuriki" },
             { key = "UI_NL_Debug_InstallHostVessel", action = "install_host_vessel", method = "debugInstallFirstVessel" },
             { key = "UI_NL_Debug_ExtractHostedBijuu", action = "extract_hosted_bijuu", method = "debugExtractHosted" },
             { key = "UI_NL_Debug_ExpireExtractionGrace", action = "expire_extraction_grace", method = "debugExpireGrace" },
@@ -417,6 +418,38 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
                     if method then ok, reason = method(p) end
                     p:Say(ok and ("Jinchūriki debug action completed: " .. debugAction.action)
                         or ("Jinchūriki debug action failed: " .. tostring(reason)))
+                    if ok and debugAction.action == "unlock_jinchuuriki_tree" then
+                        for _, ui in pairs(NLJutsuTreeUI.instances) do
+                            if ui.screen == "selection" then
+                                ui:createSelectionScreen()
+                            elseif ui.screen == "discipline" then
+                                ui:refreshDisciplineState()
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+
+        local restraintDebugActions = {
+            { key = "UI_NL_Debug_ApplyAdamantineChains", action = "apply_adamantine_chains", method = "debugApplyChains" },
+            { key = "UI_NL_Debug_ApplyBindingRoots", action = "apply_binding_roots", method = "debugApplyRoots" },
+            { key = "UI_NL_Debug_PrintBijuuSuppression", action = "print_bijuu_suppression", method = "debugSuppressionState" },
+        }
+        for _, debugAction in ipairs(restraintDebugActions) do
+            bijuuSubMenu:addOption(getText(debugAction.key), player, function(p)
+                if NinjaLineages.isClient and NinjaLineages.isClient() then
+                    sendClientCommand(p, "NinjaLineages", "bijuuDebug", {
+                        action = debugAction.action,
+                    })
+                else
+                    local server = NinjaLineages.BijuuRestraintServer
+                    local method = server and server[debugAction.method]
+                    local ok, reason = false, "unavailable"
+                    if method then ok, reason = method(p) end
+                    p:Say(ok and ("Bijū restraint debug action completed: "
+                        .. debugAction.action)
+                        or ("Bijū restraint debug action failed: " .. tostring(reason)))
                 end
             end)
         end
@@ -522,11 +555,29 @@ local function onDebugServerCommand(module, command, args)
         player:Say("Wild Bijū world reconciliation complete.")
     elseif args.action == "force_release" then
         player:Say("The next eligible Zombie Ninja death will release a Bijū.")
-    elseif args.action == "install_host_vessel"
+    elseif args.action == "unlock_jinchuuriki_tree"
+            or args.action == "install_host_vessel"
             or args.action == "extract_hosted_bijuu"
             or args.action == "expire_extraction_grace"
             or args.action == "reconcile_jinchuuriki" then
-        player:Say("Jinchūriki debug action completed: " .. tostring(args.action))
+        player:Say(args.ok
+            and ("Jinchūriki debug action completed: " .. tostring(args.action))
+            or ("Jinchūriki debug action failed: " .. tostring(args.reason)))
+        if args.ok and args.action == "unlock_jinchuuriki_tree" then
+            for _, ui in pairs(NLJutsuTreeUI.instances) do
+                if ui.screen == "selection" then
+                    ui:createSelectionScreen()
+                elseif ui.screen == "discipline" then
+                    ui:refreshDisciplineState()
+                end
+            end
+        end
+    elseif args.action == "apply_adamantine_chains"
+            or args.action == "apply_binding_roots"
+            or args.action == "print_bijuu_suppression" then
+        player:Say(args.ok
+            and ("Bijū restraint debug action completed: " .. tostring(args.action))
+            or ("Bijū restraint debug action failed: " .. tostring(args.reason)))
     elseif args.action == "defeat_boss" then
         player:Say("Defeated active boss: " .. tostring(args.bijuuId))
     elseif args.action == "apply_test_restraint" then
@@ -588,6 +639,12 @@ local function onPlayerUpdate(player)
     NinjaLineages.AbilityAuthority.updateLocalMovement(player)
     if NinjaLineages.SageMode and NinjaLineages.SageMode.update then
         NinjaLineages.SageMode.update(player)
+    end
+    if NinjaLineages.isClient() then
+        if NinjaLineages.CombatModifiers then
+            NinjaLineages.CombatModifiers.updatePlayer(player)
+        end
+        NinjaLineages.AbilityAuthority.updateRestraints()
     end
     if not NinjaLineages.isClient() then
         NinjaLineages.AbilityAuthority.updatePlayer(player)

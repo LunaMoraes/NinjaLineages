@@ -92,6 +92,31 @@ function Server.getActiveBossSnapshot(bijuuId)
     }
 end
 
+function Server.getActiveBossSnapshots()
+    local snapshots = {}
+    for _, bijuuId in ipairs(Definitions.Order) do
+        local snapshot = Server.getActiveBossSnapshot(bijuuId)
+        if snapshot then table.insert(snapshots, snapshot) end
+    end
+    return snapshots
+end
+
+function Server.findNearestActiveBoss(player, maximumDistance)
+    if not player then return nil end
+    local range = math.max(0, tonumber(maximumDistance) or 0)
+    local nearest, nearestDistance = nil, range + 1
+    for _, snapshot in ipairs(Server.getActiveBossSnapshots()) do
+        if math.abs(player:getZ() - snapshot.z) < 2 then
+            local dx, dy = player:getX() - snapshot.x, player:getY() - snapshot.y
+            local distance = math.sqrt(dx * dx + dy * dy)
+            if distance <= range and distance < nearestDistance then
+                nearest, nearestDistance = snapshot, distance
+            end
+        end
+    end
+    return nearest, nearestDistance
+end
+
 local function spawnZombieProxy(x, y, z)
     local cell = getCell and getCell()
     if not cell then return nil end
@@ -217,6 +242,7 @@ function Server.materialize(bijuuId, x, y, z, options)
         defeatHandled = false,
         lastBroadcastHealth = maximumHealth,
         meleeByPlayer = {},
+        suppressions = {},
         combat = {
             phase = "idle",
             lastObservedHealth = maximumHealth,
@@ -278,6 +304,99 @@ local function playerOnlineId(player)
     if not player or not player.getOnlineID then return nil end
     local onlineId = player:getOnlineID()
     return onlineId and onlineId >= 0 and onlineId or nil
+end
+
+local function suppressionPlayerKey(player)
+    local onlineId = playerOnlineId(player)
+    if onlineId then return "online:" .. tostring(onlineId) end
+    if player and player.getPlayerNum then
+        return "local:" .. tostring(player:getPlayerNum())
+    end
+    return nil
+end
+
+local function pruneSuppressions(runtime, now)
+    local movement, attacks = false, false
+    for key, suppression in pairs(runtime.suppressions or {}) do
+        if suppression.expiresAtGameMinutes <= now then
+            runtime.suppressions[key] = nil
+        else
+            movement = movement or suppression.movement == true
+            attacks = attacks or suppression.attacks == true
+        end
+    end
+    return movement, attacks
+end
+
+function Server.addOrRefreshSuppression(bijuuId, runtimeId, sourceKey, player,
+        options)
+    local runtime = activeBosses[bijuuId]
+    if not runtime or runtime.runtimeId ~= runtimeId then
+        return false, "target_runtime_changed"
+    end
+    local playerKey = suppressionPlayerKey(player)
+    local expiresAt = options and tonumber(options.expiresAtGameMinutes) or 0
+    if not playerKey or type(sourceKey) ~= "string" or sourceKey == ""
+            or expiresAt <= NinjaLineages.Utils.Time.gameMinutes() then
+        return false, "invalid_suppression"
+    end
+    runtime.suppressions[playerKey .. "|" .. sourceKey] = {
+        movement = options.movement == true,
+        attacks = options.attacks == true,
+        expiresAtGameMinutes = expiresAt,
+    }
+    return true, "ok"
+end
+
+function Server.removeSuppression(bijuuId, runtimeId, sourceKey, player)
+    local runtime = activeBosses[bijuuId]
+    local playerKey = suppressionPlayerKey(player)
+    if not runtime or runtime.runtimeId ~= runtimeId or not playerKey then return false end
+    runtime.suppressions[playerKey .. "|" .. tostring(sourceKey)] = nil
+    return true
+end
+
+function Server.isMovementSuppressed(bijuuId, runtimeId, now)
+    local runtime = activeBosses[bijuuId]
+    if not runtime or runtime.runtimeId ~= runtimeId then return false end
+    local movement = pruneSuppressions(runtime,
+        tonumber(now) or NinjaLineages.Utils.Time.gameMinutes())
+    return movement
+end
+
+function Server.isAttackSuppressed(bijuuId, runtimeId, now)
+    local runtime = activeBosses[bijuuId]
+    if not runtime or runtime.runtimeId ~= runtimeId then return false end
+    local _, attacks = pruneSuppressions(runtime,
+        tonumber(now) or NinjaLineages.Utils.Time.gameMinutes())
+    return attacks
+end
+
+function Server.getSuppressionSnapshot(bijuuId, runtimeId)
+    local runtime = activeBosses[bijuuId]
+    if not runtime or runtime.runtimeId ~= runtimeId then return nil end
+    local movement, attacks = pruneSuppressions(runtime,
+        NinjaLineages.Utils.Time.gameMinutes())
+    local count = 0
+    for _ in pairs(runtime.suppressions) do count = count + 1 end
+    return { movement = movement, attacks = attacks, contributions = count }
+end
+
+function Server.applyDamage(bijuuId, runtimeId, attacker, damage, source)
+    if not Support.isAuthoritative() then return false, "client_unauthorized" end
+    local runtime = activeBosses[bijuuId]
+    if not runtime or runtime.runtimeId ~= runtimeId or runtime.defeatHandled then
+        return false, "target_runtime_changed"
+    end
+    local amount = math.max(0, tonumber(damage) or 0)
+    if amount <= 0 then return false, "invalid_damage" end
+    local proxy = runtime.proxy
+    if not proxy or (proxy.isDead and proxy:isDead()) then return false, "target_dead" end
+    local before = tonumber(proxy:getHealth()) or 0
+    pcall(function() proxy:setAttackedBy(attacker) end)
+    proxy:setHealth(math.max(0, before - amount))
+    runtime.combat.lastAttackerOnlineId = playerOnlineId(attacker)
+    return true, "ok", math.max(0, before - amount)
 end
 
 local function findPlayerByOnlineId(onlineId)
@@ -438,6 +557,22 @@ local function advanceCombat(runtime, target, targetDistance, now, config)
     local combat = runtime.combat
     local attackRange = config.ATTACK_RANGE or 14.0
 
+    local movementSuppressed, attacksSuppressed = pruneSuppressions(runtime, now)
+    if attacksSuppressed then
+        if combat.phase == "telegraph" or combat.phase == "volley" then
+            stopTelegraph(runtime)
+            if NinjaLineages.CombatRuntime
+                    and NinjaLineages.CombatRuntime.removeProjectilesByMeta then
+                NinjaLineages.CombatRuntime.removeProjectilesByMeta(
+                    "runtimeId", runtime.runtimeId)
+            end
+        end
+        combat.volley = nil
+        combat.phase = "idle"
+        stopProxyPath(runtime.proxy)
+        return
+    end
+
     if combat.phase == "cooldown" then
         stopProxyPath(runtime.proxy)
         if now >= combat.cooldownEndsAtGameMinutes then combat.phase = "idle" end
@@ -486,6 +621,9 @@ local function advanceCombat(runtime, target, targetDistance, now, config)
     end
 
     if not target then
+        combat.phase = "idle"
+        stopProxyPath(runtime.proxy)
+    elseif targetDistance > attackRange and movementSuppressed then
         combat.phase = "idle"
         stopProxyPath(runtime.proxy)
     elseif targetDistance > attackRange then

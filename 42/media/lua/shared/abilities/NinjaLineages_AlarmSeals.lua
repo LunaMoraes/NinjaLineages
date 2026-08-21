@@ -157,7 +157,10 @@ Authority.register("alarm_seal", function(player, args)
     }
     if ModData.transmit then ModData.transmit(ALARM_DATA_KEY) end
     NinjaLineages.Utils.Inventory.consumeInventoryItem(player, seal)
-    NinjaLineages.Chakra.spendChakra(player, cost)
+    NinjaLineages.Chakra.spendChakra(player, cost, {
+        jutsuSpend = true,
+        abilityId = "alarm_seal",
+    })
     return true
 end)
 

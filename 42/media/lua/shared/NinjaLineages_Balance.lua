@@ -644,6 +644,36 @@ NinjaLineages.Balance.Jinchuuriki = NinjaLineages.Balance.Jinchuuriki or {}
 
 NinjaLineages.Balance.Jinchuuriki.MAX_HOSTED_BIJUU = 1
 
+NinjaLineages.Balance.Jinchuuriki.Synchronization = {
+    MEDITATION_MINUTES = 30,
+    CHAKRA_PER_TAIL = 500,
+    SAGE_MEDITATION_MULTIPLIER = 2.0,
+}
+
+NinjaLineages.Balance.Jinchuuriki.ChakraCloak = {
+    SUSTAINED_DRAIN_TIER = "CRIPPLING",
+    MELEE_DAMAGE_MULTIPLIER = 1.75,
+    MELEE_ATTACK_SPEED_MULTIPLIER = 1.50,
+    MOVEMENT_SPEED_MULTIPLIER = 1.35,
+    FIREARM_ACCURACY_BONUS = 30,
+    JUTSU_DAMAGE_MULTIPLIER = 1.75,
+    JUTSU_HEALING_MULTIPLIER = 1.75,
+}
+
+NinjaLineages.Balance.Jinchuuriki.Restraints = {
+    AdamantineChains = {
+        SEALING_POWER = 0.75,
+        RANGE_TIER = "LARGE",
+        DURATION_TIER = "STANDARD",
+    },
+    BindingRoots = {
+        SEALING_POWER = 0.30,
+        BIJUU_DURATION_MULTIPLIER = 2.0,
+        BIJUU_BASE_DAMAGE = 25.0,
+        BIJUU_DAMAGE_MULTIPLIER = 2.0,
+    },
+}
+
 NinjaLineages.Balance.Jinchuuriki.Discovery = {
     -- The health-bar presentation is the encounter sensor. The server still
     -- validates every claim against this upper bound and an exact live runtime.

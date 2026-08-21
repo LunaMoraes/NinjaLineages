@@ -259,6 +259,9 @@ local function updateToadCompanion(summon, player, actor, now)
                 local zed = entry.zombie
                 NinjaLineages.Utils.Combat.staggerZombie(zed, { knockdown = true, position = "FRONT" })
                 local dmg = Balance.rollDamage(tuning.DAMAGE_TIER)
+                if NinjaLineages.CombatModifiers then
+                    dmg = NinjaLineages.CombatModifiers.applyJutsuDamage(player, dmg)
+                end
                 NinjaLineages.Damage.applyZombieDamage(player, zed, dmg)
             end
 
@@ -299,6 +302,9 @@ local function updateSnakeCompanion(summon, player, actor, now)
 
             NinjaLineages.Utils.Combat.staggerZombie(target, { knockdown = false, position = "BEHIND" })
             local dmg = Balance.rollDamage(tuning.DAMAGE_TIER)
+            if NinjaLineages.CombatModifiers then
+                dmg = NinjaLineages.CombatModifiers.applyJutsuDamage(player, dmg)
+            end
             NinjaLineages.Damage.applyZombieDamage(player, target, dmg)
 
             local event = {
@@ -330,6 +336,9 @@ local function updateSnailCompanion(summon, player, actor, now)
     while now >= summon.nextActionGameMinutes do
         local healConfig = Balance.getHealing(tuning.HEALING_TIER)
         local healAmount = healConfig.health
+        if NinjaLineages.CombatModifiers then
+            healAmount = NinjaLineages.CombatModifiers.applyJutsuHealing(player, healAmount)
+        end
         local radius = Balance.getRadius(tuning.RADIUS_TIER)
         local ax, ay, az = actor:getX(), actor:getY(), math.floor(actor:getZ())
 

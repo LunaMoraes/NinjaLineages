@@ -4,6 +4,7 @@ require "NinjaLineages_Constants"
 require "NinjaLineages_AbilityAuthority"
 require "NinjaLineages_JutsuCatalog"
 require "disciplines/jinchuuriki/NinjaLineages_BijuuSealing"
+require "disciplines/jinchuuriki/NinjaLineages_BijuuBoss"
 require "NinjaLineages_RinneganMechanics"
 require "NinjaLineages_Utils"
 require "combat/NinjaLineages_Targeting"
@@ -48,7 +49,10 @@ local function validateCommit(player, definition, resolved)
 end
 
 local function commit(player, definition, resolved, cost)
-    if not NinjaLineages.Chakra.spendChakra(player, cost) then return false end
+    if not NinjaLineages.Chakra.spendChakra(player, cost, {
+            jutsuSpend = true,
+            abilityId = definition.id,
+        }) then return false end
     if resolved.cooldown and resolved.cooldown > 0 then
         NinjaLineages.Cooldowns.set(player, cooldownKey(definition), resolved.cooldown)
     end
@@ -73,13 +77,20 @@ local function projectedPoint(player, distance)
     return player:getX() + forward:getX() * distance, player:getY() + forward:getY() * distance
 end
 
-local function rollDamage(resolved)
+local function rollDamage(player, resolved)
     local damage = resolved.damage
     if not damage then return 0 end
-    if type(damage) == "number" then return damage end
-    if damage.tier then return Balance.rollDamage(damage.tier) end
-    local minimum, maximum = tonumber(damage.min) or 0, tonumber(damage.max) or 0
-    return minimum + ((ZombRand(0, 1001) / 1000) * (maximum - minimum))
+    local amount
+    if type(damage) == "number" then
+        amount = damage
+    elseif damage.tier then
+        amount = Balance.rollDamage(damage.tier)
+    else
+        local minimum, maximum = tonumber(damage.min) or 0, tonumber(damage.max) or 0
+        amount = minimum + ((ZombRand(0, 1001) / 1000) * (maximum - minimum))
+    end
+    return NinjaLineages.CombatModifiers
+        and NinjaLineages.CombatModifiers.applyJutsuDamage(player, amount) or amount
 end
 
 local function isZombieInRange(player, zombie, range)
@@ -133,7 +144,11 @@ local function executeGenericEffect(player, definition, resolved)
         if not part then return false, "no_wounds" end
         local values = {}
         for _, field in ipairs(effect.fields or {}) do
-            values[field] = field == "health" and resolved.healing.health or resolved.healing.wound
+            local amount = field == "health"
+                and resolved.healing.health or resolved.healing.wound
+            values[field] = NinjaLineages.CombatModifiers
+                and NinjaLineages.CombatModifiers.applyJutsuHealing(player, amount)
+                or amount
         end
         local changed = NinjaLineages.Utils.Healing.healPart(player:getBodyDamage(), part, values)
         if not changed then return false, "no_wounds" end
@@ -190,19 +205,26 @@ local function executeGenericEffect(player, definition, resolved)
             NinjaLineages.Utils.Combat.applyDamageAndControl(
                 player,
                 entry.zombie,
-                rollDamage(resolved),
+                rollDamage(player, resolved),
                 resolved.control.tier
             )
             count = count + 1
         end
     elseif effect.kind == "cell_stimulation" then
         local stats = player:getStats()
-        stats:set(CharacterStat.FATIGUE, math.max(0, stats:get(CharacterStat.FATIGUE) - resolved.healing.fatigue))
+        local fatigueHealing = NinjaLineages.CombatModifiers
+            and NinjaLineages.CombatModifiers.applyJutsuHealing(
+                player, resolved.healing.fatigue) or resolved.healing.fatigue
+        local painHealing = NinjaLineages.CombatModifiers
+            and NinjaLineages.CombatModifiers.applyJutsuHealing(
+                player, resolved.healing.pain) or resolved.healing.pain
+        stats:set(CharacterStat.FATIGUE,
+            math.max(0, stats:get(CharacterStat.FATIGUE) - fatigueHealing))
         local parts = player:getBodyDamage():getBodyParts()
         for i = 0, parts:size() - 1 do
             local part = parts:get(i)
             pcall(function()
-                part:setAdditionalPain(math.max(0, part:getAdditionalPain() - resolved.healing.pain))
+                part:setAdditionalPain(math.max(0, part:getAdditionalPain() - painHealing))
             end)
         end
     elseif effect.kind == "target_damage" then
@@ -211,7 +233,7 @@ local function executeGenericEffect(player, definition, resolved)
         NinjaLineages.Utils.Combat.applyDamageAndControl(
             player,
             target,
-            rollDamage(resolved),
+            rollDamage(player, resolved),
             resolved.control.tier
         )
     else
@@ -386,17 +408,25 @@ specializedExecutors.binding_roots = function(player, definition)
     local resolved = Catalog.resolveBalance(definition)
     local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
     if not valid then return false, reason, remaining end
+    if NinjaLineages.BijuuRestraintServer
+            and NinjaLineages.BijuuRestraintServer.applyBindingRootsToBijuu then
+        NinjaLineages.BijuuRestraintServer.applyBindingRootsToBijuu(player, resolved)
+    end
     for _, target in ipairs(NinjaLineages.Utils.Zombies.collectInRadius(player, resolved.radius)) do
-        NinjaLineages.Utils.Combat.staggerZombie(target.zombie, {
+        if not NinjaLineages.BijuuBoss.isBossProxy(target.zombie) then
+            NinjaLineages.Utils.Combat.staggerZombie(target.zombie, {
             knockdown = ZombRand(1, 101) <= (
                 target.distance <= resolved.innerRadius
                     and resolved.innerKnockdownChance
                     or resolved.outerKnockdownChance
             ),
             position = "FRONT",
-        })
-        boundZombies[target.zombie] = NinjaLineages.Utils.Time.gameMinutes()
-            + resolved.duration
+            })
+            NinjaLineages.AbilityAuthority.bindZombie(
+                target.zombie,
+                NinjaLineages.Utils.Time.gameMinutes() + resolved.duration,
+                { suppressAttacks = true })
+        end
     end
     commit(player, definition, resolved, cost)
     NinjaLineages.transmitPlayerData(player)
@@ -410,6 +440,20 @@ specializedExecutors.binding_roots = function(player, definition)
             z = math.floor(player:getZ()),
         },
     }
+end
+
+specializedExecutors.adamantine_sealing_chains = function(player, definition)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+    local server = NinjaLineages.BijuuRestraintServer
+    if not server or not server.executeAdamantineChains then return false, "server_error" end
+    local executed, executeReason, _, state = server.executeAdamantineChains(player, resolved)
+    if not executed then return false, executeReason end
+    if not commit(player, definition, resolved, cost) then return false, "chakra" end
+    return true, nil, nil, state
 end
 
 specializedExecutors.creation_rebirth = function(player, definition)
@@ -663,7 +707,7 @@ specializedExecutors.katon = function(player, definition)
         range = resolved.radius or config.range,
         minDot = config.minDot,
         durationGameMinutes = durationGameMinutes,
-        damageRoll = function() return rollDamage(resolved) end,
+        damageRoll = function() return rollDamage(player, resolved) end,
         controlTier = resolved.control and resolved.control.tier or nil,
         collisionMask = NinjaLineages.Collision.Masks.jutsu_projectile,
     })
@@ -726,7 +770,7 @@ local function launchChakraNeedleProjectile(player, definition, resolved, target
         speed = speed,
         maximumTravelDistance = resolved.targeting.range * tuning.MAX_TRAVEL_RANGE_MULTIPLIER,
         damagePayload = {
-            damage = rollDamage(resolved),
+            damage = rollDamage(player, resolved),
             controlTier = resolved.control and resolved.control.tier or nil,
         },
         collisionMask = NinjaLineages.Collision.Masks[
@@ -954,7 +998,10 @@ Authority.register("storage_seal", function(player, args)
             backpack, backpack:getContainer(), scrollInventory) then
         return false, "invalid_item"
     end
-    NinjaLineages.Chakra.spendChakra(player, cost)
+    NinjaLineages.Chakra.spendChakra(player, cost, {
+        jutsuSpend = true,
+        abilityId = "storage_seal",
+    })
     return true
 end)
 

@@ -236,7 +236,10 @@ function mechanics.execute(player)
     local valid, reason, remaining, cost = mechanics.validateCast(player, targets)
     if not valid then return false, reason, remaining end
 
-    NinjaLineages.Chakra.spendChakra(player, cost)
+    NinjaLineages.Chakra.spendChakra(player, cost, {
+        jutsuSpend = true,
+        abilityId = "shinra_tensei",
+    })
     local startedAt = NinjaLineages.Utils.Time.gameMinutes()
     for _, target in ipairs(targets) do
         beginPush(player, target, startedAt)

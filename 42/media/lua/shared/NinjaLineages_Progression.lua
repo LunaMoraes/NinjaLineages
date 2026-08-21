@@ -74,9 +74,13 @@ function Progression.getJinchuurikiData(player)
     if type(jinchuuriki.synchronization) ~= "table" then
         jinchuuriki.synchronization = {}
     end
-    if jinchuuriki.synchronization.completed == nil then
-        jinchuuriki.synchronization.completed = false
-    end
+    local synchronization = jinchuuriki.synchronization
+    if synchronization.completed == nil then synchronization.completed = false end
+    if synchronization.notified == nil then synchronization.notified = false end
+    synchronization.meditationMinutes = math.max(0,
+        tonumber(synchronization.meditationMinutes) or 0)
+    synchronization.chakraSpent = math.max(0,
+        tonumber(synchronization.chakraSpent) or 0)
     return jinchuuriki
 end
 
@@ -427,6 +431,160 @@ function Progression.isBijuuSynchronizationComplete(player)
     return jinchuuriki ~= nil
         and jinchuuriki.synchronization ~= nil
         and jinchuuriki.synchronization.completed == true
+end
+
+local function resetIncompleteBijuuSynchronization(synchronization, hostedBijuuId)
+    if synchronization.completed == true then return false end
+    local changed = synchronization.bijuuId ~= hostedBijuuId
+        or (synchronization.meditationMinutes or 0) ~= 0
+        or (synchronization.chakraSpent or 0) ~= 0
+        or synchronization.notified == true
+    synchronization.bijuuId = hostedBijuuId
+    synchronization.meditationMinutes = 0
+    synchronization.chakraSpent = 0
+    synchronization.notified = false
+    return changed
+end
+
+function Progression.onHostedBijuuChanged(player, oldBijuuId, newBijuuId)
+    if not player then return false end
+    local jinchuuriki = Progression.getJinchuurikiData(player)
+    local synchronization = jinchuuriki and jinchuuriki.synchronization
+    if not synchronization or synchronization.completed == true then return false end
+    if oldBijuuId == newBijuuId and synchronization.bijuuId == newBijuuId then
+        return false
+    end
+    return resetIncompleteBijuuSynchronization(synchronization, newBijuuId)
+end
+
+function Progression.resetIncompleteBijuuSynchronization(player)
+    local jinchuuriki = player and Progression.getJinchuurikiData(player) or nil
+    local synchronization = jinchuuriki and jinchuuriki.synchronization
+    if not synchronization or synchronization.completed == true then return false end
+    local hosted = jinchuuriki.hostedBijuuIds or {}
+    local changed = resetIncompleteBijuuSynchronization(synchronization, hosted[1])
+    if changed then NinjaLineages.transmitPlayerData(player) end
+    return changed
+end
+
+function Progression.getBijuuSynchronizationRequirement(player)
+    local jinchuuriki = player and Progression.getJinchuurikiData(player) or nil
+    local synchronization = jinchuuriki and jinchuuriki.synchronization or nil
+    local bijuuId = synchronization and synchronization.bijuuId or nil
+    local definition = bijuuId and NinjaLineages.BijuuDefinitions
+        and NinjaLineages.BijuuDefinitions.get(bijuuId) or nil
+    local tails = definition and definition.tails or 0
+    local config = Balance.Jinchuuriki.Synchronization
+    return {
+        bijuuId = bijuuId,
+        tails = tails,
+        meditationMinutes = config.MEDITATION_MINUTES,
+        chakra = config.CHAKRA_PER_TAIL * tails,
+    }
+end
+
+function Progression.recordBijuuSynchronizationChakra(player, actualAmount)
+    if not player or NinjaLineages.isClient() then return false end
+    local jinchuuriki = Progression.getJinchuurikiData(player)
+    local synchronization = jinchuuriki and jinchuuriki.synchronization
+    local hosted = jinchuuriki and jinchuuriki.hostedBijuuIds or {}
+    local hostedBijuuId = hosted[1]
+    if not synchronization or synchronization.completed == true or not hostedBijuuId then
+        return false
+    end
+    if synchronization.bijuuId ~= hostedBijuuId then
+        resetIncompleteBijuuSynchronization(synchronization, hostedBijuuId)
+    end
+    local amount = math.max(0, tonumber(actualAmount) or 0)
+    if amount <= 0 then return false end
+    synchronization.chakraSpent = (synchronization.chakraSpent or 0) + amount
+    Progression.checkAndNotifyBijuuSynchronization(player)
+    NinjaLineages.transmitPlayerData(player)
+    return true
+end
+
+function Progression.updateBijuuSynchronization(player, hostedBijuuId, elapsedGameMinutes)
+    if not player or NinjaLineages.isClient() then return false end
+    local jinchuuriki = Progression.getJinchuurikiData(player)
+    local synchronization = jinchuuriki and jinchuuriki.synchronization
+    if not synchronization or synchronization.completed == true then return false end
+    if synchronization.bijuuId ~= hostedBijuuId then
+        local changed = resetIncompleteBijuuSynchronization(synchronization, hostedBijuuId)
+        if changed then NinjaLineages.transmitPlayerData(player) end
+    end
+    if not hostedBijuuId or player:isDead() then return false end
+    local data = NinjaLineages.getNLData(player)
+    if not data or data.isMeditating ~= true then return false end
+    local elapsed = math.max(0, tonumber(elapsedGameMinutes) or 0)
+    if elapsed <= 0 then return false end
+    local multiplier = Progression.isCompleted(player, "nature_chakra_manipulation")
+        and Balance.Jinchuuriki.Synchronization.SAGE_MEDITATION_MULTIPLIER or 1.0
+    synchronization.meditationMinutes = (synchronization.meditationMinutes or 0)
+        + elapsed * multiplier
+    local completed = Progression.checkAndNotifyBijuuSynchronization(player)
+    return true, completed
+end
+
+function Progression.checkAndNotifyBijuuSynchronization(player)
+    if not player then return false end
+    local jinchuuriki = Progression.getJinchuurikiData(player)
+    local synchronization = jinchuuriki and jinchuuriki.synchronization
+    if not synchronization or synchronization.completed == true then return false end
+    local requirement = Progression.getBijuuSynchronizationRequirement(player)
+    if not requirement.bijuuId or requirement.tails <= 0 then return false end
+    if (synchronization.meditationMinutes or 0) < requirement.meditationMinutes
+            or (synchronization.chakraSpent or 0) < requirement.chakra then
+        return false
+    end
+    synchronization.completed = true
+    synchronization.notified = true
+    NinjaLineages.transmitPlayerData(player)
+    if NinjaLineages.isServer and NinjaLineages.isServer() then
+        sendServerCommand(player, "NinjaLineages", "geneExperimentationMessage", {
+            textKey = "UI_NL_BijuuSynchronization_Complete",
+        })
+    elseif player.Say then
+        player:Say(getText("UI_NL_BijuuSynchronization_Complete"))
+    end
+    return true
+end
+
+function Progression.debugUnlockAllJinchuuriki(player)
+    if not player or NinjaLineages.isClient() then return false, "client_unauthorized" end
+    local state = getState(player)
+    local data = NinjaLineages.getNLData(player)
+    local jinchuuriki = Progression.getJinchuurikiData(player)
+    if not state or not data or not jinchuuriki then return false, "invalid_player" end
+
+    jinchuuriki.discovered = true
+    local synchronization = jinchuuriki.synchronization
+    synchronization.completed = true
+    synchronization.notified = true
+    local config = Balance.Jinchuuriki.Synchronization
+    synchronization.meditationMinutes = config.MEDITATION_MINUTES
+    local hostedId = jinchuuriki.hostedBijuuIds and jinchuuriki.hostedBijuuIds[1] or nil
+    synchronization.bijuuId = hostedId
+    local definition = hostedId and NinjaLineages.BijuuDefinitions
+        and NinjaLineages.BijuuDefinitions.get(hostedId) or nil
+    synchronization.chakraSpent = config.CHAKRA_PER_TAIL
+        * (definition and definition.tails or 9)
+
+    state.nodes.four_symbols_seal = "completed"
+    for _, nodeId in ipairs({
+        "bijuu_chakra_recognition",
+        "containment_technique",
+        "tailed_beast_locator",
+        "seal_reinforcement",
+        "bijuu_extraction_transfer",
+        "tailed_beast_chakra",
+        "chakra_cloak",
+    }) do
+        state.nodes[nodeId] = "completed"
+    end
+    Progression.refreshJinchuurikiDiscipline(player)
+    NinjaLineages.transmitPlayerData(player)
+    refreshSocialProgressionSummary(player)
+    return true, "ok"
 end
 
 function Progression.checkAndNotifySageTrial(player)
