@@ -22,6 +22,7 @@ require "NinjaLineages_GeneExperimentationClient"
 require "NinjaLineages_BloodTransfusionClient"
 require "NinjaLineages_ZombieNinjaClient"
 require "disciplines/jinchuuriki/NinjaLineages_BijuuState"
+require "jinchuuriki/NinjaLineages_JinchuurikiPanel"
 require "NinjaLineages_VFX"
 
 -- Load modular lineages (dynamic registries)

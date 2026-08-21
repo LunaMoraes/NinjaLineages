@@ -1,9 +1,20 @@
 require "NinjaLineages_Progression"
 require "NinjaLineages_Balance"
 require "NinjaLineages_Utils"
+require "disciplines/jinchuuriki/NinjaLineages_BijuuDefinitions"
+require "disciplines/jinchuuriki/NinjaLineages_BijuuState"
+require "jinchuuriki/NinjaLineages_BijuuRegistryServer"
+require "jinchuuriki/NinjaLineages_BijuuBossServer"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.ProgressionServer = NinjaLineages.ProgressionServer or {}
+
+local ProgressionServer = NinjaLineages.ProgressionServer
+local Progression = NinjaLineages.Progression
+local Definitions = NinjaLineages.BijuuDefinitions
+local BijuuState = NinjaLineages.BijuuState
+local Registry = NinjaLineages.BijuuRegistryServer
+local BossServer = NinjaLineages.BijuuBossServer
 
 local function sendState(player, command, payload)
     sendServerCommand(player, "NinjaLineages", command, payload or {})
@@ -27,6 +38,136 @@ local function canUseDebugCommands(player)
 
     local ok, accessLevel = pcall(function() return player:getAccessLevel() end)
     return ok and string.lower(tostring(accessLevel or "")) == "admin"
+end
+
+local function isEncounterState(state)
+    return state == BijuuState.WILD_ACTIVE
+        or state == BijuuState.BOSS_ACTIVE
+        or state == BijuuState.SEALING
+end
+
+local function distanceTo(player, x, y, z)
+    if not player or type(x) ~= "number" or type(y) ~= "number" then return nil end
+    local playerZ = player:getZ()
+    if type(z) == "number" and math.abs(playerZ - z) >= 1.5 then return nil end
+    local dx, dy = player:getX() - x, player:getY() - y
+    return math.sqrt(dx * dx + dy * dy)
+end
+
+function ProgressionServer.tryDiscoverJinchuuriki(player, args)
+    if not NinjaLineages.Utils.isLivePlayer(player) then return false, "invalid_player" end
+
+    local bijuuId = args and args.bijuuId
+    local runtimeId = args and args.runtimeId
+    if not Definitions.isValidId(bijuuId) or type(runtimeId) ~= "string" then
+        return false, "invalid_encounter"
+    end
+
+    local state = Registry.getBijuuState(bijuuId)
+    if not isEncounterState(state) then return false, "inactive_bijuu" end
+
+    local runtime = BossServer.getActiveBossSnapshot(bijuuId)
+    if not runtime or runtime.runtimeId ~= runtimeId then
+        return false, "runtime_mismatch"
+    end
+
+    local radius = NinjaLineages.Balance.Jinchuuriki.Discovery.RADIUS
+    local distance = distanceTo(player, runtime.x, runtime.y, runtime.z)
+    if not distance or distance > radius then return false, "out_of_range" end
+
+    local jinchuuriki = Progression.getJinchuurikiData(player)
+    if not jinchuuriki then return false, "missing_player_data" end
+    if jinchuuriki.discovered == true then
+        local changed = Progression.refreshJinchuurikiDiscipline(player)
+        if changed then NinjaLineages.transmitPlayerData(player) end
+        return true, "already_discovered", false
+    end
+
+    jinchuuriki.discovered = true
+    local _, _, unlocked = Progression.refreshJinchuurikiDiscipline(player)
+    NinjaLineages.transmitPlayerData(player)
+    notifyPlayer(player, unlocked
+        and "UI_NL_Jinchuuriki_DiscoveredUnlocked"
+        or "UI_NL_Jinchuuriki_SealingRequired")
+    return true, "discovered", true
+end
+
+local function locatorStatus(state)
+    if state == BijuuState.SEALED_VESSEL or state == BijuuState.SEALED_PLAYER then
+        return "sealed"
+    elseif state == BijuuState.RESPAWNING then
+        return "unknown"
+    end
+    return "unavailable"
+end
+
+local function validWorldPosition(world)
+    return type(world) == "table"
+        and type(world.x) == "number" and world.x == world.x
+        and type(world.y) == "number" and world.y == world.y
+        and (world.z == nil or (type(world.z) == "number" and world.z == world.z))
+end
+
+function ProgressionServer.getBijuuLocatorSnapshot(player)
+    if not NinjaLineages.Utils.isLivePlayer(player) then return nil, "invalid_player" end
+    if not Progression.isCompleted(player, "tailed_beast_locator") then
+        return nil, "locator_locked"
+    end
+
+    local entries = {}
+    for _, bijuuId in ipairs(Definitions.Order) do
+        local definition = Definitions.get(bijuuId)
+        local record = Registry.getRecord(bijuuId)
+        local state = record and record.state
+        local entry = {
+            bijuuId = bijuuId,
+            tails = definition.tails,
+            status = locatorStatus(state),
+        }
+
+        if state == BijuuState.WILD_DORMANT and validWorldPosition(record.world) then
+            entry.status = "trackable"
+            entry.x, entry.y, entry.z = record.world.x, record.world.y, record.world.z or 0
+        elseif isEncounterState(state) then
+            local runtime = BossServer.getActiveBossSnapshot(bijuuId)
+            if runtime and validWorldPosition(runtime) then
+                entry.status = "trackable"
+                entry.x, entry.y, entry.z = runtime.x, runtime.y, runtime.z or 0
+            else
+                entry.status = "unknown"
+            end
+        end
+        table.insert(entries, entry)
+    end
+
+    return {
+        generatedAtGameMinutes = NinjaLineages.Utils.Time.gameMinutes(),
+        entries = entries,
+    }, "ok"
+end
+
+local function handleJinchuurikiDiscovery(player, args)
+    local ok, reason, discovered = ProgressionServer.tryDiscoverJinchuuriki(player, args)
+    sendState(player, "jinchuurikiDiscoveryResult", {
+        ok = ok == true,
+        reason = reason,
+        discovered = discovered == true,
+        bijuuId = args and args.bijuuId,
+        runtimeId = args and args.runtimeId,
+        playerOnlineId = player.getOnlineID and player:getOnlineID() or -1,
+    })
+    if ok then sendState(player, "progressionUpdated") end
+end
+
+local function handleBijuuLocatorRequest(player)
+    local snapshot, reason = ProgressionServer.getBijuuLocatorSnapshot(player)
+    sendState(player, "bijuuLocatorSnapshot", {
+        ok = snapshot ~= nil,
+        reason = reason,
+        playerOnlineId = player.getOnlineID and player:getOnlineID() or -1,
+        generatedAtGameMinutes = snapshot and snapshot.generatedAtGameMinutes or nil,
+        entries = snapshot and snapshot.entries or {},
+    })
 end
 
 local function handleAward(player, args)
@@ -244,6 +385,10 @@ local function onClientCommand(module, command, player, args)
         handleDebugCompleteCoreTrees(player)
     elseif command == "debugLearnSenninMode" then
         handleDebugLearnSenninMode(player)
+    elseif command == "claimJinchuurikiDiscovery" then
+        handleJinchuurikiDiscovery(player, args)
+    elseif command == "requestBijuuLocator" then
+        handleBijuuLocatorRequest(player)
     end
 end
 

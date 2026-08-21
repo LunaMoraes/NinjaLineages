@@ -1,5 +1,6 @@
 require "NinjaLineages_Balance"
 require "NinjaLineages_Utils"
+require "NinjaLineages_Progression"
 require "jinchuuriki/NinjaLineages_BijuuRenderer"
 
 NinjaLineages = NinjaLineages or {}
@@ -11,6 +12,7 @@ local MAX_WIDTH = 720
 local VIEWPORT_WIDTH_FACTOR = 0.58
 local TRAIL_DRAIN_PER_SECOND = 0.28
 local playerStates = {}
+local discoveryClaims = {}
 
 local function clamp01(value)
     return math.max(0, math.min(1, tonumber(value) or 0))
@@ -31,6 +33,35 @@ local function nearestBoss(player)
         player,
         sealing.RITUAL_RADIUS or 50.0
     )
+end
+
+local function claimDiscoveryIfNeeded(playerNum, player, shell)
+    local jinchuuriki = NinjaLineages.Progression.getJinchuurikiData(player)
+    if not jinchuuriki or jinchuuriki.discovered == true then
+        discoveryClaims[playerNum] = nil
+        return
+    end
+
+    local now = NinjaLineages.Utils.Time.realMilliseconds()
+    local pending = discoveryClaims[playerNum]
+    if pending and pending.runtimeId == shell.runtimeId and pending.accepted == true then return end
+    if pending and pending.runtimeId == shell.runtimeId and now - pending.sentAt < 5000 then
+        return
+    end
+    discoveryClaims[playerNum] = {
+        runtimeId = shell.runtimeId,
+        playerOnlineId = player.getOnlineID and player:getOnlineID() or -1,
+        sentAt = now,
+    }
+
+    local args = { bijuuId = shell.bijuuId, runtimeId = shell.runtimeId }
+    if NinjaLineages.isClient and NinjaLineages.isClient() then
+        sendClientCommand(player, "NinjaLineages", "claimJinchuurikiDiscovery", args)
+    elseif NinjaLineages.ProgressionServer
+            and NinjaLineages.ProgressionServer.tryDiscoverJinchuuriki then
+        NinjaLineages.ProgressionServer.tryDiscoverJinchuuriki(player, args)
+        discoveryClaims[playerNum] = nil
+    end
 end
 
 local function updateState(playerNum, shell)
@@ -77,6 +108,7 @@ local function drawBarForPlayer(renderer, textManager, playerNum, player)
     end
     local state = updateState(playerNum, shell)
     if not state then return end
+    claimDiscoveryIfNeeded(playerNum, player, shell)
 
     local screenLeft = getPlayerScreenLeft(playerNum)
     local screenTop = getPlayerScreenTop(playerNum)
@@ -133,6 +165,22 @@ local function drawBarForPlayer(renderer, textManager, playerNum, player)
     end
 end
 
+local function onServerCommand(module, command, args)
+    if module ~= "NinjaLineages" or command ~= "jinchuurikiDiscoveryResult" then return end
+    for playerNum, pending in pairs(discoveryClaims) do
+        local sameRuntime = not args or not args.runtimeId or pending.runtimeId == args.runtimeId
+        local samePlayer = not args or args.playerOnlineId == nil
+            or pending.playerOnlineId == args.playerOnlineId
+        if sameRuntime and samePlayer then
+            if args and args.ok == true then
+                pending.accepted = true
+            else
+                discoveryClaims[playerNum] = nil
+            end
+        end
+    end
+end
+
 local function drawBossHealthBars()
     local renderer = getRenderer and getRenderer()
     local textManager = getTextManager and getTextManager()
@@ -150,5 +198,14 @@ if Events and Events.OnPostUIDraw then
         "client.bijuuBossHealthBar.onPostUIDraw",
         Events.OnPostUIDraw,
         drawBossHealthBars
+    )
+end
+
+
+if Events and Events.OnServerCommand then
+    NinjaLineages.addEventOnce(
+        "client.bijuuBossHealthBar.onServerCommand",
+        Events.OnServerCommand,
+        onServerCommand
     )
 end

@@ -62,6 +62,45 @@ function Progression.getState(player)
     return getState(player)
 end
 
+function Progression.getJinchuurikiData(player)
+    local data = NinjaLineages.getNLData(player)
+    if not data then return nil end
+
+    if type(data.jinchuuriki) ~= "table" then data.jinchuuriki = {} end
+    local jinchuuriki = data.jinchuuriki
+    if type(jinchuuriki.hostedBijuuIds) ~= "table" then
+        jinchuuriki.hostedBijuuIds = {}
+    end
+    if type(jinchuuriki.synchronization) ~= "table" then
+        jinchuuriki.synchronization = {}
+    end
+    if jinchuuriki.synchronization.completed == nil then
+        jinchuuriki.synchronization.completed = false
+    end
+    return jinchuuriki
+end
+
+function Progression.refreshJinchuurikiDiscipline(player)
+    if not player or NinjaLineages.isClient() then return false end
+    local data = NinjaLineages.getNLData(player)
+    local jinchuuriki = Progression.getJinchuurikiData(player)
+    if not data or not jinchuuriki then return false end
+
+    data.visibleDisciplines = data.visibleDisciplines or {}
+    data.unlockedDisciplines = data.unlockedDisciplines or {}
+
+    local discovered = jinchuuriki.discovered == true
+    local unlocked = discovered and Progression.isCompleted(player, "four_symbols_seal")
+    local oldVisible = data.visibleDisciplines.jinchuuriki == true
+    local oldUnlocked = data.unlockedDisciplines.jinchuuriki == true
+
+    data.visibleDisciplines.jinchuuriki = discovered and true or nil
+    data.unlockedDisciplines.jinchuuriki = unlocked and true or nil
+
+    local changed = oldVisible ~= discovered or oldUnlocked ~= unlocked
+    return changed, discovered, unlocked
+end
+
 function Progression.getNinjaXP(player)
     return getState(player).ninjaXP or 0
 end
@@ -382,6 +421,14 @@ function Progression.isSageTrialComplete(player)
     return false
 end
 
+function Progression.isBijuuSynchronizationComplete(player)
+    if not player then return false end
+    local jinchuuriki = Progression.getJinchuurikiData(player)
+    return jinchuuriki ~= nil
+        and jinchuuriki.synchronization ~= nil
+        and jinchuuriki.synchronization.completed == true
+end
+
 function Progression.checkAndNotifySageTrial(player)
     if not player then return false end
     local data = NinjaLineages.getNLData(player)
@@ -414,12 +461,20 @@ function Progression.arePrerequisitesComplete(player, definition)
     for _, prerequisite in ipairs(definition.prerequisites or {}) do
         if not Progression.isCompleted(player, prerequisite) then return false end
     end
+
+    if definition.id == "tailed_beast_chakra" or definition.id == "chakra_cloak" then
+        return Progression.isBijuuSynchronizationComplete(player)
+    end
     return true
 end
 
 function Progression.getNodeState(player, nodeId)
     local definition = Trees.getNode(nodeId)
     if not definition then return "invalid" end
+
+    if Progression.isDisciplineLocked(player, definition.discipline) then
+        return "locked"
+    end
     local stored = getState(player).nodes[nodeId]
     if stored then return stored end
 
@@ -523,6 +578,9 @@ function Progression.unlockNode(player, nodeId, bypass)
     else
         state.nodes[nodeId] = "unlocked"
     end
+    if nodeId == "four_symbols_seal" then
+        Progression.refreshJinchuurikiDiscipline(player)
+    end
     NinjaLineages.transmitPlayerData(player)
     refreshSocialProgressionSummary(player)
     return true
@@ -553,6 +611,10 @@ function Progression.completeTraining(player, nodeId, item)
                 end
             end
         end
+    end
+
+    if nodeId == "four_symbols_seal" then
+        Progression.refreshJinchuurikiDiscipline(player)
     end
     
     NinjaLineages.transmitPlayerData(player)

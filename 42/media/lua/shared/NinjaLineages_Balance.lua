@@ -642,6 +642,14 @@ end
 
 NinjaLineages.Balance.Jinchuuriki = NinjaLineages.Balance.Jinchuuriki or {}
 
+NinjaLineages.Balance.Jinchuuriki.MAX_HOSTED_BIJUU = 1
+
+NinjaLineages.Balance.Jinchuuriki.Discovery = {
+    -- The health-bar presentation is the encounter sensor. The server still
+    -- validates every claim against this upper bound and an exact live runtime.
+    RADIUS = 50.0,
+}
+
 NinjaLineages.Balance.Jinchuuriki.Sealing = {
     BASIC_VESSEL_POWER = 1.0,
     ACQUISITION_RADIUS = 50.0,

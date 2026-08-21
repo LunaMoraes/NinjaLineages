@@ -8,6 +8,7 @@ require "NinjaLineages_Utils"
 require "NinjaLineages_Traits"
 require "NinjaLineages_Balance"
 require "disciplines/medicine/NinjaLineages_MedicineUtils"
+require "jinchuuriki/NinjaLineages_JinchuurikiPanel"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.ExperimentalSurgeryClient = NinjaLineages.ExperimentalSurgeryClient or {}
@@ -692,12 +693,24 @@ function ISHealthPanel:createChildren()
     self.nlEyePanelBtn:initialise()
     self.nlEyePanelBtn:instantiate()
     self:addChild(self.nlEyePanelBtn)
+
+    self.nlJinchuurikiPanelBtn = ISButton:new(btnX, btnY + btnH + 4, btnW, btnH,
+        getText("UI_NL_Jinchuuriki_PanelButton"), self, function(healthPanel)
+            NinjaLineages.JinchuurikiPanel.openPanel(healthPanel.character)
+        end)
+    self.nlJinchuurikiPanelBtn.internal = "NL_JINCHUURIKI_PANEL"
+    self.nlJinchuurikiPanelBtn.anchorTop = false
+    self.nlJinchuurikiPanelBtn.anchorBottom = true
+    self.nlJinchuurikiPanelBtn:initialise()
+    self.nlJinchuurikiPanelBtn:instantiate()
+    self:addChild(self.nlJinchuurikiPanelBtn)
 end
 
 function ISHealthPanel:render()
     if self.otherPlayer then
         self.fitness:setVisible(false)
         if self.nlEyePanelBtn then self.nlEyePanelBtn:setVisible(false) end
+        if self.nlJinchuurikiPanelBtn then self.nlJinchuurikiPanelBtn:setVisible(false) end
     end
 
     local fontHgt = getFontHgtSmall()
@@ -724,6 +737,20 @@ function ISHealthPanel:render()
         y = self.nlEyePanelBtn:getY() + self.nlEyePanelBtn:getHeight() + 6
     else
         y = y + spacing + fontHgt + 6
+    end
+
+    if self.nlJinchuurikiPanelBtn and not self.otherPlayer then
+        local showJinchuuriki = NinjaLineages.Progression.isDisciplineVisible(self.character, "jinchuuriki")
+            and not NinjaLineages.Progression.isDisciplineLocked(self.character, "jinchuuriki")
+        self.nlJinchuurikiPanelBtn:setVisible(showJinchuuriki)
+        if showJinchuuriki then
+            self.nlJinchuurikiPanelBtn:setX(self.fitness:getX())
+            self.nlJinchuurikiPanelBtn:setY(y)
+            self.nlJinchuurikiPanelBtn:setWidth(self.fitness:getWidth())
+            self.nlJinchuurikiPanelBtn.enable = true
+            self.nlJinchuurikiPanelBtn.tooltip = nil
+            y = self.nlJinchuurikiPanelBtn:getY() + self.nlJinchuurikiPanelBtn:getHeight() + 6
+        end
     end
 
     self:drawText(getText("IGUI_health_Overall_Body_Status"), self.healthPanel:getRight() + spacing, y, 1.0, 1.0, 1.0, 1.0, UIFont.Small)
@@ -815,6 +842,9 @@ function ISHealthPanel:update()
 
         local fontHgt = getFontHgtSmall()
         local extraH = (self.nlEyePanelBtn and self.nlEyePanelBtn:isVisible() and not self.otherPlayer) and (self.nlEyePanelBtn:getHeight() + 6) or 0
+        if self.nlJinchuurikiPanelBtn and self.nlJinchuurikiPanelBtn:isVisible() and not self.otherPlayer then
+            extraH = extraH + self.nlJinchuurikiPanelBtn:getHeight() + 6
+        end
         local totalH = math.max(self.healthPanel:getBottom(), self.allTextHeight or 0) + fontHgt + UI_BORDER_SPACING * 2 + extraH
         self:setHeightAndParentHeight(totalH)
 

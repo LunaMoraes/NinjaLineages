@@ -70,6 +70,7 @@ Catalog.Disciplines = {
     jinchuuriki = {
         name = "UI_NL_Discipline_Jinchuuriki",
         description = "UI_NL_Discipline_Jinchuuriki_Desc",
+        lockedDescription = "UI_NL_Jinchuuriki_SealingRequired",
         card = "media/ui/jutsuTree/cards/jinchuriki.png",
         locked = true,
         hidden = true,
@@ -411,6 +412,20 @@ Catalog.Definitions = {
         balance = { cost = "ULTIMATE", cooldown = "VERY_LONG" },
         executor = "tailed_beast_sealing",
     },
+
+    node("bijuu_chakra_recognition", "jinchuuriki", "GENIN", 10, nil, "passive"),
+    node("containment_technique", "jinchuuriki", "GENIN", 20,
+        { "bijuu_chakra_recognition" }, "passive"),
+    node("tailed_beast_locator", "jinchuuriki", "CHUNIN", 10,
+        { "bijuu_chakra_recognition" }, "passive"),
+    node("seal_reinforcement", "jinchuuriki", "CHUNIN", 20,
+        { "containment_technique" }, "passive"),
+    node("bijuu_extraction_transfer", "jinchuuriki", "CHUNIN", 30,
+        { "containment_technique" }, "passive"),
+    node("tailed_beast_chakra", "jinchuuriki", "JONIN", 10,
+        { "tailed_beast_locator", "seal_reinforcement", "bijuu_extraction_transfer" }, "passive"),
+    node("chakra_cloak", "jinchuuriki", "JONIN", 20,
+        { "tailed_beast_chakra" }, "passive"),
 
     {
         id = "sharingan",
