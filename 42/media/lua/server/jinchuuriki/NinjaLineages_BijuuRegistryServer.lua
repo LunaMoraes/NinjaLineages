@@ -28,7 +28,9 @@ local allowedTransitions = {
     },
     [BijuuState.BOSS_ACTIVE] = {
         [BijuuState.HOST_POOL] = true,
+        [BijuuState.RESPAWNING] = true,
         [BijuuState.SEALING] = true,
+        [BijuuState.SEALED_VESSEL] = true,
     },
     [BijuuState.RESPAWNING] = {
         [BijuuState.WILD_DORMANT] = true,
@@ -40,7 +42,9 @@ local allowedTransitions = {
         [BijuuState.SEALED_PLAYER] = true,
     },
     [BijuuState.SEALED_VESSEL] = {
-        [BijuuState.SEALING] = true,
+        [BijuuState.BOSS_ACTIVE] = true,
+        [BijuuState.HOST_POOL] = true,
+        [BijuuState.RESPAWNING] = true,
     },
     [BijuuState.SEALED_PLAYER] = {
         [BijuuState.SEALING] = true,
@@ -52,8 +56,13 @@ local function log(message)
 end
 
 local migrations = {
-    -- Future migrations will be placed here:
-    -- [2] = function(persistedState) ... end
+    [2] = function(persistedState)
+        for _, record in pairs(persistedState.bijuu or {}) do
+            if record.sealing ~= nil and type(record.sealing) ~= "table" then
+                record.sealing = nil
+            end
+        end
+    end,
 }
 
 function Server.normalize()
@@ -96,6 +105,7 @@ function Server.normalize()
                 world = nil,
                 host = nil,
                 vessel = nil,
+                sealing = nil,
             }
             log("repaired missing record=" .. tostring(id) .. " state=" .. tostring(initState))
         else
@@ -247,6 +257,10 @@ function Server.dumpRegistry()
             if rec.vessel then
                 details = details .. " vessel=" .. tostring(rec.vessel.token)
             end
+            if rec.sealing then
+                details = details .. " sealingSource=" .. tostring(rec.sealing.sourceState)
+                    .. " runtime=" .. tostring(rec.sealing.runtimeId)
+            end
             log(tostring(id) .. " state=" .. tostring(rec.state) .. details)
         else
             log(tostring(id) .. " MISSING")
@@ -275,6 +289,7 @@ function Server.resetRegistryDebug(force)
             world = nil,
             host = nil,
             vessel = nil,
+            sealing = nil,
         }
     end
     log("reset registry to canonical initial state (9 bijuu)")

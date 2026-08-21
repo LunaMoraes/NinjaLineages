@@ -86,9 +86,26 @@ function Renderer.addSealingRitual(payload)
         vesselZ = tonumber(payload.vesselZ) or 0,
         ritualRadius = math.max(0, tonumber(payload.ritualRadius) or 0),
         progress = math.max(0, math.min(100, tonumber(payload.progress) or 0)),
+        restraintStrength = math.max(0, tonumber(payload.restraintStrength) or 0),
+        progressRate = math.max(0, tonumber(payload.progressRate) or 0),
         startedAtGameMinutes = tonumber(payload.startedAtGameMinutes) or nowGameMinutes(),
         color = Boss.getThemeColor(payload.bijuuId),
     }
+end
+
+function Renderer.updateSealingRitual(payload)
+    if not payload or not payload.ritualId then return end
+    local ritual = activeRituals[payload.ritualId]
+    if not ritual or ritual.bijuuId ~= payload.bijuuId
+            or ritual.bijuuRuntimeId ~= payload.bijuuRuntimeId then return end
+    ritual.progress = math.max(ritual.progress,
+        math.max(0, math.min(100, tonumber(payload.progress) or ritual.progress)))
+    ritual.restraintStrength = math.max(0,
+        tonumber(payload.restraintStrength) or ritual.restraintStrength)
+    ritual.vesselPower = math.max(0,
+        tonumber(payload.vesselPower) or ritual.vesselPower)
+    ritual.progressRate = math.max(0,
+        tonumber(payload.progressRate) or ritual.progressRate)
 end
 
 function Renderer.removeSealingRitual(payload)
@@ -119,6 +136,8 @@ local function shellView(shell, distance)
             ritualId = ritual.ritualId,
             progress = ritual.progress,
             vesselPower = ritual.vesselPower,
+            restraintStrength = ritual.restraintStrength,
+            progressRate = ritual.progressRate,
         } or nil,
     }
 end
@@ -345,7 +364,10 @@ local function drawBeast(shell, time)
     local color = cfg.color or { r = 1.0, g = 0.5, b = 0.1 }
     local fx, fy, sx, sy = normalizedFacing(shell)
     local pulse = 0.94 + math.sin(time * 72.0) * 0.04
-    local alpha = 0.72 * pulse
+    local ritual = ritualForRuntime(shell.runtimeId)
+    local sealingProgress = ritual and math.max(0, math.min(1, ritual.progress / 100)) or 0
+    local sealingFade = 1 - sealingProgress * 0.78
+    local alpha = 0.72 * pulse * sealingFade
     local quality = nearestLocalPlayerDistance(x, y, z) <= 26.0 and "near" or "far"
     local breathe = math.sin(time * 42.0) * 0.035
 
@@ -442,14 +464,14 @@ local function drawBeast(shell, time)
             eyeX + fx * 0.08 + sx * eyeSide * 0.05, eyeY + fy * 0.08 + sy * eyeSide * 0.05,
             headZ + bodyHeight * 0.04, 4.0,
             math.min(1, color.r + 0.28), math.min(1, color.g + 0.24),
-            math.min(1, color.b + 0.18), 1.0)
+            math.min(1, color.b + 0.18), sealingFade)
     end
     line(muzzleX + sx * bodyWidth * 0.17, muzzleY + sy * bodyWidth * 0.17,
         headZ - bodyHeight * 0.25,
         muzzleX - sx * bodyWidth * 0.17, muzzleY - sy * bodyWidth * 0.17,
         headZ - bodyHeight * 0.25, 3.0,
         math.max(0.08, color.r * 0.24), math.max(0.04, color.g * 0.18),
-        math.max(0.03, color.b * 0.14), 0.92)
+        math.max(0.03, color.b * 0.14), 0.92 * sealingFade)
 
     local tails = math.max(1, math.min(9, tonumber(cfg.tails) or 1))
     local rearAngle = (math.atan2 or math.atan)(-fy, -fx)
@@ -573,6 +595,40 @@ local function drawSealingRitual(ritual, time)
             ritual.ritualRadius, 96, 1.25,
             color.r, color.g, color.b, 0.12 + pulse * 0.05)
     end
+
+    local shell = activeShells[ritual.bijuuRuntimeId]
+    if shell then
+        updateShellAnchor(shell)
+        local progress = math.max(0, math.min(1, ritual.progress / 100))
+        local streamCount = 5
+        local streamAlpha = 0.20 + progress * 0.34
+        local streamHeight = 0.72 + ((shell.config and shell.config.visualHeight) or 1.0) * 0.45
+        for streamIndex = 1, streamCount do
+            local phase = time * 54.0 + streamIndex * 1.37
+            local offsetX = math.cos(phase) * (0.28 + streamIndex * 0.055)
+            local offsetY = math.sin(phase) * (0.28 + streamIndex * 0.055)
+            local startX = shell.lastKnownX + offsetX
+            local startY = shell.lastKnownY + offsetY
+            local startZ = shell.lastKnownZ + streamHeight
+                + math.sin(phase * 0.73) * 0.16
+            local previousX, previousY, previousZ = startX, startY, startZ
+            local segments = 8
+            for segment = 1, segments do
+                local amount = segment / segments
+                local arc = math.sin(amount * math.pi)
+                local curl = math.sin(phase + amount * math.pi * 2) * 0.14 * arc
+                local nextX = startX + (ritual.vesselX - startX) * amount + offsetY * curl
+                local nextY = startY + (ritual.vesselY - startY) * amount - offsetX * curl
+                local nextZ = startZ + (ritual.vesselZ + 0.10 - startZ) * amount
+                    + arc * (0.24 + progress * 0.22)
+                line(previousX, previousY, previousZ, nextX, nextY, nextZ,
+                    3.2 + progress * 2.1,
+                    math.min(1, color.r + 0.16), math.min(1, color.g + 0.16),
+                    math.min(1, color.b + 0.16), streamAlpha)
+                previousX, previousY, previousZ = nextX, nextY, nextZ
+            end
+        end
+    end
 end
 
 function Renderer.renderAll(time)
@@ -667,6 +723,8 @@ Authority.registerEventHandler("bijuu_telegraph_ended", Renderer.removeTelegraph
 Authority.registerEventHandler("bijuu_active_shells", Renderer.replaceShells)
 Authority.registerEventHandler("bijuu_sealing_started", Renderer.addSealingRitual)
 Authority.registerEventHandler("bijuu_sealing_cancelled", Renderer.removeSealingRitual)
+Authority.registerEventHandler("bijuu_sealing_progress", Renderer.updateSealingRitual)
+Authority.registerEventHandler("bijuu_sealing_completed", Renderer.removeSealingRitual)
 
 if Events and Events.OnWeaponSwing then
     NinjaLineages.addEventOnce("client.bijuuRenderer.onWeaponSwing", Events.OnWeaponSwing, onWeaponSwing)

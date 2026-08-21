@@ -82,6 +82,7 @@
     "UI_NL_Error_NoBijuuNearby": "There are no tailed beasts to capture here.",
     "UI_NL_Error_BijuuAlreadyReserved": "Another sealing ritual is already targeting this tailed beast.",
     "UI_NL_Error_SealingVesselPlacement": "The sealing vessel could not be placed here.",
+    "UI_NL_Error_SealingRitualChanged": "The tailed beast changed before the sealing ritual could begin.",
     "UI_NL_Ability_StorageSeal_AlreadySealed": "Scroll already contains a seal",
     "UI_NL_Error_NotEnoughChakra": "Not enough chakra!",
     "UI_NL_Error_NotEnoughChakra_Kamui": "Too exhausted (low chakra) for Kamui",
@@ -607,5 +608,9 @@
     "UI_NL_Debug_ReconcileWildBijuu": "Force Wild World Reconciliation",
     "UI_NL_Debug_ForceZombieNinjaReveal": "Force Next Zombie Ninja Reveal",
     "UI_NL_Debug_ForceDefeatBijuu": "Force Defeat Active Bijū",
-    "UI_NL_Debug_RerollWildLocation": "Reroll Wild Bijū Location"
+    "UI_NL_Debug_RerollWildLocation": "Reroll Wild Bijū Location",
+    "UI_NL_Debug_ApplyBijuuRestraint": "Apply Test Restraint to Nearest Bijū",
+    "UI_NL_Debug_BijuuRestraintApplied": "Applied a 0.50 test restraint for 5 game minutes.",
+    "UI_NL_Debug_ReleaseSealedVessel": "Release Sealed Bijū from Inventory",
+    "UI_NL_Debug_SealedVesselReleased": "Released the canonical sealed Bijū in front of you."
 }

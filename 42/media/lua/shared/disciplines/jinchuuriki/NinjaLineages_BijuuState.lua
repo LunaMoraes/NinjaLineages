@@ -7,7 +7,7 @@ local BijuuState = NinjaLineages.BijuuState
 local Definitions = NinjaLineages.BijuuDefinitions
 
 BijuuState.DATA_KEY = "NinjaLineagesBijuu"
-BijuuState.SCHEMA_VERSION = 1
+BijuuState.SCHEMA_VERSION = 2
 
 BijuuState.HOST_POOL       = "HOST_POOL"
 BijuuState.WILD_DORMANT    = "WILD_DORMANT"

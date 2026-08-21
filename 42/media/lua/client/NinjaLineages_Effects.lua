@@ -384,7 +384,34 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
             end)
         end
 
-        -- 8.11 Reroll Wild Bijū Location
+        -- 8.11 Apply a refreshable test restraint to the nearest active Bijū.
+        bijuuSubMenu:addOption(getText("UI_NL_Debug_ApplyBijuuRestraint"), player, function(p)
+            if NinjaLineages.isClient and NinjaLineages.isClient() then
+                sendClientCommand(p, "NinjaLineages", "bijuuDebug", {
+                    action = "apply_test_restraint",
+                })
+            elseif NinjaLineages.BijuuSealingServer
+                    and NinjaLineages.BijuuSealingServer.debugApplyTestRestraint then
+                local ok, reason = NinjaLineages.BijuuSealingServer.debugApplyTestRestraint(p, {})
+                p:Say(ok and getText("UI_NL_Debug_BijuuRestraintApplied")
+                    or ("Restraint failed: " .. tostring(reason)))
+            end
+        end)
+
+        bijuuSubMenu:addOption(getText("UI_NL_Debug_ReleaseSealedVessel"), player, function(p)
+            if NinjaLineages.isClient and NinjaLineages.isClient() then
+                sendClientCommand(p, "NinjaLineages", "bijuuDebug", {
+                    action = "release_test_vessel",
+                })
+            elseif NinjaLineages.BijuuSealingServer
+                    and NinjaLineages.BijuuSealingServer.debugReleaseFirstVessel then
+                local ok, reason = NinjaLineages.BijuuSealingServer.debugReleaseFirstVessel(p)
+                p:Say(ok and getText("UI_NL_Debug_SealedVesselReleased")
+                    or ("Release failed: " .. tostring(reason)))
+            end
+        end)
+
+        -- 8.12 Reroll Wild Bijū Location
         local rerollOption = bijuuSubMenu:addOption(getText("UI_NL_Debug_RerollWildLocation"))
         local rerollSubMenu = ISContextMenu:getNew(bijuuSubMenu)
         bijuuSubMenu:addSubMenu(rerollOption, rerollSubMenu)
@@ -474,6 +501,10 @@ local function onDebugServerCommand(module, command, args)
         player:Say("The next eligible Zombie Ninja death will release a Bijū.")
     elseif args.action == "defeat_boss" then
         player:Say("Defeated active boss: " .. tostring(args.bijuuId))
+    elseif args.action == "apply_test_restraint" then
+        player:Say(getText("UI_NL_Debug_BijuuRestraintApplied"))
+    elseif args.action == "release_test_vessel" then
+        player:Say(getText("UI_NL_Debug_SealedVesselReleased"))
     elseif args.action == "reroll_wild" then
         player:Say("Rerolled wild location for " .. tostring(args.bijuuId))
     end

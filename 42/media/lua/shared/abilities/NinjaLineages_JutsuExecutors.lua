@@ -284,6 +284,12 @@ specializedExecutors.tailed_beast_sealing = function(player, definition, args)
     })
     if not prepared then return false, prepareReason end
 
+    local claimed, claimReason = sealingServer.claimPreparedRitual(ritual)
+    if not claimed then
+        sealingServer.rollbackPreparedRitual(player, ritual)
+        return false, claimReason
+    end
+
     if not commit(player, definition, resolved, cost) then
         sealingServer.rollbackPreparedRitual(player, ritual)
         return false, "chakra"

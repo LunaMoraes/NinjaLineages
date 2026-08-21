@@ -173,6 +173,9 @@ local errorMessages = {
     no_bijuu_nearby = "UI_NL_Error_NoBijuuNearby",
     bijuu_reserved = "UI_NL_Error_BijuuAlreadyReserved",
     vessel_placement_failed = "UI_NL_Error_SealingVesselPlacement",
+    ritual_invalid = "UI_NL_Error_SealingRitualChanged",
+    target_runtime_changed = "UI_NL_Error_SealingRitualChanged",
+    target_custody_changed = "UI_NL_Error_SealingRitualChanged",
 }
 
 local function abilityDisplayName(actionId)

@@ -208,13 +208,45 @@ function LifecycleServer.handleBossDefeated(bijuuId, runtimeId, position)
     if not def then return end
 
     local pos = position or { x = 0, y = 0, z = 0 }
+    local currentState = Registry.getBijuuState(bijuuId)
+    if currentState == BijuuState.SEALING then
+        local sealingServer = NinjaLineages.BijuuSealingServer
+        if sealingServer and sealingServer.cancelForBossDefeat then
+            sealingServer.cancelForBossDefeat(bijuuId, runtimeId)
+        end
+        currentState = Registry.getBijuuState(bijuuId)
+        if currentState == BijuuState.SEALING then
+            local record = Registry.getRecord(bijuuId)
+            local sourceState = record and record.sealing and record.sealing.sourceState
+            if sourceState == BijuuState.WILD_ACTIVE or sourceState == BijuuState.BOSS_ACTIVE then
+                Registry.transition(
+                    bijuuId,
+                    BijuuState.SEALING,
+                    sourceState,
+                    { sealing = false },
+                    "boss_defeat_orphaned_sealing_rollback"
+                )
+                currentState = Registry.getBijuuState(bijuuId)
+            end
+        end
+    end
+    if def.nativeSpawnType == "host" and currentState ~= BijuuState.BOSS_ACTIVE then
+        log("host defeat rejected incompatible custody bijuu=" .. tostring(bijuuId)
+            .. " state=" .. tostring(currentState))
+        return
+    elseif def.nativeSpawnType == "wild"
+            and currentState ~= BijuuState.WILD_ACTIVE
+            and currentState ~= BijuuState.BOSS_ACTIVE then
+        log("wild defeat rejected incompatible custody bijuu=" .. tostring(bijuuId)
+            .. " state=" .. tostring(currentState))
+        return
+    end
 
     if def.nativeSpawnType == "host" then
         -- 1–3 Tails (Low Tails): Dematerialize & Return to HOST_POOL
-        BossServer.dematerialize(bijuuId, runtimeId, "boss_defeated")
         local transitioned, reason = Registry.transition(
             bijuuId,
-            BijuuState.BOSS_ACTIVE,
+            currentState,
             BijuuState.HOST_POOL,
             { world = false, host = false, vessel = false },
             "boss_defeated_host_return"
@@ -222,13 +254,15 @@ function LifecycleServer.handleBossDefeated(bijuuId, runtimeId, position)
         if not transitioned then
             log("host defeat transition failed bijuu=" .. tostring(bijuuId)
                 .. " reason=" .. tostring(reason))
+            return
         end
+        BossServer.dematerialize(bijuuId, runtimeId, "boss_defeated")
         log("boss_defeated bijuu=" .. tostring(bijuuId) .. " native=host -> returned_to_host_pool")
     else
-        -- 4–9 Tails (Wild Beasts): WILD_ACTIVE -> RESPAWNING -> WILD_DORMANT at new location
+        -- Wild-native beasts can currently be WILD_ACTIVE or released BOSS_ACTIVE.
         local transitioned, reason = Registry.transition(
             bijuuId,
-            BijuuState.WILD_ACTIVE,
+            currentState,
             BijuuState.RESPAWNING,
             nil,
             "boss_defeated_wild_respawn"
@@ -241,33 +275,48 @@ function LifecycleServer.handleBossDefeated(bijuuId, runtimeId, position)
 
         BossServer.dematerialize(bijuuId, runtimeId, "boss_defeated")
 
-        local cfg = getReleaseConfig()
-        local minSeparation = cfg.RESPAWN_MIN_DISTANCE_FROM_DEATH or 350.0
-
-        local newLoc, rsn = SpawnServer.findValidWildLocation(bijuuId, {
-            minDistance = minSeparation,
-            previousPos = pos,
-            allowOtherRegions = true,
-        })
-
-        if newLoc then
-            Registry.transition(
-                bijuuId,
-                BijuuState.RESPAWNING,
-                BijuuState.WILD_DORMANT,
-                { world = newLoc },
-                "respawn_location_assigned"
-            )
-            log("boss_defeated bijuu=" .. tostring(bijuuId) .. " native=wild -> respawn_location pos=(" .. tostring(newLoc.x) .. "," .. tostring(newLoc.y) .. ") region=" .. tostring(newLoc.regionId))
-        else
-            log("wild respawn location search pending for " .. tostring(bijuuId) .. ": " .. tostring(rsn))
-        end
+        LifecycleServer.recoverRespawningBijuu(bijuuId, pos)
     end
+end
+
+function LifecycleServer.recoverRespawningBijuu(bijuuId, previousPosition)
+    if Registry.getBijuuState(bijuuId) ~= BijuuState.RESPAWNING then
+        return false, "state_mismatch"
+    end
+    local cfg = getReleaseConfig()
+    local options = { allowOtherRegions = true }
+    if previousPosition then
+        options.minDistance = cfg.RESPAWN_MIN_DISTANCE_FROM_DEATH or 350.0
+        options.previousPos = previousPosition
+    end
+    local newLoc, reason = SpawnServer.findValidWildLocation(bijuuId, options)
+    if not newLoc then
+        log("wild respawn location search pending for " .. tostring(bijuuId)
+            .. ": " .. tostring(reason))
+        return false, reason
+    end
+    local transitioned, transitionReason = Registry.transition(
+        bijuuId,
+        BijuuState.RESPAWNING,
+        BijuuState.WILD_DORMANT,
+        { world = newLoc, vessel = false, sealing = false },
+        "respawn_location_assigned"
+    )
+    if transitioned then
+        log("wild respawn assigned bijuu=" .. tostring(bijuuId)
+            .. " pos=(" .. tostring(newLoc.x) .. "," .. tostring(newLoc.y)
+            .. ") region=" .. tostring(newLoc.regionId))
+    end
+    return transitioned, transitionReason, newLoc
 end
 
 function LifecycleServer.reconcileOnStartup()
     if not Support.isAuthoritative() or startupReconciled then return end
     startupReconciled = true
+    local sealingServer = NinjaLineages.BijuuSealingServer
+    if sealingServer and sealingServer.reconcileOrphanedSealing then
+        sealingServer.reconcileOrphanedSealing()
+    end
     SpawnServer.reconcileOnStartup()
 
     -- 1. Reconcile low-tail orphans (BOSS_ACTIVE with no runtime -> HOST_POOL)
@@ -288,23 +337,27 @@ function LifecycleServer.reconcileOnStartup()
         end
     end
 
-    -- 2. Reconcile wild respawning orphans (RESPAWNING -> WILD_DORMANT at new location)
+    -- 2. Released wild bosses use BOSS_ACTIVE; after restart they return to wild custody.
+    for _, bijuuId in ipairs(Registry.getWildBijuuIds()) do
+        local rec = Registry.getRecord(bijuuId)
+        if rec and rec.state == BijuuState.BOSS_ACTIVE
+                and not BossServer.getActiveBossSnapshot(bijuuId) then
+            local transitioned = Registry.transition(
+                bijuuId,
+                BijuuState.BOSS_ACTIVE,
+                BijuuState.RESPAWNING,
+                { world = false, vessel = false, sealing = false },
+                "startup_reconcile_released_wild"
+            )
+            if transitioned then LifecycleServer.recoverRespawningBijuu(bijuuId) end
+        end
+    end
+
+    -- 3. Reconcile wild respawning orphans (RESPAWNING -> WILD_DORMANT at new location)
     for _, bijuuId in ipairs(Registry.getWildBijuuIds()) do
         local rec = Registry.getRecord(bijuuId)
         if rec and rec.state == BijuuState.RESPAWNING then
-            local loc, rsn = SpawnServer.findValidWildLocation(bijuuId, { allowOtherRegions = true })
-            if loc then
-                log("reconciled RESPAWNING -> WILD_DORMANT for " .. tostring(bijuuId) .. " at (" .. tostring(loc.x) .. "," .. tostring(loc.y) .. ")")
-                Registry.transition(
-                    bijuuId,
-                    BijuuState.RESPAWNING,
-                    BijuuState.WILD_DORMANT,
-                    { world = loc },
-                    "startup_reconcile"
-                )
-            else
-                log("startup reconciliation: wild respawn location search failed for " .. tostring(bijuuId) .. ": " .. tostring(rsn))
-            end
+            LifecycleServer.recoverRespawningBijuu(bijuuId)
         end
     end
 end
