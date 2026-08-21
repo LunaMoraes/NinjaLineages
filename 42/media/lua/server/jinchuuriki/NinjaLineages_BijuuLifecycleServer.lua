@@ -73,11 +73,7 @@ function LifecycleServer.onZombieNinjaDead(zombie, attacker)
     local shouldReveal = forcedRequest ~= nil
 
     if not shouldReveal then
-        if ZomboidRandFloat then
-            shouldReveal = (ZomboidRandFloat(0.0, 1.0) < revealChance)
-        else
-            shouldReveal = (math.random() < revealChance)
-        end
+        shouldReveal = (ZombRandFloat(0.0, 1.0) < revealChance)
     end
 
     forceNextReveal = nil
