@@ -244,7 +244,7 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
         if NinjaLineages.Uchiha and NinjaLineages.Uchiha.canUseKamuiTestUnlock and NinjaLineages.Uchiha.canUseKamuiTestUnlock(player) then
             debugSubMenu:addOption(getText("UI_NL_Ability_Kamui_TestUnlock"), player, NinjaLineages.Uchiha.unlockKamuiForSinglePlayerTest)
         end
-        
+
         -- 7. Spawn Bingo Book & Wanted
         debugSubMenu:addOption("Debug: Spawn Bingo Book & Wanted", player, function(p)
             NinjaLineages.Social.request(p, "socialDebugWanted", {})
@@ -361,8 +361,9 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
             if NinjaLineages.isClient and NinjaLineages.isClient() then
                 sendClientCommand(p, "NinjaLineages", "bijuuDebug", { action = "force_release" })
             elseif NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.debugForceNextZombieNinjaReveal then
-                NinjaLineages.BijuuLifecycleServer.debugForceNextZombieNinjaReveal(p)
-                p:Say("Enabled forced Zombie Ninja Bijū reveal on next death.")
+                local ok, reason = NinjaLineages.BijuuLifecycleServer.debugForceNextZombieNinjaReveal(p)
+                p:Say(ok and "Enabled forced Zombie Ninja Bijū reveal on next death."
+                    or ("Force reveal failed: " .. tostring(reason)))
             end
         end)
 
@@ -398,6 +399,27 @@ local function addAbilityContextMenu(playerNum, context, worldObjects, test)
                     or ("Restraint failed: " .. tostring(reason)))
             end
         end)
+
+        local hostDebugActions = {
+            { key = "UI_NL_Debug_InstallHostVessel", action = "install_host_vessel", method = "debugInstallFirstVessel" },
+            { key = "UI_NL_Debug_ExtractHostedBijuu", action = "extract_hosted_bijuu", method = "debugExtractHosted" },
+            { key = "UI_NL_Debug_ExpireExtractionGrace", action = "expire_extraction_grace", method = "debugExpireGrace" },
+            { key = "UI_NL_Debug_ReconcileJinchuuriki", action = "reconcile_jinchuuriki", method = "reconcilePlayer" },
+        }
+        for _, debugAction in ipairs(hostDebugActions) do
+            bijuuSubMenu:addOption(getText(debugAction.key), player, function(p)
+                if NinjaLineages.isClient and NinjaLineages.isClient() then
+                    sendClientCommand(p, "NinjaLineages", "bijuuDebug", { action = debugAction.action })
+                else
+                    local server = NinjaLineages.JinchuurikiServer
+                    local method = server and server[debugAction.method]
+                    local ok, reason = false, "unavailable"
+                    if method then ok, reason = method(p) end
+                    p:Say(ok and ("Jinchūriki debug action completed: " .. debugAction.action)
+                        or ("Jinchūriki debug action failed: " .. tostring(reason)))
+                end
+            end)
+        end
 
         bijuuSubMenu:addOption(getText("UI_NL_Debug_ReleaseSealedVessel"), player, function(p)
             if NinjaLineages.isClient and NinjaLineages.isClient() then
@@ -500,6 +522,11 @@ local function onDebugServerCommand(module, command, args)
         player:Say("Wild Bijū world reconciliation complete.")
     elseif args.action == "force_release" then
         player:Say("The next eligible Zombie Ninja death will release a Bijū.")
+    elseif args.action == "install_host_vessel"
+            or args.action == "extract_hosted_bijuu"
+            or args.action == "expire_extraction_grace"
+            or args.action == "reconcile_jinchuuriki" then
+        player:Say("Jinchūriki debug action completed: " .. tostring(args.action))
     elseif args.action == "defeat_boss" then
         player:Say("Defeated active boss: " .. tostring(args.bijuuId))
     elseif args.action == "apply_test_restraint" then

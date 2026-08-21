@@ -45,9 +45,12 @@ local allowedTransitions = {
         [BijuuState.BOSS_ACTIVE] = true,
         [BijuuState.HOST_POOL] = true,
         [BijuuState.RESPAWNING] = true,
+        [BijuuState.SEALED_PLAYER] = true,
     },
     [BijuuState.SEALED_PLAYER] = {
         [BijuuState.SEALING] = true,
+        [BijuuState.SEALED_VESSEL] = true,
+        [BijuuState.BOSS_ACTIVE] = true,
     },
 }
 
@@ -235,6 +238,21 @@ function Server.getHostPoolBijuuIds()
     for _, id in ipairs(Definitions.Order) do
         local rec = getRecordInternal(id)
         if rec and rec.state == BijuuState.HOST_POOL then
+            table.insert(result, id)
+        end
+    end
+    return result
+end
+
+function Server.getHostedBijuuIds(playerKey)
+    local result = {}
+    if type(playerKey) ~= "string" or playerKey == "" then return result end
+    Server.ensureState()
+    for _, id in ipairs(Definitions.Order) do
+        local rec = getRecordInternal(id)
+        if rec and rec.state == BijuuState.SEALED_PLAYER
+                and type(rec.host) == "table"
+                and rec.host.playerKey == playerKey then
             table.insert(result, id)
         end
     end

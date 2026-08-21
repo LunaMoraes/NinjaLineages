@@ -14,6 +14,7 @@ require "jinchuuriki/NinjaLineages_BijuuRegistryServer"
 require "jinchuuriki/NinjaLineages_BijuuBossServer"
 require "jinchuuriki/NinjaLineages_BijuuLifecycleServer"
 require "jinchuuriki/NinjaLineages_BijuuSealingServer"
+require "jinchuuriki/NinjaLineages_JinchuurikiServer"
 require "lineages/NinjaLineages_UchihaPassives"
 
 local function handleAbilityRequest(player, args)
@@ -72,6 +73,10 @@ local function updateAbilities()
 
     NinjaLineages.Utils.Players.forEach(function(player)
         NinjaLineages.AbilityAuthority.updatePlayer(player)
+
+        if NinjaLineages.JinchuurikiServer and NinjaLineages.JinchuurikiServer.updatePlayer then
+            NinjaLineages.JinchuurikiServer.updatePlayer(player)
+        end
 
         if NinjaLineages.ServerPassives then
             NinjaLineages.ServerPassives.updatePlayer(player)

@@ -453,6 +453,30 @@ local function setItemSeal(item, seal)
     return true
 end
 
+function Server.resolveInventoryVessel(player, requestedId, requireEmpty)
+    local requested = tonumber(requestedId)
+    if not requested then return nil, "invalid_vessel_item_id" end
+    local item = nil
+    for _, candidate in ipairs(NinjaLineages.Utils.Inventory.collectItems(player)) do
+        if tonumber(Sealing.getVesselItemId(candidate)) == requested then
+            item = candidate
+            break
+        end
+    end
+    if not item or not Sealing.isVessel(item) then return nil, "vessel_not_found" end
+    if requireEmpty == true and not Sealing.isEmptyVessel(item) then
+        return nil, "vessel_not_empty"
+    end
+    return item, "ok"
+end
+
+function Server.setVesselSeal(item, seal)
+    if not Sealing.isVessel(item) then return false, "invalid_vessel" end
+    if seal ~= nil and type(seal) ~= "table" then return false, "invalid_seal" end
+    if not setItemSeal(item, seal) then return false, "item_sync_failed" end
+    return true, "ok"
+end
+
 local function completeRitual(ritual)
     if not ritual or activeRituals[ritual.bijuuId] ~= ritual
             or ritual.status ~= "active" or ritual.progress < 100 then return false end

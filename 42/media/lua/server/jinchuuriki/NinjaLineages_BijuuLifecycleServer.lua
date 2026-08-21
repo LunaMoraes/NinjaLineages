@@ -20,8 +20,9 @@ local SpawnServer = NinjaLineages.BijuuSpawnServer
 local Support = NinjaLineages.BijuuServerSupport
 
 local pendingCorpseSuppression = {}
-local forceNextReveal = false
+local forceNextReveal = nil
 local startupReconciled = false
+local lastHostReleaseRecoveryAt = -math.huge
 
 local function log(message)
     print("[NL-BIJUU-LIFECYCLE] " .. tostring(message))
@@ -36,8 +37,20 @@ local function getReleaseConfig()
     }
 end
 
-function LifecycleServer.setForceNextReveal(value)
-    forceNextReveal = (value == true)
+function LifecycleServer.setForceNextReveal(value, player)
+    if value ~= true then
+        forceNextReveal = nil
+        return
+    end
+    local armedBy = "admin"
+    if player and player.getUsername then
+        local ok, username = pcall(function() return player:getUsername() end)
+        if ok and username then armedBy = tostring(username) end
+    end
+    forceNextReveal = {
+        armedAtGameMinutes = NinjaLineages.Utils.Time.gameMinutes(),
+        armedBy = armedBy,
+    }
 end
 
 function LifecycleServer.onZombieNinjaDead(zombie, attacker)
@@ -56,7 +69,8 @@ function LifecycleServer.onZombieNinjaDead(zombie, attacker)
     -- 2. Check reveal chance
     local cfg = getReleaseConfig()
     local revealChance = cfg.ZOMBIE_NINJA_REVEAL_CHANCE or 0.01
-    local shouldReveal = forceNextReveal
+    local forcedRequest = forceNextReveal
+    local shouldReveal = forcedRequest ~= nil
 
     if not shouldReveal then
         if ZomboidRandFloat then
@@ -66,10 +80,14 @@ function LifecycleServer.onZombieNinjaDead(zombie, attacker)
         end
     end
 
-    forceNextReveal = false
+    forceNextReveal = nil
 
     if not shouldReveal then
         return -- Normal Zombie Ninja death proceeds
+    end
+    if forcedRequest then
+        log("debug reveal consumed armedBy=" .. tostring(forcedRequest.armedBy)
+            .. " armedAt=" .. tostring(forcedRequest.armedAtGameMinutes))
     end
 
     -- 3. Uniformly choose one available candidate
@@ -79,7 +97,7 @@ function LifecycleServer.onZombieNinjaDead(zombie, attacker)
         table.insert(candidates, id)
     end
     for i = #candidates, 2, -1 do
-        local j = math.random(1, i)
+        local j = ZombRand and (ZombRand(i) + 1) or math.random(1, i)
         candidates[i], candidates[j] = candidates[j], candidates[i]
     end
 
@@ -324,7 +342,9 @@ function LifecycleServer.reconcileOnStartup()
         local def = Definitions.get(bijuuId)
         if def and def.nativeSpawnType == "host" then
             local rec = Registry.getRecord(bijuuId)
-            if rec and rec.state == BijuuState.BOSS_ACTIVE and not BossServer.getActiveBossSnapshot(bijuuId) then
+            if rec and rec.state == BijuuState.BOSS_ACTIVE
+                    and not (rec.world and rec.world.source == "player_host_death")
+                    and not BossServer.getActiveBossSnapshot(bijuuId) then
                 log("reconciling orphaned low-tail BOSS_ACTIVE -> HOST_POOL for " .. tostring(bijuuId))
                 Registry.transition(
                     bijuuId,
@@ -341,6 +361,7 @@ function LifecycleServer.reconcileOnStartup()
     for _, bijuuId in ipairs(Registry.getWildBijuuIds()) do
         local rec = Registry.getRecord(bijuuId)
         if rec and rec.state == BijuuState.BOSS_ACTIVE
+                and not (rec.world and rec.world.source == "player_host_death")
                 and not BossServer.getActiveBossSnapshot(bijuuId) then
             local transitioned = Registry.transition(
                 bijuuId,
@@ -362,8 +383,30 @@ function LifecycleServer.reconcileOnStartup()
     end
 end
 
+function LifecycleServer.recoverPlayerHostReleases()
+    if not Support.isAuthoritative() then return end
+    local now = NinjaLineages.Utils.Time.gameMinutes()
+    if now - lastHostReleaseRecoveryAt < 0.05 then return end
+    lastHostReleaseRecoveryAt = now
+    for _, bijuuId in ipairs(Definitions.Order) do
+        local rec = Registry.getRecord(bijuuId)
+        local world = rec and rec.world
+        if rec and rec.state == BijuuState.BOSS_ACTIVE
+                and world and world.source == "player_host_death"
+                and not BossServer.getActiveBossSnapshot(bijuuId)
+                and SpawnServer.isLocationLoaded(world.x, world.y, world.z) then
+            local runtime = BossServer.materialize(
+                bijuuId, world.x, world.y, world.z)
+            if runtime then
+                log("recovered player-host release bijuu=" .. tostring(bijuuId))
+            end
+        end
+    end
+end
+
 function LifecycleServer.update()
     SpawnServer.update()
+    LifecycleServer.recoverPlayerHostReleases()
 end
 
 -- ============================================================================
@@ -371,9 +414,13 @@ end
 -- ============================================================================
 
 function LifecycleServer.debugForceNextZombieNinjaReveal(player)
-    LifecycleServer.setForceNextReveal(true)
-    log("debug force next Zombie Ninja reveal enabled by " .. tostring(player and player:getUsername() or "admin"))
-    return true, "ok"
+    local availablePool = Registry.getHostPoolBijuuIds()
+    if #availablePool == 0 then
+        return false, "no_host_pool_bijuu"
+    end
+    LifecycleServer.setForceNextReveal(true, player)
+    log("debug force next Zombie Ninja reveal enabled")
+    return true, "armed"
 end
 
 function LifecycleServer.debugForceDefeatActiveBoss(player, bijuuId)

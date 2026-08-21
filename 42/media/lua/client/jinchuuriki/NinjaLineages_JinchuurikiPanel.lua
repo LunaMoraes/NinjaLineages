@@ -1,9 +1,11 @@
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISButton"
+require "ISUI/ISModalDialog"
 require "NinjaLineages_Balance"
 require "NinjaLineages_Progression"
 require "NinjaLineages_Utils"
 require "disciplines/jinchuuriki/NinjaLineages_BijuuDefinitions"
+require "disciplines/jinchuuriki/NinjaLineages_BijuuSealing"
 
 NinjaLineages = NinjaLineages or {}
 NinjaLineages.JinchuurikiPanel = NinjaLineages.JinchuurikiPanel or {}
@@ -11,6 +13,8 @@ NinjaLineages.JinchuurikiPanel = NinjaLineages.JinchuurikiPanel or {}
 local PanelModule = NinjaLineages.JinchuurikiPanel
 local Progression = NinjaLineages.Progression
 local Definitions = NinjaLineages.BijuuDefinitions
+local Sealing = NinjaLineages.BijuuSealing
+local MAX_ACTION_ROWS = 9
 
 local MILESTONES = {
     "bijuu_chakra_recognition",
@@ -56,7 +60,7 @@ function NLJinchuurikiPanelUI:new(player)
     local playerNum = player:getPlayerNum()
     local screenWidth = getPlayerScreenWidth(playerNum)
     local screenHeight = getPlayerScreenHeight(playerNum)
-    local width, height = 600, 610
+    local width, height = 600, math.min(720, screenHeight - 40)
     local x = getPlayerScreenLeft(playerNum) + (screenWidth - width) / 2
     local y = getPlayerScreenTop(playerNum) + (screenHeight - height) / 2
     local o = ISCollapsableWindow.new(self, x, y, width, height)
@@ -68,6 +72,9 @@ function NLJinchuurikiPanelUI:new(player)
     o.locatorSnapshot = nil
     o.locatorPending = false
     o.locatorError = nil
+    o.hostActionRows = {}
+    o.hostActionSignature = nil
+    o.hostActionMessage = nil
     o.resizable = false
     o:setTitle(text("UI_NL_Jinchuuriki_PanelTitle"))
     return o
@@ -94,7 +101,125 @@ function NLJinchuurikiPanelUI:initialise()
     self.refreshButton:initialise()
     self.refreshButton:instantiate()
     self:addChild(self.refreshButton)
+
+    self.hostActionButtons = {}
+    for index = 1, MAX_ACTION_ROWS do
+        local button = ISButton:new(160, 245, 120, 27,
+            "", self, NLJinchuurikiPanelUI.onHostAction)
+        button:initialise()
+        button:instantiate()
+        button:setVisible(false)
+        self:addChild(button)
+        self.hostActionButtons[index] = button
+    end
     self:updateControls()
+end
+
+local function collectHostActionRows(player, hosted, capacity)
+    local sealed, empty = {}, {}
+    for _, item in ipairs(NinjaLineages.Utils.Inventory.collectItems(player)) do
+        if Sealing.isVessel(item) then
+            local seal = item.getModData and item:getModData().bijuuSeal or nil
+            if type(seal) == "table" and Definitions.isValidId(seal.bijuuId) then
+                table.insert(sealed, {
+                    kind = "install",
+                    itemId = Sealing.getVesselItemId(item),
+                    bijuuId = seal.bijuuId,
+                })
+            elseif Sealing.isEmptyVessel(item) then
+                table.insert(empty, {
+                    kind = "extract",
+                    itemId = Sealing.getVesselItemId(item),
+                    bijuuId = hosted[1],
+                })
+            end
+        end
+    end
+    if #hosted < capacity then return sealed end
+    if #hosted > 0 and Progression.isCompleted(player, "bijuu_extraction_transfer") then
+        return empty
+    end
+    return {}
+end
+
+function NLJinchuurikiPanelUI:refreshHostActions()
+    local jinchuuriki = Progression.getJinchuurikiData(self.player) or {}
+    local hosted = jinchuuriki.hostedBijuuIds or {}
+    local capacity = NinjaLineages.Balance.Jinchuuriki.MAX_HOSTED_BIJUU or 1
+    local rows = collectHostActionRows(self.player, hosted, capacity)
+    local signatureParts = { tostring(#hosted), tostring(capacity) }
+    for _, row in ipairs(rows) do
+        table.insert(signatureParts, row.kind .. ":" .. tostring(row.itemId)
+            .. ":" .. tostring(row.bijuuId))
+    end
+    local signature = table.concat(signatureParts, "|")
+    if signature == self.hostActionSignature then return end
+    self.hostActionSignature = signature
+    self.hostActionRows = rows
+
+    for index, button in ipairs(self.hostActionButtons or {}) do
+        local row = rows[index]
+        button:setVisible(self.mode == "host" and row ~= nil)
+        if row then
+            button.hostAction = row.kind
+            button.vesselItemId = row.itemId
+            button.bijuuId = row.bijuuId
+            button:setTitle(text(row.kind == "install"
+                and "UI_NL_Jinchuuriki_SealIntoSelf"
+                or "UI_NL_Jinchuuriki_ExtractToVessel"))
+        end
+    end
+end
+
+function NLJinchuurikiPanelUI:sendHostAction(action, vesselItemId)
+    self.hostActionMessage = nil
+    if NinjaLineages.isClient and NinjaLineages.isClient() then
+        sendClientCommand(self.player, "NinjaLineages",
+            action == "install" and "installBijuuFromVessel" or "extractHostedBijuu",
+            { vesselItemId = vesselItemId })
+        return
+    end
+    local server = NinjaLineages.JinchuurikiServer
+    if not server then
+        self.hostActionMessage = text("UI_NL_Jinchuuriki_ActionFailed", "unavailable")
+        return
+    end
+    local ok, reason
+    if action == "install" then
+        ok, reason = server.installFromVessel(self.player, vesselItemId)
+    else
+        ok, reason = server.extractHostedBijuu(self.player, vesselItemId)
+    end
+    self:receiveHostActionResult(action, ok, reason)
+end
+
+local function confirmExtraction(panel, button, request)
+    if button.internal ~= "YES" then return end
+    panel:sendHostAction("extract", request.vesselItemId)
+end
+
+function NLJinchuurikiPanelUI:onHostAction(button)
+    if button.hostAction == "install" then
+        self:sendHostAction("install", button.vesselItemId)
+        return
+    end
+    if button.hostAction ~= "extract" then return end
+    local warningKey = NinjaLineages.hasUzumaki(self.player)
+        and "UI_NL_Jinchuuriki_ExtractWarningUzumaki"
+        or "UI_NL_Jinchuuriki_ExtractWarningFatal"
+    local modal = ISModalDialog:new(
+        0, 0, 480, 180, text(warningKey), true, self,
+        confirmExtraction, self.playerNum, { vesselItemId = button.vesselItemId })
+    modal:initialise()
+    modal:addToUIManager()
+end
+
+function NLJinchuurikiPanelUI:receiveHostActionResult(action, ok, reason)
+    self.hostActionSignature = nil
+    self.hostActionMessage = ok
+        and text(action == "install" and "UI_NL_Jinchuuriki_InstallSuccess"
+            or "UI_NL_Jinchuuriki_ExtractionSuccess")
+        or text("UI_NL_Jinchuuriki_ActionFailed", tostring(reason or "unknown"))
 end
 
 function NLJinchuurikiPanelUI:updateControls()
@@ -105,6 +230,9 @@ function NLJinchuurikiPanelUI:updateControls()
         or text("UI_NL_Jinchuuriki_LocatorLocked")
     self.refreshButton:setVisible(self.mode == "locator")
     self.refreshButton.enable = locatorUnlocked and not self.locatorPending
+    for index, button in ipairs(self.hostActionButtons or {}) do
+        button:setVisible(self.mode == "host" and self.hostActionRows[index] ~= nil)
+    end
 end
 
 function NLJinchuurikiPanelUI:showHost()
@@ -178,7 +306,48 @@ function NLJinchuurikiPanelUI:drawHostView()
     self:drawText(text("UI_NL_Jinchuuriki_ExtractionGrace", remainingExtractionText(jinchuuriki)),
         38, y, 0.78, 0.78, 0.82, 1, UIFont.Small)
 
-    y = y + 42
+    y = y + 38
+    self:drawText(text("UI_NL_Jinchuuriki_VesselActions"), 28, y,
+        1, 0.78, 0.35, 1, UIFont.Medium)
+    y = y + 34
+    if #self.hostActionRows == 0 then
+        self:drawText(text(#hosted < capacity
+            and "UI_NL_Jinchuuriki_NoSealedVessels"
+            or (Progression.isCompleted(self.player, "bijuu_extraction_transfer")
+                and "UI_NL_Jinchuuriki_NoEmptyVessels"
+                or "UI_NL_Jinchuuriki_ExtractionLocked")),
+            38, y, 0.7, 0.7, 0.74, 1, UIFont.Small)
+        y = y + 32
+    else
+        for index, row in ipairs(self.hostActionRows) do
+            if index > MAX_ACTION_ROWS then break end
+            local definition = Definitions.get(row.bijuuId)
+            local name = definition and text(definition.nameKey) or tostring(row.bijuuId)
+            local column = (index - 1) % 2
+            local rowIndex = math.floor((index - 1) / 2)
+            local rowY = y + rowIndex * 31
+            local columnX = 28 + column * 278
+            self:drawText(text("UI_NL_Jinchuuriki_VesselRow", name,
+                    tostring(definition and definition.tails or "?")),
+                columnX, rowY + 5, 0.86, 0.84, 0.78, 1, UIFont.Small)
+            local button = self.hostActionButtons[index]
+            button:setX(columnX + 145)
+            button:setY(rowY)
+        end
+        y = y + math.ceil(math.min(#self.hostActionRows, MAX_ACTION_ROWS) / 2) * 31
+        if #self.hostActionRows > MAX_ACTION_ROWS then
+            self:drawText(text("UI_NL_Jinchuuriki_MoreVessels",
+                    tostring(#self.hostActionRows - MAX_ACTION_ROWS)),
+                38, y, 0.7, 0.7, 0.74, 1, UIFont.Small)
+            y = y + 25
+        end
+    end
+    if self.hostActionMessage then
+        self:drawText(self.hostActionMessage, 38, y, 0.82, 0.78, 0.6, 1, UIFont.Small)
+        y = y + 28
+    end
+
+    y = y + 12
     self:drawText(text("UI_NL_Jinchuuriki_Milestones"), 28, y, 1, 0.78, 0.35, 1, UIFont.Large)
     y = y + 38
     for _, nodeId in ipairs(MILESTONES) do
@@ -245,6 +414,7 @@ function NLJinchuurikiPanelUI:render()
         self:close()
         return
     end
+    if self.mode == "host" then self:refreshHostActions() end
     self:updateControls()
     if self.mode == "locator" then self:drawLocatorView() else self:drawHostView() end
 end
@@ -282,7 +452,17 @@ function PanelModule.openPanel(player)
 end
 
 local function onServerCommand(module, command, args)
-    if module ~= "NinjaLineages" or command ~= "bijuuLocatorSnapshot" then return end
+    if module ~= "NinjaLineages" then return end
+    if command == "jinchuurikiActionResult" then
+        for _, panel in pairs(NLJinchuurikiPanelUI.instances) do
+            local onlineId = panel.player.getOnlineID and panel.player:getOnlineID() or -1
+            if not args or args.playerOnlineId == nil or args.playerOnlineId == onlineId then
+                panel:receiveHostActionResult(args and args.action, args and args.ok, args and args.reason)
+            end
+        end
+        return
+    end
+    if command ~= "bijuuLocatorSnapshot" then return end
     for _, panel in pairs(NLJinchuurikiPanelUI.instances) do
         local onlineId = panel.player.getOnlineID and panel.player:getOnlineID() or -1
         if panel.locatorPending and (not args or args.playerOnlineId == nil or args.playerOnlineId == onlineId) then
