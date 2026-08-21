@@ -20,9 +20,16 @@ local function nearestBoss(player)
     if not player or (player.isDead and player:isDead()) then return nil end
     local combat = NinjaLineages.Balance.Jinchuuriki
         and NinjaLineages.Balance.Jinchuuriki.BossCombat or {}
-    return NinjaLineages.BijuuRenderer.getNearestActiveShell(
+    local shell = NinjaLineages.BijuuRenderer.getNearestActiveShell(
         player,
         combat.ACQUISITION_RADIUS or 20.0
+    )
+    if shell then return shell end
+    local sealing = NinjaLineages.Balance.Jinchuuriki
+        and NinjaLineages.Balance.Jinchuuriki.Sealing or {}
+    return NinjaLineages.BijuuRenderer.getNearestActiveSealingShell(
+        player,
+        sealing.RITUAL_RADIUS or 50.0
     )
 end
 
@@ -96,6 +103,34 @@ local function drawBarForPlayer(renderer, textManager, playerNum, player)
         name, 0.96, 0.93, 0.88, 1.0)
     textManager:DrawStringCentre(UIFont.Small, x + width * 0.5, y + 3,
         tostring(current) .. " / " .. tostring(maximum), 1.0, 1.0, 1.0, 1.0)
+
+    if shell.sealing then
+        local sealingY = y + BAR_HEIGHT + 7
+        local sealingHeight = 18
+        local sealingInnerX = x + 4
+        local sealingInnerY = sealingY + 4
+        local sealingInnerWidth = width - 8
+        local progress = math.max(0, math.min(100, tonumber(shell.sealing.progress) or 0))
+        local progressRatio = progress / 100
+        local power = math.max(0, tonumber(shell.sealing.vesselPower) or 0)
+
+        rect(renderer, x - 2, sealingY - 2, width + 4, sealingHeight + 4,
+            0.01, 0.01, 0.015, 0.82)
+        rect(renderer, x, sealingY, width, sealingHeight,
+            0.055, 0.045, 0.075, 0.94)
+        rect(renderer, sealingInnerX, sealingInnerY,
+            sealingInnerWidth * progressRatio, sealingHeight - 8,
+            math.min(1, color.r + 0.12), math.min(1, color.g + 0.12), math.min(1, color.b + 0.12), 0.92)
+
+        local progressText = getText(
+            "UI_NL_Sealing_Power",
+            tostring(math.floor(progress + 0.5)),
+            string.format("%.2f", power)
+        )
+        textManager:DrawStringCentre(UIFont.Small, x + width * 0.5, sealingY + 1,
+            getText("UI_NL_Sealing_Process") .. ": " .. progressText,
+            0.96, 0.93, 1.0, 1.0)
+    end
 end
 
 local function drawBossHealthBars()

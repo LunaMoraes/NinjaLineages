@@ -90,6 +90,17 @@ module Base
         Tags = base:isfirefuel;base:isfiretinder,
     }
 
+    item NL_BasicSealingVessel
+    {
+        DisplayCategory = Tools,
+        ItemType = base:normal,
+        DisplayName = UI_item_NL_BasicSealingVessel,
+        Weight = 1.0,
+        Icon = Pot_Forged,
+        StaticModel = CookingPotForged,
+        WorldStaticModel = CookingPotForgedGround,
+    }
+
     item NL_SealedScroll
     {
         DisplayCategory = Bag,

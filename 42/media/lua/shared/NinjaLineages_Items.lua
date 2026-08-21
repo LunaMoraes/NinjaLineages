@@ -81,6 +81,21 @@ end
 
 RecipeCodeOnTest.NinjaLineagesSealCraftable = RecipeCodeOnTest.NinjaLineagesUzumakiOnly
 
+function RecipeCodeOnTest.NinjaLineagesTailedBeastSealingOnly(recipe, player)
+    if not player then
+        pcall(function()
+            if getPlayer then player = getPlayer() end
+        end)
+        if not player then
+            pcall(function()
+                if getSpecificPlayer then player = getSpecificPlayer(0) end
+            end)
+        end
+    end
+    return player ~= nil
+        and NinjaLineages.Progression.isCompleted(player, "tailed_beast_sealing")
+end
+
 function RecipeCodeOnTest.NinjaLineagesNinjaToolOnly(recipe, player)
     if not player then
         pcall(function()

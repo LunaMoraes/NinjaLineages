@@ -642,6 +642,12 @@ end
 
 NinjaLineages.Balance.Jinchuuriki = NinjaLineages.Balance.Jinchuuriki or {}
 
+NinjaLineages.Balance.Jinchuuriki.Sealing = {
+    BASIC_VESSEL_POWER = 1.0,
+    ACQUISITION_RADIUS = 50.0,
+    RITUAL_RADIUS = 50.0,
+}
+
 NinjaLineages.Balance.Jinchuuriki.BossShell = {
     -- Procedural beast-frame dimensions
     VISUAL_RADIUS = 2.4,

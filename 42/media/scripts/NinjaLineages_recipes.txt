@@ -1,5 +1,23 @@
 module Base
 {
+    craftRecipe MakeNLBasicSealingVessel
+    {
+        timedAction = Making,
+        time = 60,
+        OnTest = RecipeCodeOnTest.NinjaLineagesTailedBeastSealingOnly,
+        Tags = InHandCraft,
+        category = Miscellaneous,
+        inputs
+        {
+            item 1 [Base.SheetPaper2;Base.Notebook;Base.Journal],
+            item 1 [Base.Pen;Base.Pencil;Base.PenFancy;Base.PenMultiColor;Base.PenSpiffo;Base.PencilSpiffo] mode:keep,
+        }
+        outputs
+        {
+            item 1 Base.NL_BasicSealingVessel,
+        }
+    }
+
     craftRecipe MakeNLAlarmSeal
     {
         timedAction = Making,
@@ -182,4 +200,3 @@ module Base
         }
     }
 }
-

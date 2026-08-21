@@ -169,6 +169,10 @@ local errorMessages = {
     no_wounds = "UI_NL_NoWounds",
     invalid_item = "UI_NL_Error_NoAlarmSealItem",
     blocked_placement = "UI_NL_Error_EarthWallBlocked",
+    no_empty_vessel = "UI_NL_Error_NoEmptySealingVessel",
+    no_bijuu_nearby = "UI_NL_Error_NoBijuuNearby",
+    bijuu_reserved = "UI_NL_Error_BijuuAlreadyReserved",
+    vessel_placement_failed = "UI_NL_Error_SealingVesselPlacement",
 }
 
 local function abilityDisplayName(actionId)

@@ -736,6 +736,12 @@ local function onClientCommand(module, command, player, args)
         Server.handleMeleeSwing(player, args)
     elseif command == "requestBijuuActiveShells" then
         Support.emit("bijuu_active_shells", { shells = Server.getActiveShellPayloads() }, player)
+        local sealingServer = NinjaLineages.BijuuSealingServer
+        if sealingServer and sealingServer.getActiveRitualPayloads then
+            for _, ritual in ipairs(sealingServer.getActiveRitualPayloads()) do
+                Support.emit("bijuu_sealing_started", ritual, player)
+            end
+        end
     end
 end
 

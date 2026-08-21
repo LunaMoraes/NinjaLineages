@@ -13,6 +13,7 @@ require "jinchuuriki/NinjaLineages_BijuuServerSupport"
 require "jinchuuriki/NinjaLineages_BijuuRegistryServer"
 require "jinchuuriki/NinjaLineages_BijuuBossServer"
 require "jinchuuriki/NinjaLineages_BijuuLifecycleServer"
+require "jinchuuriki/NinjaLineages_BijuuSealingServer"
 require "lineages/NinjaLineages_UchihaPassives"
 
 local function handleAbilityRequest(player, args)
@@ -63,6 +64,9 @@ local function updateAbilities()
     end
     if NinjaLineages.BijuuLifecycleServer and NinjaLineages.BijuuLifecycleServer.update then
         NinjaLineages.BijuuLifecycleServer.update()
+    end
+    if NinjaLineages.BijuuSealingServer and NinjaLineages.BijuuSealingServer.update then
+        NinjaLineages.BijuuSealingServer.update()
     end
     NinjaLineages.AbilityAuthority.updateWorld()
 

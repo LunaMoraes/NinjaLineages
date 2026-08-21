@@ -398,6 +398,19 @@ Catalog.Definitions = {
 
     node("alarm_seal", "fuinjutsu", "GENIN", 10, nil, "passive"),
     node("storage_seal", "fuinjutsu", "GENIN", 20, nil, "passive"),
+    node("four_symbols_seal", "fuinjutsu", "CHUNIN", 10,
+        { "alarm_seal", "storage_seal" }, "passive"),
+    {
+        id = "tailed_beast_sealing",
+        category = "common",
+        node = {
+            discipline = "fuinjutsu", rank = "JONIN", order = 10,
+            prerequisites = { "four_symbols_seal" },
+        },
+        handSigns = { "snake", "rat", "ram", "dragon", "boar" },
+        balance = { cost = "ULTIMATE", cooldown = "VERY_LONG" },
+        executor = "tailed_beast_sealing",
+    },
 
     {
         id = "sharingan",

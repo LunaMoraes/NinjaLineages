@@ -11,6 +11,7 @@ local Boss = NinjaLineages.BijuuBoss
 
 local activeShells = {}
 local activeTelegraphs = {}
+local activeRituals = {}
 local swingCounter = 0
 
 local function nowGameMinutes()
@@ -70,6 +71,56 @@ end
 
 function Renderer.removeTelegraph(payload)
     if payload and payload.volleyId then activeTelegraphs[payload.volleyId] = nil end
+end
+
+function Renderer.addSealingRitual(payload)
+    if not payload or not payload.ritualId or not payload.bijuuRuntimeId then return end
+    activeRituals[payload.ritualId] = {
+        ritualId = payload.ritualId,
+        bijuuId = payload.bijuuId,
+        bijuuRuntimeId = payload.bijuuRuntimeId,
+        vesselItemId = tonumber(payload.vesselItemId),
+        vesselPower = tonumber(payload.vesselPower) or 0,
+        vesselX = tonumber(payload.vesselX) or 0,
+        vesselY = tonumber(payload.vesselY) or 0,
+        vesselZ = tonumber(payload.vesselZ) or 0,
+        ritualRadius = math.max(0, tonumber(payload.ritualRadius) or 0),
+        progress = math.max(0, math.min(100, tonumber(payload.progress) or 0)),
+        startedAtGameMinutes = tonumber(payload.startedAtGameMinutes) or nowGameMinutes(),
+        color = Boss.getThemeColor(payload.bijuuId),
+    }
+end
+
+function Renderer.removeSealingRitual(payload)
+    if payload and payload.ritualId then activeRituals[payload.ritualId] = nil end
+end
+
+local function ritualForRuntime(runtimeId)
+    for _, ritual in pairs(activeRituals) do
+        if ritual.bijuuRuntimeId == runtimeId then return ritual end
+    end
+    return nil
+end
+
+local function shellView(shell, distance)
+    local ritual = ritualForRuntime(shell.runtimeId)
+    return {
+        bijuuId = shell.bijuuId,
+        runtimeId = shell.runtimeId,
+        x = shell.lastKnownX,
+        y = shell.lastKnownY,
+        z = shell.lastKnownZ,
+        distance = distance,
+        currentHealth = shell.currentHealth,
+        maxHealth = shell.maxHealth,
+        nameKey = shell.config and shell.config.nameKey,
+        color = shell.config and shell.config.color,
+        sealing = ritual and {
+            ritualId = ritual.ritualId,
+            progress = ritual.progress,
+            vesselPower = ritual.vesselPower,
+        } or nil,
+    }
 end
 
 function Renderer.replaceShells(payload)
@@ -174,18 +225,28 @@ function Renderer.getNearestActiveShell(player, maximumDistance)
     end
 
     if not nearest then return nil end
-    return {
-        bijuuId = nearest.bijuuId,
-        runtimeId = nearest.runtimeId,
-        x = nearest.lastKnownX,
-        y = nearest.lastKnownY,
-        z = nearest.lastKnownZ,
-        distance = nearestDistance,
-        currentHealth = nearest.currentHealth,
-        maxHealth = nearest.maxHealth,
-        nameKey = nearest.config and nearest.config.nameKey,
-        color = nearest.config and nearest.config.color,
-    }
+    return shellView(nearest, nearestDistance)
+end
+
+
+function Renderer.getNearestActiveSealingShell(player, maximumDistance)
+    if not player or (player.isDead and player:isDead()) then return nil end
+    local px, py, pz = player:getX(), player:getY(), player:getZ()
+    local nearest, nearestDistance = nil, tonumber(maximumDistance) or math.huge
+    for _, shell in pairs(activeShells) do
+        local ritual = ritualForRuntime(shell.runtimeId)
+        if ritual then
+            local dx = shell.lastKnownX - px
+            local dy = shell.lastKnownY - py
+            local distance = math.sqrt(dx * dx + dy * dy)
+            if math.abs((shell.lastKnownZ or 0) - pz) < 1.5 and distance <= nearestDistance then
+                nearest = shell
+                nearestDistance = distance
+            end
+        end
+    end
+    if not nearest then return nil end
+    return shellView(nearest, nearestDistance)
 end
 
 local function normalizedFacing(shell)
@@ -494,8 +555,29 @@ local function drawTelegraph(telegraph, time)
     end
 end
 
+local function drawSealingRitual(ritual, time)
+    if nearestLocalPlayerDistance(ritual.vesselX, ritual.vesselY, ritual.vesselZ)
+            > ritual.ritualRadius + 10 then return end
+    local color = ritual.color or { r = 0.72, g = 0.45, b = 1.0 }
+    local pulse = 0.5 + 0.5 * math.sin((time - ritual.startedAtGameMinutes) * 22.0)
+    local vesselAlpha = 0.20 + pulse * 0.14
+    ring(ritual.vesselX, ritual.vesselY, ritual.vesselZ,
+        1.15 + pulse * 0.08, 32, 2.0,
+        color.r, color.g, color.b, vesselAlpha)
+    ring(ritual.vesselX, ritual.vesselY, ritual.vesselZ,
+        0.72, 24, 1.4,
+        math.min(1, color.r + 0.2), math.min(1, color.g + 0.2), math.min(1, color.b + 0.2), 0.24)
+
+    if ritual.ritualRadius > 0 then
+        ring(ritual.vesselX, ritual.vesselY, ritual.vesselZ,
+            ritual.ritualRadius, 96, 1.25,
+            color.r, color.g, color.b, 0.12 + pulse * 0.05)
+    end
+end
+
 function Renderer.renderAll(time)
     if not getCell or not getCell() then return end
+    for _, ritual in pairs(activeRituals) do drawSealingRitual(ritual, time) end
     for volleyId, telegraph in pairs(activeTelegraphs) do
         if time >= telegraph.endsAtGameMinutes then
             activeTelegraphs[volleyId] = nil
@@ -568,6 +650,12 @@ local function requestActiveShells(_, player)
         sendClientCommand(player, "NinjaLineages", "requestBijuuActiveShells", {})
     elseif NinjaLineages.BijuuBossServer and NinjaLineages.BijuuBossServer.getActiveShellPayloads then
         Renderer.replaceShells({ shells = NinjaLineages.BijuuBossServer.getActiveShellPayloads() })
+        local sealingServer = NinjaLineages.BijuuSealingServer
+        if sealingServer and sealingServer.getActiveRitualPayloads then
+            for _, ritual in ipairs(sealingServer.getActiveRitualPayloads()) do
+                Renderer.addSealingRitual(ritual)
+            end
+        end
     end
 end
 
@@ -577,6 +665,8 @@ Authority.registerEventHandler("bijuu_shell_health", Renderer.updateShellHealth)
 Authority.registerEventHandler("bijuu_telegraph_started", Renderer.addTelegraph)
 Authority.registerEventHandler("bijuu_telegraph_ended", Renderer.removeTelegraph)
 Authority.registerEventHandler("bijuu_active_shells", Renderer.replaceShells)
+Authority.registerEventHandler("bijuu_sealing_started", Renderer.addSealingRitual)
+Authority.registerEventHandler("bijuu_sealing_cancelled", Renderer.removeSealingRitual)
 
 if Events and Events.OnWeaponSwing then
     NinjaLineages.addEventOnce("client.bijuuRenderer.onWeaponSwing", Events.OnWeaponSwing, onWeaponSwing)

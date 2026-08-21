@@ -3,6 +3,7 @@ require "NinjaLineages_Balance"
 require "NinjaLineages_Constants"
 require "NinjaLineages_AbilityAuthority"
 require "NinjaLineages_JutsuCatalog"
+require "disciplines/jinchuuriki/NinjaLineages_BijuuSealing"
 require "NinjaLineages_RinneganMechanics"
 require "NinjaLineages_Utils"
 require "combat/NinjaLineages_Targeting"
@@ -265,6 +266,32 @@ specializedExecutors.smoke_bomb = function(player, definition)
     local placed = pcall(function() trap:place() end)
     if not placed then return false, "server_error" end
     commit(player, definition, resolved, cost)
+    NinjaLineages.transmitPlayerData(player)
+    return true
+end
+
+specializedExecutors.tailed_beast_sealing = function(player, definition, args)
+    local validRequirements, requirementReason = Catalog.checkRequirements(player, definition)
+    if not validRequirements then return false, requirementReason end
+    local resolved = Catalog.resolveBalance(definition)
+    local valid, reason, remaining, cost = validateCommit(player, definition, resolved)
+    if not valid then return false, reason, remaining end
+
+    local sealingServer = NinjaLineages.BijuuSealingServer
+    if not sealingServer or not sealingServer.prepareRitual then return false, "server_error" end
+    local prepared, prepareReason, ritual = sealingServer.prepareRitual(player, {
+        vesselItemId = args and args.vesselItemId,
+    })
+    if not prepared then return false, prepareReason end
+
+    if not commit(player, definition, resolved, cost) then
+        sealingServer.rollbackPreparedRitual(player, ritual)
+        return false, "chakra"
+    end
+    if not sealingServer.activatePreparedRitual(ritual) then
+        sealingServer.rollbackPreparedRitual(player, ritual)
+        return false, "server_error"
+    end
     NinjaLineages.transmitPlayerData(player)
     return true
 end
